@@ -93,10 +93,12 @@ export class MemStorage implements IStorage {
     };
     this.transactions.set(id, transaction);
 
-    // Update budget spent amount if it's an expense
+    // Update budget spent amount if it's an expense and within budget period
     if (transaction.type === "expense") {
       const budget = Array.from(this.budgets.values()).find(
-        (b) => b.category === transaction.category
+        (b) => b.category === transaction.category &&
+        new Date(b.startDate) <= transaction.date &&
+        new Date(b.endDate) >= transaction.date
       );
       if (budget) {
         const newSpent = parseFloat(budget.spent) + parseFloat(transaction.amount);
@@ -111,9 +113,11 @@ export class MemStorage implements IStorage {
   async deleteTransaction(id: number): Promise<void> {
     const transaction = this.transactions.get(id);
     if (transaction && transaction.type === "expense") {
-      // Update budget spent amount
+      // Update budget spent amount if within budget period
       const budget = Array.from(this.budgets.values()).find(
-        (b) => b.category === transaction.category
+        (b) => b.category === transaction.category &&
+        new Date(b.startDate) <= new Date(transaction.date) &&
+        new Date(b.endDate) >= new Date(transaction.date)
       );
       if (budget) {
         const newSpent = parseFloat(budget.spent) - parseFloat(transaction.amount);
@@ -139,6 +143,7 @@ export class MemStorage implements IStorage {
       ...insertBudget,
       id,
       spent: "0",
+      period: insertBudget.period || "monthly",
     };
     this.budgets.set(id, budget);
     return budget;
@@ -173,6 +178,7 @@ export class MemStorage implements IStorage {
       ...insertGoal,
       id,
       currentAmount: "0",
+      deadline: insertGoal.deadline || null,
     };
     this.savingsGoals.set(id, goal);
     return goal;

@@ -17,6 +17,8 @@ export const budgets = pgTable("budgets", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   spent: decimal("spent", { precision: 10, scale: 2 }).default("0").notNull(),
   period: text("period").default("monthly").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
   icon: text("icon").notNull(),
 });
 

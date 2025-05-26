@@ -24,6 +24,8 @@ const budgetSchema = z.object({
     "Amount must be a positive number"
   ),
   period: z.string().default("monthly"),
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().min(1, "End date is required"),
   icon: z.string().min(1, "Icon is required"),
 });
 
@@ -53,6 +55,8 @@ export default function Budgets() {
       category: "",
       amount: "",
       period: "monthly",
+      startDate: "",
+      endDate: "",
       icon: "",
     },
   });
@@ -105,6 +109,8 @@ export default function Budgets() {
       category: data.category,
       amount: data.amount,
       period: data.period,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
       icon: data.icon,
     });
   };
