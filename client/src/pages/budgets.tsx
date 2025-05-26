@@ -201,6 +201,42 @@ export default function Budgets() {
                   )}
                 />
 
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start Date</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="endDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>End Date</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <div className="flex space-x-4">
                   <Button
                     type="button"
@@ -267,7 +303,9 @@ export default function Budgets() {
                         <h3 className="font-medium text-gray-900 capitalize">
                           {budget.category.replace('_', ' ')}
                         </h3>
-                        <p className="text-xs text-gray-500">Monthly Budget</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(budget.startDate).toLocaleDateString()} - {new Date(budget.endDate).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
