@@ -62,7 +62,12 @@ export default function Transactions() {
   };
 
   const getCategoryIcon = (category: string, type: string) => {
+    // Special icons for different transaction types
     if (type === "income") return "💰";
+    if (type === "savings_deposit") return "🏦";
+    if (type === "savings_withdrawal") return "🏧";
+    if (type === "loan_received") return "📈";
+    if (type === "loan_payment") return "📉";
     
     const icons: Record<string, string> = {
       food: "🍽️",
@@ -72,6 +77,8 @@ export default function Transactions() {
       bills: "📄",
       healthcare: "🏥",
       education: "📚",
+      savings: "💳",
+      loan: "🏛️",
       other: "📝",
     };
     return icons[category] || "📝";

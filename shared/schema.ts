@@ -7,7 +7,7 @@ export const transactions = pgTable("transactions", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description").notNull(),
   category: text("category").notNull(),
-  type: text("type").notNull(), // 'income' or 'expense'
+  type: text("type").notNull(), // 'income', 'expense', 'savings_deposit', 'savings_withdrawal', 'loan_received', 'loan_payment'
   date: timestamp("date").defaultNow().notNull(),
 });
 

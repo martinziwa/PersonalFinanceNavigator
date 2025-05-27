@@ -21,7 +21,7 @@ const transactionSchema = z.object({
   ),
   description: z.string().min(1, "Description is required"),
   category: z.string().min(1, "Category is required"),
-  type: z.enum(["income", "expense"]),
+  type: z.enum(["income", "expense", "savings_deposit", "savings_withdrawal", "loan_received", "loan_payment"]),
 });
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
@@ -40,6 +40,8 @@ const categories = [
   { value: "healthcare", label: "Healthcare" },
   { value: "education", label: "Education" },
   { value: "income", label: "Income" },
+  { value: "savings", label: "Savings Account" },
+  { value: "loan", label: "Loan" },
   { value: "other", label: "Other" },
 ];
 
@@ -177,23 +179,22 @@ export default function TransactionModal({ isOpen, onClose }: TransactionModalPr
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Type</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex space-x-4"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="expense" id="expense" />
-                        <Label htmlFor="expense">Expense</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="income" id="income" />
-                        <Label htmlFor="income">Income</Label>
-                      </div>
-                    </RadioGroup>
-                  </FormControl>
+                  <FormLabel>Transaction Type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <SelectValue placeholder="Select transaction type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="income">💰 Income</SelectItem>
+                      <SelectItem value="expense">💸 Expense</SelectItem>
+                      <SelectItem value="savings_deposit">🏦 Savings Deposit</SelectItem>
+                      <SelectItem value="savings_withdrawal">🏧 Savings Withdrawal</SelectItem>
+                      <SelectItem value="loan_received">📈 Loan Received</SelectItem>
+                      <SelectItem value="loan_payment">📉 Loan Payment</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

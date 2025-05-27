@@ -53,7 +53,12 @@ export default function Home() {
   };
 
   const getCategoryIcon = (category: string, type: string) => {
+    // Special icons for different transaction types
     if (type === "income") return "💰";
+    if (type === "savings_deposit") return "🏦";
+    if (type === "savings_withdrawal") return "🏧";
+    if (type === "loan_received") return "📈";
+    if (type === "loan_payment") return "📉";
     
     const icons: Record<string, string> = {
       food: "🍽️",
@@ -63,6 +68,8 @@ export default function Home() {
       bills: "📄",
       healthcare: "🏥",
       education: "📚",
+      savings: "💳",
+      loan: "🏛️",
       other: "📝",
     };
     return icons[category] || "📝";
@@ -235,7 +242,8 @@ export default function Home() {
                 <div key={transaction.id} className="p-4 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      transaction.type === "income" ? "bg-green-100" : "bg-red-100"
+                      transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received"
+                        ? "bg-green-100" : "bg-red-100"
                     }`}>
                       <span className="text-sm">{getCategoryIcon(transaction.category, transaction.type)}</span>
                     </div>
@@ -248,9 +256,11 @@ export default function Home() {
                   </div>
                   <div className="text-right">
                     <div className={`font-semibold ${
-                      transaction.type === "income" ? "text-green-600" : "text-red-600"
+                      transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received" 
+                        ? "text-green-600" : "text-red-600"
                     }`}>
-                      {transaction.type === "income" ? "+" : "-"}{formatCurrency(parseFloat(transaction.amount))}
+                      {(transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received") ? "+" : "-"}
+                      {formatCurrency(parseFloat(transaction.amount))}
                     </div>
                   </div>
                 </div>
