@@ -71,8 +71,8 @@ export class DatabaseStorage implements IStorage {
       .values(insertTransaction)
       .returning();
 
-    // Update budget spent amount if it's an expense and within budget period
-    if (transaction.type === "expense") {
+    // Update budget spent amount if it's an expense or loan payment and within budget period
+    if (transaction.type === "expense" || transaction.type === "loan_payment") {
       const matchingBudgets = await db
         .select()
         .from(budgets)
@@ -99,7 +99,7 @@ export class DatabaseStorage implements IStorage {
   async deleteTransaction(id: number): Promise<void> {
     const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id));
     
-    if (transaction && transaction.type === "expense") {
+    if (transaction && (transaction.type === "expense" || transaction.type === "loan_payment")) {
       // Update budget spent amount if within budget period
       const matchingBudgets = await db
         .select()
@@ -254,11 +254,11 @@ export class DatabaseStorage implements IStorage {
     });
 
     const monthlyIncome = monthlyTransactions
-      .filter((t) => t.type === "income")
+      .filter((t) => t.type === "income" || t.type === "savings_withdrawal" || t.type === "loan_received")
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
     const monthlyExpenses = monthlyTransactions
-      .filter((t) => t.type === "expense")
+      .filter((t) => t.type === "expense" || t.type === "savings_deposit" || t.type === "loan_payment")
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
     const totalSavings = goals.reduce(

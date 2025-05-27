@@ -94,6 +94,8 @@ export default function Transactions() {
     { value: "healthcare", label: "Healthcare" },
     { value: "education", label: "Education" },
     { value: "income", label: "Income" },
+    { value: "savings", label: "Savings Account" },
+    { value: "loan", label: "Loan" },
     { value: "other", label: "Other" },
   ];
 
@@ -123,8 +125,12 @@ export default function Transactions() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="income">Income</SelectItem>
-              <SelectItem value="expense">Expense</SelectItem>
+              <SelectItem value="income">💰 Income</SelectItem>
+              <SelectItem value="expense">💸 Expense</SelectItem>
+              <SelectItem value="savings_deposit">🏦 Savings Deposit</SelectItem>
+              <SelectItem value="savings_withdrawal">🏧 Savings Withdrawal</SelectItem>
+              <SelectItem value="loan_received">📈 Loan Received</SelectItem>
+              <SelectItem value="loan_payment">📉 Loan Payment</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -170,7 +176,8 @@ export default function Transactions() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      transaction.type === "income" ? "bg-green-100" : "bg-red-100"
+                      transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received"
+                        ? "bg-green-100" : "bg-red-100"
                     }`}>
                       <span className="text-sm">{getCategoryIcon(transaction.category, transaction.type)}</span>
                     </div>
@@ -184,9 +191,11 @@ export default function Transactions() {
                   
                   <div className="flex items-center space-x-3">
                     <div className={`font-semibold ${
-                      transaction.type === "income" ? "text-green-600" : "text-red-600"
+                      transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received"
+                        ? "text-green-600" : "text-red-600"
                     }`}>
-                      {transaction.type === "income" ? "+" : "-"}{formatCurrency(parseFloat(transaction.amount))}
+                      {(transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received") ? "+" : "-"}
+                      {formatCurrency(parseFloat(transaction.amount))}
                     </div>
                     
                     <Button
