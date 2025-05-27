@@ -1,12 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { Home, List, PieChart, Target, BarChart3 } from "lucide-react";
+import { Home, List, PieChart, Target, MoreHorizontal } from "lucide-react";
 
 const navItems = [
   { path: "/", label: "Home", icon: Home },
   { path: "/transactions", label: "Transactions", icon: List },
   { path: "/budgets", label: "Budgets", icon: PieChart },
   { path: "/goals", label: "Goals", icon: Target },
-  { path: "/reports", label: "Reports", icon: BarChart3 },
+  { path: "/other", label: "Other", icon: MoreHorizontal },
 ];
 
 export default function BottomNavigation() {
