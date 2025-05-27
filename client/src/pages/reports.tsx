@@ -4,6 +4,7 @@ import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import StatCard from "@/components/ui/stat-card";
 import { useTransactions } from "@/hooks/use-transactions";
+import { formatCurrency } from "@/lib/currency";
 
 interface FinancialSummary {
   netWorth: number;
