@@ -20,12 +20,7 @@ export default function Reports() {
 
   const { data: transactions = [] } = useTransactions();
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
+
 
   // Calculate category spending
   const categorySpending = transactions

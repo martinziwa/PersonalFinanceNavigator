@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useBudgets } from "@/hooks/use-budgets";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/currency";
 import type { InsertBudget } from "@shared/schema";
 
 const budgetSchema = z.object({
@@ -122,12 +123,7 @@ export default function Budgets() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
+
 
   return (
     <div className="max-w-sm mx-auto bg-white min-h-screen relative">

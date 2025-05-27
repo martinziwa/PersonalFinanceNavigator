@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useGoals } from "@/hooks/use-goals";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/currency";
 import type { InsertSavingsGoal } from "@shared/schema";
 
 const goalSchema = z.object({
@@ -158,12 +159,7 @@ export default function Goals() {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
+
 
   return (
     <div className="max-w-sm mx-auto bg-white min-h-screen relative">
