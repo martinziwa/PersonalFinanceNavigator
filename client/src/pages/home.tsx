@@ -10,6 +10,7 @@ import { useTransactions } from "@/hooks/use-transactions";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useGoals } from "@/hooks/use-goals";
 import { useLoans } from "@/hooks/use-loans";
+import { formatCurrency } from "@/lib/currency";
 
 interface FinancialSummary {
   netWorth: number;
@@ -32,13 +33,6 @@ export default function Home() {
   const { data: loans = [] } = useLoans();
 
   const recentTransactions = transactions.slice(0, 4);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
 
   const formatDate = (date: string | Date) => {
     const d = new Date(date);

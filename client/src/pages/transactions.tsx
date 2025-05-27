@@ -46,12 +46,7 @@ export default function Transactions() {
     return true;
   });
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
+
 
   const formatDate = (date: string | Date) => {
     return new Date(date).toLocaleDateString("en-US", {
