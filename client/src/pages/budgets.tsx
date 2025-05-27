@@ -106,14 +106,15 @@ export default function Budgets() {
   });
 
   const onSubmit = (data: BudgetFormData) => {
-    createBudgetMutation.mutate({
+    const budgetData = {
       category: data.category,
       amount: data.amount,
       period: data.period,
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
+      startDate: data.startDate,
+      endDate: data.endDate,
       icon: data.icon,
-    });
+    };
+    createBudgetMutation.mutate(budgetData);
   };
 
   const handleCategoryChange = (category: string) => {

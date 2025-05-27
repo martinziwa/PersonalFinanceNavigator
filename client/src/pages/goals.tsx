@@ -131,13 +131,14 @@ export default function Goals() {
   });
 
   const onSubmit = (data: GoalFormData) => {
-    createGoalMutation.mutate({
+    const goalData = {
       name: data.name,
       targetAmount: data.targetAmount,
-      deadline: data.deadline ? new Date(data.deadline) : undefined,
+      deadline: data.deadline || undefined,
       icon: data.icon,
       color: data.color,
-    });
+    };
+    createGoalMutation.mutate(goalData);
   };
 
   const handleGoalTypeChange = (type: string) => {
