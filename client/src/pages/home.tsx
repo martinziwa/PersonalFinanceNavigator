@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { TrendingUp, ArrowDown, ArrowUp, Plus } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
@@ -159,7 +160,9 @@ export default function Home() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Budget Status</h2>
-            <button className="text-primary text-sm font-medium">Manage</button>
+            <Link href="/budgets">
+              <button className="text-primary text-sm font-medium">Manage</button>
+            </Link>
           </div>
 
           {budgets.length === 0 ? (
@@ -207,7 +210,9 @@ export default function Home() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Savings Goals</h2>
-            <button className="text-primary text-sm font-medium">Add Goal</button>
+            <Link href="/goals">
+              <button className="text-primary text-sm font-medium">Add Goal</button>
+            </Link>
           </div>
 
           {goals.length === 0 ? (
@@ -260,7 +265,9 @@ export default function Home() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
-            <button className="text-primary text-sm font-medium">View All</button>
+            <Link href="/transactions">
+              <button className="text-primary text-sm font-medium">View All</button>
+            </Link>
           </div>
 
           {recentTransactions.length === 0 ? (
@@ -305,7 +312,9 @@ export default function Home() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Active Loans</h2>
-            <button className="text-primary text-sm font-medium">Manage</button>
+            <Link href="/loans">
+              <button className="text-primary text-sm font-medium">Manage</button>
+            </Link>
           </div>
 
           {loans.length === 0 ? (
