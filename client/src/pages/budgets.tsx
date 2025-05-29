@@ -13,10 +13,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBudgets } from "@/hooks/use-budgets";
+import { useTransactions } from "@/hooks/use-transactions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
-import type { InsertBudget } from "@shared/schema";
+import type { InsertBudget, Transaction } from "@shared/schema";
 
 const budgetSchema = z.object({
   category: z.string().min(1, "Category is required"),
@@ -48,6 +49,27 @@ export default function Budgets() {
   const [editingBudget, setEditingBudget] = useState<any>(null);
   
   const { data: budgets = [], isLoading } = useBudgets();
+  const { data: transactions = [] } = useTransactions();
+
+  // Calculate actual spending for each budget category
+  const calculateSpentAmount = (budget: any) => {
+    const budgetStart = new Date(budget.startDate);
+    const budgetEnd = new Date(budget.endDate);
+    
+    const categoryTransactions = transactions.filter((transaction: Transaction) => {
+      const transactionDate = new Date(transaction.date);
+      return (
+        transaction.category === budget.category &&
+        transaction.type === 'expense' &&
+        transactionDate >= budgetStart &&
+        transactionDate <= budgetEnd
+      );
+    });
+
+    return categoryTransactions.reduce((total: number, transaction: Transaction) => {
+      return total + parseFloat(transaction.amount);
+    }, 0);
+  };
   const { toast } = useToast();
 
   const form = useForm<BudgetFormData>({
@@ -285,8 +307,9 @@ export default function Budgets() {
         ) : (
           <div className="space-y-4">
             {budgets.map((budget) => {
-              const percentage = (parseFloat(budget.spent) / parseFloat(budget.amount)) * 100;
-              const remaining = parseFloat(budget.amount) - parseFloat(budget.spent);
+              const actualSpent = calculateSpentAmount(budget);
+              const percentage = (actualSpent / parseFloat(budget.amount)) * 100;
+              const remaining = parseFloat(budget.amount) - actualSpent;
               const isOverBudget = percentage > 100;
               
               return (
@@ -308,7 +331,7 @@ export default function Budgets() {
                     <div className="flex items-center space-x-2">
                       <div className="text-right">
                         <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(parseFloat(budget.spent))} / {formatCurrency(parseFloat(budget.amount))}
+                          {formatCurrency(actualSpent)} / {formatCurrency(parseFloat(budget.amount))}
                         </div>
                         <div className={`text-xs ${
                           isOverBudget ? "text-red-600" : remaining < parseFloat(budget.amount) * 0.2 ? "text-yellow-600" : "text-green-600"
