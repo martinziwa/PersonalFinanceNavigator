@@ -87,10 +87,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
       const updates = req.body;
-      const updated = await storage.updateTransaction(userId, id, updates);
+      console.log("Update request:", { userId, id, updates });
+      
+      // Validate the update data
+      const validatedUpdates = insertTransactionSchema.partial().parse(updates);
+      console.log("Validated updates:", validatedUpdates);
+      
+      const updated = await storage.updateTransaction(userId, id, validatedUpdates);
       res.json(updated);
     } catch (error) {
-      res.status(400).json({ message: "Failed to update transaction" });
+      console.error("Transaction update error:", error);
+      res.status(400).json({ message: "Failed to update transaction", error: error.message });
     }
   });
 
