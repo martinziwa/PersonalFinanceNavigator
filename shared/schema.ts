@@ -51,11 +51,16 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({
 export const insertBudgetSchema = createInsertSchema(budgets).omit({
   id: true,
   spent: true,
+}).extend({
+  startDate: z.string().transform((val) => new Date(val)),
+  endDate: z.string().transform((val) => new Date(val)),
 });
 
 export const insertSavingsGoalSchema = createInsertSchema(savingsGoals).omit({
   id: true,
   currentAmount: true,
+}).extend({
+  deadline: z.string().optional().transform((val) => val ? new Date(val) : null),
 });
 
 export const insertLoanSchema = createInsertSchema(loans).omit({
