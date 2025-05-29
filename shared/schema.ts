@@ -10,6 +10,7 @@ export const transactions = pgTable("transactions", {
   category: text("category").notNull(),
   type: text("type").notNull(), // 'income', 'expense', 'savings_deposit', 'savings_withdrawal', 'loan_received', 'loan_payment'
   date: timestamp("date").defaultNow().notNull(),
+  savingsGoalId: integer("savings_goal_id").references(() => savingsGoals.id),
 });
 
 export const budgets = pgTable("budgets", {
@@ -77,6 +78,7 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({
   id: true,
 }).extend({
   date: z.string().transform((val) => new Date(val)),
+  savingsGoalId: z.number().optional(),
 });
 
 export const insertBudgetSchema = createInsertSchema(budgets).omit({

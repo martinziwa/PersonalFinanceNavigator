@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useGoals } from "@/hooks/use-goals";
 import type { InsertTransaction } from "@shared/schema";
 
 const transactionSchema = z.object({
@@ -23,6 +24,7 @@ const transactionSchema = z.object({
   category: z.string().min(1, "Category is required"),
   type: z.enum(["income", "expense", "savings_deposit", "savings_withdrawal", "loan_received", "loan_payment"]),
   date: z.string().min(1, "Date is required"),
+  savingsGoalId: z.string().optional(),
 });
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
@@ -49,6 +51,7 @@ const categories = [
 
 export default function TransactionModal({ isOpen, onClose, editingTransaction }: TransactionModalProps) {
   const { toast } = useToast();
+  const { data: goals = [] } = useGoals();
   
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
@@ -58,6 +61,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
       category: "",
       type: "expense",
       date: new Date().toISOString().split('T')[0], // Default to today's date
+      savingsGoalId: "",
     },
   });
 
@@ -112,25 +116,22 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
   });
 
   const onSubmit = (data: TransactionFormData) => {
+    const transactionData = {
+      amount: data.amount,
+      description: data.description,
+      category: data.category,
+      type: data.type,
+      date: new Date(data.date),
+      savingsGoalId: data.savingsGoalId && data.savingsGoalId !== "" ? parseInt(data.savingsGoalId) : undefined,
+    };
+
     if (editingTransaction) {
       updateTransactionMutation.mutate({
         id: editingTransaction.id,
-        data: {
-          amount: data.amount,
-          description: data.description,
-          category: data.category,
-          type: data.type,
-          date: new Date(data.date),
-        }
+        data: transactionData
       });
     } else {
-      createTransactionMutation.mutate({
-        amount: data.amount,
-        description: data.description,
-        category: data.category,
-        type: data.type,
-        date: new Date(data.date),
-      });
+      createTransactionMutation.mutate(transactionData);
     }
   };
 
