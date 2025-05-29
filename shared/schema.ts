@@ -94,7 +94,7 @@ export const insertSavingsGoalSchema = createInsertSchema(savingsGoals).omit({
   id: true,
   currentAmount: true,
 }).extend({
-  deadline: z.string().optional().transform((val) => val ? new Date(val) : null),
+  deadline: z.string().nullable().optional().transform((val) => val ? new Date(val) : null),
   startingSavings: z.string().optional().transform((val) => val ? val : "0"),
 });
 
