@@ -601,7 +601,7 @@ export default function Loans() {
                       <span className="font-medium">{interestRate}%</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Min Payment:</span>
+                      <span className="text-sm text-gray-500">Repayment Amount:</span>
                       <span className="font-medium">{formatCurrency(minPayment)}</span>
                     </div>
                     <div className="flex justify-between border-t pt-2">

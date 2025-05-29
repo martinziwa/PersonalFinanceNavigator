@@ -340,7 +340,7 @@ export default function Home() {
                       <div>
                         <h3 className="font-medium text-gray-900">{loan.name}</h3>
                         <p className="text-xs text-gray-500">
-                          Min payment: {formatCurrency(parseFloat(loan.minPayment))}
+                          Repayment amount: {formatCurrency(parseFloat(loan.minPayment))}
                         </p>
                       </div>
                     </div>
