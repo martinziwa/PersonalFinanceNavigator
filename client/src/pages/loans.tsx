@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -51,10 +51,8 @@ const loanSchema = z.object({
   repaymentFrequency: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"], {
     required_error: "Please select repayment frequency"
   }),
-  minPayment: z.string().min(1, "Repayment amount is required").refine(
-    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
-    "Repayment amount must be a positive number"
-  ),
+  minPayment: z.string().optional(),
+  payoffTime: z.string().optional(),
   dueDate: z.string().min(1, "Due date is required"),
 });
 
@@ -87,6 +85,82 @@ export default function Loans() {
       dueDate: "",
     },
   });
+
+  // Calculate payoff time from payment amount
+  const calculatePayoffTime = (balance: number, rate: number, payment: number, interestType: string, interestPeriod: string, repaymentFreq: string): number => {
+    if (balance <= 0 || rate < 0 || payment <= 0) return 0;
+    
+    const periodsPerYear = getPeriodsPerYear(repaymentFreq);
+    const interestPeriodsPerYear = getPeriodsPerYear(interestPeriod);
+    const effectiveRate = rate / 100 / interestPeriodsPerYear;
+    
+    if (interestType === "simple") {
+      // Simple interest calculation
+      const totalInterestPerPeriod = balance * effectiveRate * (interestPeriodsPerYear / periodsPerYear);
+      const principalPerPayment = payment - totalInterestPerPeriod;
+      if (principalPerPayment <= 0) return Infinity;
+      return Math.ceil(balance / principalPerPayment);
+    } else {
+      // Compound interest calculation
+      const periodicRate = effectiveRate * (interestPeriodsPerYear / periodsPerYear);
+      if (periodicRate === 0) return Math.ceil(balance / payment);
+      if (payment <= balance * periodicRate) return Infinity;
+      
+      return Math.ceil(Math.log(1 + (balance * periodicRate) / payment) / Math.log(1 + periodicRate));
+    }
+  };
+
+  // Calculate required payment from payoff time
+  const calculateRequiredPayment = (balance: number, rate: number, periods: number, interestType: string, interestPeriod: string, repaymentFreq: string): number => {
+    if (balance <= 0 || rate < 0 || periods <= 0) return 0;
+    
+    const periodsPerYear = getPeriodsPerYear(repaymentFreq);
+    const interestPeriodsPerYear = getPeriodsPerYear(interestPeriod);
+    const effectiveRate = rate / 100 / interestPeriodsPerYear;
+    
+    if (interestType === "simple") {
+      // Simple interest calculation
+      const totalInterestPerPeriod = balance * effectiveRate * (interestPeriodsPerYear / periodsPerYear);
+      const principalPerPayment = balance / periods;
+      return principalPerPayment + totalInterestPerPeriod;
+    } else {
+      // Compound interest calculation
+      const periodicRate = effectiveRate * (interestPeriodsPerYear / periodsPerYear);
+      if (periodicRate === 0) return balance / periods;
+      
+      return (balance * periodicRate * Math.pow(1 + periodicRate, periods)) / (Math.pow(1 + periodicRate, periods) - 1);
+    }
+  };
+
+  // Watch form values for real-time calculations
+  const watchedValues = form.watch();
+  
+  // Real-time calculation effect
+  React.useEffect(() => {
+    const { balance, interestRate, minPayment, payoffTime, interestType, interestPeriod, repaymentFrequency } = watchedValues;
+    
+    const balanceNum = parseFloat(balance || "0");
+    const rateNum = parseFloat(interestRate || "0");
+    const paymentNum = parseFloat(minPayment || "0");
+    const timeNum = parseFloat(payoffTime || "0");
+    
+    if (balanceNum > 0 && rateNum >= 0 && interestType && interestPeriod && repaymentFrequency) {
+      // If payment is entered but not payoff time, calculate payoff time
+      if (paymentNum > 0 && !payoffTime) {
+        const calculatedTime = calculatePayoffTime(balanceNum, rateNum, paymentNum, interestType, interestPeriod, repaymentFrequency);
+        if (calculatedTime !== Infinity && calculatedTime > 0) {
+          form.setValue("payoffTime", calculatedTime.toString(), { shouldValidate: false });
+        }
+      }
+      // If payoff time is entered but not payment, calculate required payment
+      else if (timeNum > 0 && !minPayment) {
+        const calculatedPayment = calculateRequiredPayment(balanceNum, rateNum, timeNum, interestType, interestPeriod, repaymentFrequency);
+        if (calculatedPayment > 0) {
+          form.setValue("minPayment", calculatedPayment.toFixed(2), { shouldValidate: false });
+        }
+      }
+    }
+  }, [watchedValues, form]);
 
   const createLoanMutation = useMutation({
     mutationFn: async (data: InsertLoan) => {
@@ -167,8 +241,8 @@ export default function Loans() {
       interestType: data.interestType,
       interestPeriod: data.interestPeriod,
       repaymentFrequency: data.repaymentFrequency,
-      minPayment: data.minPayment,
-      nextPaymentDate: data.dueDate,
+      minPayment: data.minPayment || "0",
+      nextPaymentDate: new Date(data.dueDate),
       icon: "💳",
       color: "#DC2626",
     };
@@ -461,6 +535,26 @@ export default function Loans() {
                           type="number"
                           step="0.01"
                           placeholder="0.00"
+                          className="px-4 py-3 border border-gray-300 rounded-xl"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="payoffTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payoff Time (periods)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          step="1"
+                          placeholder="Number of payment periods"
                           className="px-4 py-3 border border-gray-300 rounded-xl"
                         />
                       </FormControl>
