@@ -82,6 +82,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/transactions/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      const updated = await storage.updateTransaction(userId, id, updates);
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update transaction" });
+    }
+  });
+
   app.delete("/api/transactions/:id", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
