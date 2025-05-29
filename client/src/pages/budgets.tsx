@@ -220,10 +220,10 @@ export default function Budgets() {
   };
 
   return (
-    <div className="max-w-sm mx-auto bg-white min-h-screen relative">
+    <div className="max-w-sm mx-auto bg-white min-h-screen relative flex flex-col">
       <Header title="Budgets" subtitle="Manage your spending" />
       
-      <main className="pb-20 px-4 space-y-4 pt-4">
+      <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4">
         {/* Add Budget Button */}
         <Button 
           onClick={handleCreateNew}

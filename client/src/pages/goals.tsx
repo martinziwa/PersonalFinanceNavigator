@@ -163,10 +163,10 @@ export default function Goals() {
 
 
   return (
-    <div className="max-w-sm mx-auto bg-white min-h-screen relative">
+    <div className="max-w-sm mx-auto bg-white min-h-screen relative flex flex-col">
       <Header title="Savings Goals" subtitle="Track your progress" />
       
-      <main className="pb-20 px-4 space-y-4 pt-4">
+      <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4">
         {/* Add Goal Button */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
