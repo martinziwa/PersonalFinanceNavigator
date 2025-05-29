@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Plus, Trash2, Calculator } from "lucide-react";
+import { Plus, Trash2, Calculator, Edit } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,7 @@ const loanTypes = [
 
 export default function Loans() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingLoan, setEditingLoan] = useState<any>(null);
   
   const { data: loans = [], isLoading } = useLoans();
   const { toast } = useToast();
@@ -106,6 +107,31 @@ export default function Loans() {
       toast({
         title: "Error",
         description: "Failed to add loan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateLoanMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertLoan> }) => {
+      const response = await apiRequest("PUT", `/api/loans/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
+      toast({
+        title: "Success",
+        description: "Loan updated successfully",
+      });
+      setIsDialogOpen(false);
+      setEditingLoan(null);
+      form.reset();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update loan",
         variant: "destructive",
       });
     },
@@ -146,7 +172,47 @@ export default function Loans() {
       icon: "💳",
       color: "#DC2626",
     };
-    createLoanMutation.mutate(loanData);
+    
+    if (editingLoan) {
+      updateLoanMutation.mutate({ id: editingLoan.id, data: loanData });
+    } else {
+      createLoanMutation.mutate(loanData);
+    }
+  };
+
+  const openEditDialog = (loan: any) => {
+    setEditingLoan(loan);
+    const nextPaymentDate = new Date(loan.nextPaymentDate);
+    const formattedDate = nextPaymentDate.toISOString().split('T')[0];
+    
+    form.reset({
+      name: loan.name,
+      principalAmount: loan.principalAmount || "",
+      balance: loan.balance,
+      interestRate: loan.interestRate,
+      interestType: loan.interestType || "compound",
+      interestPeriod: loan.interestPeriod || "monthly",
+      repaymentFrequency: loan.repaymentFrequency || "monthly",
+      minPayment: loan.minPayment,
+      dueDate: formattedDate,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const openCreateDialog = () => {
+    setEditingLoan(null);
+    form.reset({
+      name: "",
+      principalAmount: "",
+      balance: "",
+      interestRate: "",
+      interestType: "compound",
+      interestPeriod: "monthly",
+      repaymentFrequency: "monthly",
+      minPayment: "",
+      dueDate: "",
+    });
+    setIsDialogOpen(true);
   };
 
   const calculateMonthsToPayoff = (balance: number, payment: number, rate: number, interestType: string = "compound") => {
@@ -178,16 +244,15 @@ export default function Loans() {
       
       <main className="pb-20 px-4 space-y-6 pt-4">
         {/* Add Loan Button */}
+        <Button onClick={openCreateDialog} className="w-full bg-primary text-white rounded-xl py-3">
+          <Plus className="h-5 w-5 mr-2" />
+          Add Loan
+        </Button>
+
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full bg-primary text-white rounded-xl py-3">
-              <Plus className="h-5 w-5 mr-2" />
-              Add Loan
-            </Button>
-          </DialogTrigger>
           <DialogContent className="max-w-sm mx-auto max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add New Loan</DialogTitle>
+              <DialogTitle>{editingLoan ? "Edit Loan" : "Add New Loan"}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
