@@ -51,9 +51,9 @@ const loanSchema = z.object({
   repaymentFrequency: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"], {
     required_error: "Please select repayment frequency"
   }),
-  minPayment: z.string().min(1, "Minimum payment is required").refine(
+  minPayment: z.string().min(1, "Repayment amount is required").refine(
     (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
-    "Minimum payment must be a positive number"
+    "Repayment amount must be a positive number"
   ),
   dueDate: z.string().min(1, "Due date is required"),
 });
@@ -343,7 +343,7 @@ export default function Loans() {
                   name="minPayment"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Minimum Payment</FormLabel>
+                      <FormLabel>Repayment Amount (MWK)</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
