@@ -139,10 +139,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
       const updates = req.body;
-      const updated = await storage.updateBudget(userId, id, updates);
+      console.log("Budget update request:", { userId, id, updates });
+      
+      // Validate the update data
+      const validatedUpdates = insertBudgetSchema.partial().parse(updates);
+      console.log("Validated budget updates:", validatedUpdates);
+      
+      const updated = await storage.updateBudget(userId, id, validatedUpdates);
       res.json(updated);
     } catch (error) {
-      res.status(400).json({ message: "Failed to update budget" });
+      console.error("Budget update error:", error);
+      res.status(400).json({ message: "Failed to update budget", error: error.message });
     }
   });
 
