@@ -209,13 +209,18 @@ export default function Budgets() {
     setIsDialogOpen(true);
   };
 
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEditingBudget(null);
+  };
+
   return (
     <div className="max-w-sm mx-auto bg-white min-h-screen relative">
       <Header title="Budgets" subtitle="Manage your spending" />
       
       <main className="pb-20 px-4 space-y-4 pt-4">
         {/* Add Budget Button */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
           <DialogTrigger asChild>
             <Button className="w-full bg-primary text-white py-3">
               <Plus className="h-4 w-4 mr-2" />
@@ -321,18 +326,21 @@ export default function Budgets() {
                   <Button
                     type="button"
                     variant="secondary"
-                    onClick={() => setIsDialogOpen(false)}
+                    onClick={handleCloseDialog}
                     className="flex-1"
-                    disabled={createBudgetMutation.isPending}
+                    disabled={createBudgetMutation.isPending || updateBudgetMutation.isPending}
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
                     className="flex-1 bg-primary text-white"
-                    disabled={createBudgetMutation.isPending}
+                    disabled={createBudgetMutation.isPending || updateBudgetMutation.isPending}
                   >
-                    {createBudgetMutation.isPending ? "Creating..." : "Create Budget"}
+                    {editingBudget
+                      ? (updateBudgetMutation.isPending ? "Updating..." : "Update Budget")
+                      : (createBudgetMutation.isPending ? "Creating..." : "Create Budget")
+                    }
                   </Button>
                 </div>
               </form>
