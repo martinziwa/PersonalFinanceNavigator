@@ -165,7 +165,7 @@ export default function Loans() {
               Add Loan
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-sm mx-auto">
+          <DialogContent className="max-w-sm mx-auto max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Loan</DialogTitle>
             </DialogHeader>
