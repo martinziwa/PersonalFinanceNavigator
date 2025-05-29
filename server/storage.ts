@@ -3,6 +3,7 @@ import {
   budgets,
   savingsGoals,
   loans,
+  users,
   type Transaction,
   type InsertTransaction,
   type Budget,
@@ -11,40 +12,46 @@ import {
   type InsertSavingsGoal,
   type Loan,
   type InsertLoan,
+  type User,
+  type UpsertUser,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
+  // User operations (IMPORTANT) these user operations are mandatory for Replit Auth.
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+
   // Transactions
-  getTransactions(): Promise<Transaction[]>;
-  getTransactionsByCategory(category: string): Promise<Transaction[]>;
-  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
-  deleteTransaction(id: number): Promise<void>;
+  getTransactions(userId: string): Promise<Transaction[]>;
+  getTransactionsByCategory(userId: string, category: string): Promise<Transaction[]>;
+  createTransaction(userId: string, transaction: InsertTransaction): Promise<Transaction>;
+  deleteTransaction(userId: string, id: number): Promise<void>;
 
   // Budgets
-  getBudgets(): Promise<Budget[]>;
-  getBudget(id: number): Promise<Budget | undefined>;
-  createBudget(budget: InsertBudget): Promise<Budget>;
-  updateBudget(id: number, budget: Partial<Budget>): Promise<Budget>;
-  deleteBudget(id: number): Promise<void>;
+  getBudgets(userId: string): Promise<Budget[]>;
+  getBudget(userId: string, id: number): Promise<Budget | undefined>;
+  createBudget(userId: string, budget: InsertBudget): Promise<Budget>;
+  updateBudget(userId: string, id: number, budget: Partial<Budget>): Promise<Budget>;
+  deleteBudget(userId: string, id: number): Promise<void>;
 
   // Savings Goals
-  getSavingsGoals(): Promise<SavingsGoal[]>;
-  getSavingsGoal(id: number): Promise<SavingsGoal | undefined>;
-  createSavingsGoal(goal: InsertSavingsGoal): Promise<SavingsGoal>;
-  updateSavingsGoal(id: number, goal: Partial<SavingsGoal>): Promise<SavingsGoal>;
-  deleteSavingsGoal(id: number): Promise<void>;
+  getSavingsGoals(userId: string): Promise<SavingsGoal[]>;
+  getSavingsGoal(userId: string, id: number): Promise<SavingsGoal | undefined>;
+  createSavingsGoal(userId: string, goal: InsertSavingsGoal): Promise<SavingsGoal>;
+  updateSavingsGoal(userId: string, id: number, goal: Partial<SavingsGoal>): Promise<SavingsGoal>;
+  deleteSavingsGoal(userId: string, id: number): Promise<void>;
 
   // Loans
-  getLoans(): Promise<Loan[]>;
-  getLoan(id: number): Promise<Loan | undefined>;
-  createLoan(loan: InsertLoan): Promise<Loan>;
-  updateLoan(id: number, loan: Partial<Loan>): Promise<Loan>;
-  deleteLoan(id: number): Promise<void>;
+  getLoans(userId: string): Promise<Loan[]>;
+  getLoan(userId: string, id: number): Promise<Loan | undefined>;
+  createLoan(userId: string, loan: InsertLoan): Promise<Loan>;
+  updateLoan(userId: string, id: number, loan: Partial<Loan>): Promise<Loan>;
+  deleteLoan(userId: string, id: number): Promise<void>;
 
   // Financial Summary
-  getFinancialSummary(): Promise<{
+  getFinancialSummary(userId: string): Promise<{
     netWorth: number;
     monthlyIncome: number;
     monthlyExpenses: number;
