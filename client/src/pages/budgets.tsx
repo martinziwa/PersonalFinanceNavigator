@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -127,16 +127,48 @@ export default function Budgets() {
     },
   });
 
+  const updateBudgetMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertBudget> }) => {
+      const response = await apiRequest("PUT", `/api/budgets/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      toast({
+        title: "Success",
+        description: "Budget updated successfully",
+      });
+      form.reset();
+      setIsDialogOpen(false);
+      setEditingBudget(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update budget",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: BudgetFormData) => {
     const budgetData = {
       category: data.category,
       amount: data.amount,
       period: data.period,
-      startDate: data.startDate,
-      endDate: data.endDate,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
       icon: data.icon,
     };
-    createBudgetMutation.mutate(budgetData);
+    
+    if (editingBudget) {
+      updateBudgetMutation.mutate({
+        id: editingBudget.id,
+        data: budgetData
+      });
+    } else {
+      createBudgetMutation.mutate(budgetData);
+    }
   };
 
   const handleCategoryChange = (category: string) => {
@@ -146,7 +178,36 @@ export default function Budgets() {
     }
   };
 
+  // Pre-populate form when editing
+  React.useEffect(() => {
+    if (editingBudget && isDialogOpen) {
+      const startDate = new Date(editingBudget.startDate);
+      const endDate = new Date(editingBudget.endDate);
+      
+      form.reset({
+        category: editingBudget.category,
+        amount: editingBudget.amount,
+        period: editingBudget.period,
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        icon: editingBudget.icon,
+      });
+    } else if (!editingBudget && isDialogOpen) {
+      form.reset({
+        category: "",
+        amount: "",
+        period: "monthly",
+        startDate: "",
+        endDate: "",
+        icon: "",
+      });
+    }
+  }, [editingBudget, isDialogOpen, form]);
 
+  const handleEditBudget = (budget: any) => {
+    setEditingBudget(budget);
+    setIsDialogOpen(true);
+  };
 
   return (
     <div className="max-w-sm mx-auto bg-white min-h-screen relative">
@@ -163,7 +224,7 @@ export default function Budgets() {
           </DialogTrigger>
           <DialogContent className="max-w-sm mx-auto">
             <DialogHeader>
-              <DialogTitle>Create Budget</DialogTitle>
+              <DialogTitle>{editingBudget ? "Edit Budget" : "Create Budget"}</DialogTitle>
             </DialogHeader>
             
             <Form {...form}>
@@ -342,6 +403,14 @@ export default function Budgets() {
                           }
                         </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditBudget(budget)}
+                        className="p-2 text-blue-600 hover:bg-blue-50"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
