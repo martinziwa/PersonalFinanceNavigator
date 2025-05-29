@@ -214,19 +214,26 @@ export default function Budgets() {
     setEditingBudget(null);
   };
 
+  const handleCreateNew = () => {
+    setEditingBudget(null);
+    setIsDialogOpen(true);
+  };
+
   return (
     <div className="max-w-sm mx-auto bg-white min-h-screen relative">
       <Header title="Budgets" subtitle="Manage your spending" />
       
       <main className="pb-20 px-4 space-y-4 pt-4">
         {/* Add Budget Button */}
+        <Button 
+          onClick={handleCreateNew}
+          className="w-full bg-primary text-white py-3"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Create New Budget
+        </Button>
+
         <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
-          <DialogTrigger asChild>
-            <Button className="w-full bg-primary text-white py-3">
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Budget
-            </Button>
-          </DialogTrigger>
           <DialogContent className="max-w-sm mx-auto">
             <DialogHeader>
               <DialogTitle>{editingBudget ? "Edit Budget" : "Create Budget"}</DialogTitle>
