@@ -36,13 +36,13 @@ export default function Home() {
 
   const recentTransactions = transactions.slice(0, 4);
 
-  // Calculate actual savings for a goal based on transactions
-  const calculateGoalProgress = (goalId: number) => {
+  // Calculate actual savings for a goal based on starting savings plus transactions
+  const calculateGoalProgress = (goalId: number, startingSavings: string = "0") => {
     const goalTransactions = transactions.filter((transaction: Transaction) => 
       transaction.savingsGoalId === goalId
     );
     
-    return goalTransactions.reduce((total: number, transaction: Transaction) => {
+    const transactionTotal = goalTransactions.reduce((total: number, transaction: Transaction) => {
       if (transaction.type === 'savings_deposit') {
         return total + parseFloat(transaction.amount);
       } else if (transaction.type === 'savings_withdrawal') {
@@ -50,6 +50,8 @@ export default function Home() {
       }
       return total;
     }, 0);
+    
+    return parseFloat(startingSavings) + transactionTotal;
   };
 
   // Calculate aggregate amounts
@@ -241,7 +243,7 @@ export default function Home() {
             </div>
           ) : (
             goals.slice(0, 2).map((goal) => {
-              const actualSavings = calculateGoalProgress(goal.id);
+              const actualSavings = calculateGoalProgress(goal.id, goal.startingSavings);
               const targetAmount = parseFloat(goal.targetAmount);
               const percentage = (actualSavings / targetAmount) * 100;
               const remaining = targetAmount - actualSavings;

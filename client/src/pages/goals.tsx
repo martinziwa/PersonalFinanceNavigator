@@ -54,13 +54,13 @@ export default function Goals() {
   const { data: transactions = [] } = useTransactions();
   const { toast } = useToast();
 
-  // Calculate actual savings for a goal based on transactions
-  const calculateGoalProgress = (goalId: number) => {
+  // Calculate actual savings for a goal based on starting savings plus transactions
+  const calculateGoalProgress = (goalId: number, startingSavings: string = "0") => {
     const goalTransactions = transactions.filter((transaction: Transaction) => 
       transaction.savingsGoalId === goalId
     );
     
-    return goalTransactions.reduce((total: number, transaction: Transaction) => {
+    const transactionTotal = goalTransactions.reduce((total: number, transaction: Transaction) => {
       if (transaction.type === 'savings_deposit') {
         return total + parseFloat(transaction.amount);
       } else if (transaction.type === 'savings_withdrawal') {
@@ -68,6 +68,8 @@ export default function Goals() {
       }
       return total;
     }, 0);
+    
+    return parseFloat(startingSavings) + transactionTotal;
   };
 
   const form = useForm<GoalFormData>({
@@ -379,7 +381,7 @@ export default function Goals() {
         ) : (
           <div className="space-y-4">
             {goals.map((goal) => {
-              const actualSavings = calculateGoalProgress(goal.id);
+              const actualSavings = calculateGoalProgress(goal.id, goal.startingSavings);
               const targetAmount = parseFloat(goal.targetAmount);
               const percentage = (actualSavings / targetAmount) * 100;
               const remaining = targetAmount - actualSavings;
