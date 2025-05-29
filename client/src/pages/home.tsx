@@ -241,8 +241,10 @@ export default function Home() {
             </div>
           ) : (
             goals.slice(0, 2).map((goal) => {
-              const percentage = (parseFloat(goal.currentAmount) / parseFloat(goal.targetAmount)) * 100;
-              const remaining = parseFloat(goal.targetAmount) - parseFloat(goal.currentAmount);
+              const actualSavings = calculateGoalProgress(goal.id);
+              const targetAmount = parseFloat(goal.targetAmount);
+              const percentage = (actualSavings / targetAmount) * 100;
+              const remaining = targetAmount - actualSavings;
               
               return (
                 <div key={goal.id} className="bg-white rounded-xl p-4 border border-gray-100">
@@ -266,8 +268,8 @@ export default function Home() {
                   </div>
                   <div className="mb-2">
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">{formatCurrency(parseFloat(goal.currentAmount))}</span>
-                      <span className="text-gray-900 font-medium">{formatCurrency(parseFloat(goal.targetAmount))}</span>
+                      <span className="text-gray-600">{formatCurrency(actualSavings)}</span>
+                      <span className="text-gray-900 font-medium">{formatCurrency(targetAmount)}</span>
                     </div>
                     <ProgressBar percentage={percentage} color={`bg-[${goal.color}]`} />
                   </div>
