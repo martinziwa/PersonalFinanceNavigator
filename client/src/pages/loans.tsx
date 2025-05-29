@@ -11,10 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useLoans } from "@/hooks/use-loans";
+import { useTransactions } from "@/hooks/use-transactions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
-import type { InsertLoan } from "@shared/schema";
+import ProgressBar from "@/components/ui/progress-bar";
+import type { InsertLoan, Transaction } from "@shared/schema";
 
 const frequencyOptions = [
   { value: "daily", label: "Daily" },
@@ -73,7 +75,37 @@ export default function Loans() {
   const [editingLoan, setEditingLoan] = useState<any>(null);
   
   const { data: loans = [], isLoading } = useLoans();
+  const { data: transactions = [] } = useTransactions();
   const { toast } = useToast();
+
+  // Calculate loan progress based on principal amount, current balance, and payments
+  const calculateLoanProgress = (loanId: number, principalAmount: string, currentBalance: string) => {
+    const principal = parseFloat(principalAmount || "0");
+    const balance = parseFloat(currentBalance || "0");
+    
+    // Find all loan payment transactions for this specific loan
+    const loanPayments = transactions.filter((transaction: Transaction) => 
+      transaction.loanId === loanId && transaction.type === 'loan_payment'
+    );
+    
+    // Calculate total payments made through transactions
+    const totalPayments = loanPayments.reduce((total: number, transaction: Transaction) => {
+      return total + parseFloat(transaction.amount);
+    }, 0);
+    
+    // Calculate amount repaid: original principal - current balance + additional payments
+    const baseRepaid = Math.max(0, principal - balance);
+    const totalRepaid = baseRepaid + totalPayments;
+    
+    // Progress percentage
+    const progressPercentage = principal > 0 ? (totalRepaid / principal) * 100 : 0;
+    
+    return {
+      totalRepaid,
+      progressPercentage: Math.min(progressPercentage, 100), // Cap at 100%
+      remainingBalance: Math.max(0, principal - totalRepaid)
+    };
+  };
 
   const form = useForm<LoanFormData>({
     resolver: zodResolver(loanSchema),
@@ -657,6 +689,8 @@ export default function Loans() {
                 return `${periods} payments`;
               };
 
+              const loanProgress = calculateLoanProgress(loan.id, loan.principalAmount || "0", loan.balance);
+              
               return (
                 <div key={loan.id} className="bg-white rounded-xl p-4 border border-gray-100">
                   <div className="flex items-center justify-between mb-3">
@@ -690,6 +724,27 @@ export default function Loans() {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Loan Progress Bar */}
+                  {loan.principalAmount && parseFloat(loan.principalAmount) > 0 && (
+                    <div className="mb-4">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-600">
+                          Repaid: {formatCurrency(loanProgress.totalRepaid)}
+                        </span>
+                        <span className="font-medium text-green-600">
+                          {Math.round(loanProgress.progressPercentage)}%
+                        </span>
+                      </div>
+                      <ProgressBar
+                        percentage={loanProgress.progressPercentage}
+                        color="#10B981"
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        {formatCurrency(loanProgress.remainingBalance)} remaining of {formatCurrency(parseFloat(loan.principalAmount))} original loan
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-3">
                     <div className="flex justify-between">
