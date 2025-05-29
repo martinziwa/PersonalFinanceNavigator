@@ -69,7 +69,14 @@ export default function Goals() {
       return total;
     }, 0);
     
-    return parseFloat(startingSavings) + transactionTotal;
+    const startingAmount = parseFloat(startingSavings);
+    const totalAmount = startingAmount + transactionTotal;
+    
+    return {
+      total: totalAmount,
+      startingAmount,
+      transactionAmount: transactionTotal
+    };
   };
 
   const form = useForm<GoalFormData>({
@@ -381,10 +388,10 @@ export default function Goals() {
         ) : (
           <div className="space-y-4">
             {goals.map((goal) => {
-              const actualSavings = calculateGoalProgress(goal.id, goal.startingSavings);
+              const savingsData = calculateGoalProgress(goal.id, goal.startingSavings);
               const targetAmount = parseFloat(goal.targetAmount);
-              const percentage = (actualSavings / targetAmount) * 100;
-              const remaining = targetAmount - actualSavings;
+              const percentage = (savingsData.total / targetAmount) * 100;
+              const remaining = targetAmount - savingsData.total;
               const isCompleted = percentage >= 100;
               
 
@@ -444,7 +451,7 @@ export default function Goals() {
                   <div className="mb-2">
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-gray-600">
-                        {formatCurrency(actualSavings)}
+                        {formatCurrency(savingsData.total)}
                       </span>
                       <span className="text-gray-900 font-medium">
                         {formatCurrency(targetAmount)}
@@ -455,6 +462,35 @@ export default function Goals() {
                       color={isCompleted ? "#10B981" : goal.color}
                     />
                   </div>
+                  
+                  {/* Savings Breakdown */}
+                  {(savingsData.startingAmount > 0 || savingsData.transactionAmount !== 0) && (
+                    <div className="mb-2 p-2 bg-gray-50 rounded-lg">
+                      <div className="text-xs text-gray-600 mb-1">Savings Breakdown:</div>
+                      <div className="space-y-1 text-xs">
+                        {savingsData.startingAmount > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Starting savings:</span>
+                            <span className="font-medium">{formatCurrency(savingsData.startingAmount)}</span>
+                          </div>
+                        )}
+                        {savingsData.transactionAmount !== 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">
+                              {savingsData.transactionAmount >= 0 ? 'Deposits:' : 'Net withdrawals:'}
+                            </span>
+                            <span className={`font-medium ${savingsData.transactionAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {savingsData.transactionAmount >= 0 ? '+' : ''}{formatCurrency(savingsData.transactionAmount)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between border-t border-gray-200 pt-1">
+                          <span className="text-gray-700 font-medium">Total:</span>
+                          <span className="font-semibold">{formatCurrency(savingsData.total)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="text-xs text-gray-500">
                     {isCompleted ? 
