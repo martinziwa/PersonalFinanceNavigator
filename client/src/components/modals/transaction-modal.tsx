@@ -22,6 +22,7 @@ const transactionSchema = z.object({
   description: z.string().min(1, "Description is required"),
   category: z.string().min(1, "Category is required"),
   type: z.enum(["income", "expense", "savings_deposit", "savings_withdrawal", "loan_received", "loan_payment"]),
+  date: z.string().min(1, "Date is required"),
 });
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
@@ -55,6 +56,7 @@ export default function TransactionModal({ isOpen, onClose }: TransactionModalPr
       description: "",
       category: "",
       type: "expense",
+      date: new Date().toISOString().split('T')[0], // Default to today's date
     },
   });
 
@@ -89,6 +91,7 @@ export default function TransactionModal({ isOpen, onClose }: TransactionModalPr
       description: data.description,
       category: data.category,
       type: data.type,
+      date: new Date(data.date),
     });
   };
 
@@ -169,6 +172,24 @@ export default function TransactionModal({ isOpen, onClose }: TransactionModalPr
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Date</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="date"
+                      className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
