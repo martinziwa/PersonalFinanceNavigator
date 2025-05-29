@@ -372,6 +372,8 @@ export default function Goals() {
               const remaining = targetAmount - actualSavings;
               const isCompleted = percentage >= 100;
               
+
+              
               return (
                 <div key={goal.id} className="bg-white rounded-xl p-4 border border-gray-100">
                   <div className="flex items-center justify-between mb-3">
@@ -435,7 +437,7 @@ export default function Goals() {
                     </div>
                     <ProgressBar
                       percentage={percentage}
-                      color={isCompleted ? "bg-green-500" : `bg-[${goal.color}]`}
+                      color={isCompleted ? "#10B981" : goal.color}
                     />
                   </div>
                   

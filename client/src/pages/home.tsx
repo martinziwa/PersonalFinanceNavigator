@@ -271,7 +271,7 @@ export default function Home() {
                       <span className="text-gray-600">{formatCurrency(actualSavings)}</span>
                       <span className="text-gray-900 font-medium">{formatCurrency(targetAmount)}</span>
                     </div>
-                    <ProgressBar percentage={percentage} color={`bg-[${goal.color}]`} />
+                    <ProgressBar percentage={percentage} color={goal.color} />
                   </div>
                   <div className="text-xs text-gray-500">
                     {formatCurrency(remaining)} remaining to reach goal
