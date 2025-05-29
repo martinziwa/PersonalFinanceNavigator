@@ -1,9 +1,9 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Plus, Trash2, DollarSign } from "lucide-react";
+import { Plus, Trash2, Edit } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import ProgressBar from "@/components/ui/progress-bar";
@@ -44,9 +44,7 @@ const goalTypes = [
 
 export default function Goals() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isContributeDialogOpen, setIsContributeDialogOpen] = useState(false);
-  const [selectedGoal, setSelectedGoal] = useState<any>(null);
-  const [contributeAmount, setContributeAmount] = useState("");
+  const [editingGoal, setEditingGoal] = useState<any>(null);
   
   const { data: goals = [], isLoading } = useGoals();
   const { data: transactions = [] } = useTransactions();
@@ -113,15 +111,16 @@ export default function Goals() {
       queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
       toast({
         title: "Success",
-        description: "Contribution added successfully",
+        description: "Savings goal updated successfully",
       });
-      setIsContributeDialogOpen(false);
-      setContributeAmount("");
+      setIsDialogOpen(false);
+      setEditingGoal(null);
+      form.reset();
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to add contribution",
+        description: "Failed to update savings goal",
         variant: "destructive",
       });
     },
@@ -152,11 +151,19 @@ export default function Goals() {
     const goalData = {
       name: data.name,
       targetAmount: data.targetAmount,
-      deadline: data.deadline || undefined,
+      deadline: data.deadline ? new Date(data.deadline) : null,
       icon: data.icon,
       color: data.color,
     };
-    createGoalMutation.mutate(goalData);
+    
+    if (editingGoal) {
+      updateGoalMutation.mutate({
+        id: editingGoal.id,
+        data: goalData
+      });
+    } else {
+      createGoalMutation.mutate(goalData);
+    }
   };
 
   const handleGoalTypeChange = (type: string) => {
@@ -168,15 +175,29 @@ export default function Goals() {
     }
   };
 
-  const handleContribute = () => {
-    if (!selectedGoal || !contributeAmount) return;
-    
-    const newAmount = parseFloat(selectedGoal.currentAmount) + parseFloat(contributeAmount);
-    updateGoalMutation.mutate({
-      id: selectedGoal.id,
-      data: { currentAmount: newAmount.toString() }
-    });
-  };
+  // Pre-populate form when editing
+  React.useEffect(() => {
+    if (editingGoal && isDialogOpen) {
+      const deadlineValue = editingGoal.deadline ? 
+        new Date(editingGoal.deadline).toISOString().split('T')[0] : "";
+      
+      form.reset({
+        name: editingGoal.name,
+        targetAmount: editingGoal.targetAmount,
+        deadline: deadlineValue,
+        icon: editingGoal.icon,
+        color: editingGoal.color,
+      });
+    } else if (!editingGoal && isDialogOpen) {
+      form.reset({
+        name: "",
+        targetAmount: "",
+        deadline: "",
+        icon: "",
+        color: "",
+      });
+    }
+  }, [editingGoal, isDialogOpen, form]);
 
 
 
@@ -285,55 +306,16 @@ export default function Goals() {
                   <Button
                     type="submit"
                     className="flex-1 bg-primary text-white"
-                    disabled={createGoalMutation.isPending}
+                    disabled={createGoalMutation.isPending || updateGoalMutation.isPending}
                   >
-                    {createGoalMutation.isPending ? "Creating..." : "Create Goal"}
+                    {editingGoal
+                      ? (updateGoalMutation.isPending ? "Updating..." : "Update Goal")
+                      : (createGoalMutation.isPending ? "Creating..." : "Create Goal")
+                    }
                   </Button>
                 </div>
               </form>
             </Form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Contribute Dialog */}
-        <Dialog open={isContributeDialogOpen} onOpenChange={setIsContributeDialogOpen}>
-          <DialogContent className="max-w-sm mx-auto">
-            <DialogHeader>
-              <DialogTitle>Add Contribution</DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contribution Amount
-                </label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={contributeAmount}
-                  onChange={(e) => setContributeAmount(e.target.value)}
-                />
-              </div>
-
-              <div className="flex space-x-4">
-                <Button
-                  variant="secondary"
-                  onClick={() => setIsContributeDialogOpen(false)}
-                  className="flex-1"
-                  disabled={updateGoalMutation.isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleContribute}
-                  className="flex-1 bg-primary text-white"
-                  disabled={updateGoalMutation.isPending || !contributeAmount}
-                >
-                  {updateGoalMutation.isPending ? "Adding..." : "Add Contribution"}
-                </Button>
-              </div>
-            </div>
           </DialogContent>
         </Dialog>
 
@@ -407,12 +389,12 @@ export default function Goals() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          setSelectedGoal(goal);
-                          setIsContributeDialogOpen(true);
+                          setEditingGoal(goal);
+                          setIsDialogOpen(true);
                         }}
-                        className="p-2 text-green-600 hover:bg-green-50"
+                        className="p-2 text-blue-600 hover:bg-blue-50"
                       >
-                        <DollarSign className="h-4 w-4" />
+                        <Edit className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
