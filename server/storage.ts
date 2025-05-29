@@ -16,7 +16,7 @@ import {
   type UpsertUser,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, sum } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (IMPORTANT) these user operations are mandatory for Replit Auth.
@@ -88,212 +88,152 @@ export class DatabaseStorage implements IStorage {
     return result.reverse();
   }
 
-  async getTransactionsByCategory(category: string): Promise<Transaction[]> {
-    return await db.select().from(transactions).where(eq(transactions.category, category));
+  async getTransactionsByCategory(userId: string, category: string): Promise<Transaction[]> {
+    return await db.select().from(transactions).where(and(eq(transactions.userId, userId), eq(transactions.category, category))).orderBy(transactions.date);
   }
 
-  async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
+  async createTransaction(userId: string, insertTransaction: InsertTransaction): Promise<Transaction> {
     const [transaction] = await db
       .insert(transactions)
-      .values(insertTransaction)
+      .values({...insertTransaction, userId})
       .returning();
-
-    // Update budget spent amount if it's an expense or loan payment and within budget period
-    if (transaction.type === "expense" || transaction.type === "loan_payment") {
-      const matchingBudgets = await db
-        .select()
-        .from(budgets)
-        .where(
-          and(
-            eq(budgets.category, transaction.category),
-            lte(budgets.startDate, transaction.date),
-            gte(budgets.endDate, transaction.date)
-          )
-        );
-
-      for (const budget of matchingBudgets) {
-        const newSpent = parseFloat(budget.spent) + parseFloat(transaction.amount);
-        await db
-          .update(budgets)
-          .set({ spent: newSpent.toString() })
-          .where(eq(budgets.id, budget.id));
-      }
-    }
-
     return transaction;
   }
 
-  async deleteTransaction(id: number): Promise<void> {
-    const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id));
-    
-    if (transaction && (transaction.type === "expense" || transaction.type === "loan_payment")) {
-      // Update budget spent amount if within budget period
-      const matchingBudgets = await db
-        .select()
-        .from(budgets)
-        .where(
-          and(
-            eq(budgets.category, transaction.category),
-            lte(budgets.startDate, transaction.date),
-            gte(budgets.endDate, transaction.date)
-          )
-        );
-
-      for (const budget of matchingBudgets) {
-        const newSpent = parseFloat(budget.spent) - parseFloat(transaction.amount);
-        await db
-          .update(budgets)
-          .set({ spent: Math.max(0, newSpent).toString() })
-          .where(eq(budgets.id, budget.id));
-      }
-    }
-    
-    await db.delete(transactions).where(eq(transactions.id, id));
+  async deleteTransaction(userId: string, id: number): Promise<void> {
+    await db.delete(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
   }
 
   // Budgets
-  async getBudgets(): Promise<Budget[]> {
-    return await db.select().from(budgets);
+  async getBudgets(userId: string): Promise<Budget[]> {
+    return await db.select().from(budgets).where(eq(budgets.userId, userId)).orderBy(budgets.category);
   }
 
-  async getBudget(id: number): Promise<Budget | undefined> {
-    const [budget] = await db.select().from(budgets).where(eq(budgets.id, id));
-    return budget || undefined;
+  async getBudget(userId: string, id: number): Promise<Budget | undefined> {
+    const [budget] = await db.select().from(budgets).where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
+    return budget;
   }
 
-  async createBudget(insertBudget: InsertBudget): Promise<Budget> {
+  async createBudget(userId: string, insertBudget: InsertBudget): Promise<Budget> {
     const [budget] = await db
       .insert(budgets)
-      .values(insertBudget)
+      .values({...insertBudget, userId})
       .returning();
     return budget;
   }
 
-  async updateBudget(id: number, updates: Partial<Budget>): Promise<Budget> {
-    const [updated] = await db
+  async updateBudget(userId: string, id: number, updates: Partial<Budget>): Promise<Budget> {
+    const [budget] = await db
       .update(budgets)
       .set(updates)
-      .where(eq(budgets.id, id))
+      .where(and(eq(budgets.id, id), eq(budgets.userId, userId)))
       .returning();
-    
-    if (!updated) {
-      throw new Error("Budget not found");
-    }
-    return updated;
+    return budget;
   }
 
-  async deleteBudget(id: number): Promise<void> {
-    await db.delete(budgets).where(eq(budgets.id, id));
+  async deleteBudget(userId: string, id: number): Promise<void> {
+    await db.delete(budgets).where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
   }
 
   // Savings Goals
-  async getSavingsGoals(): Promise<SavingsGoal[]> {
-    return await db.select().from(savingsGoals);
+  async getSavingsGoals(userId: string): Promise<SavingsGoal[]> {
+    return await db.select().from(savingsGoals).where(eq(savingsGoals.userId, userId)).orderBy(savingsGoals.name);
   }
 
-  async getSavingsGoal(id: number): Promise<SavingsGoal | undefined> {
-    const [goal] = await db.select().from(savingsGoals).where(eq(savingsGoals.id, id));
-    return goal || undefined;
+  async getSavingsGoal(userId: string, id: number): Promise<SavingsGoal | undefined> {
+    const [goal] = await db.select().from(savingsGoals).where(and(eq(savingsGoals.id, id), eq(savingsGoals.userId, userId)));
+    return goal;
   }
 
-  async createSavingsGoal(insertGoal: InsertSavingsGoal): Promise<SavingsGoal> {
+  async createSavingsGoal(userId: string, insertGoal: InsertSavingsGoal): Promise<SavingsGoal> {
     const [goal] = await db
       .insert(savingsGoals)
-      .values(insertGoal)
+      .values({...insertGoal, userId})
       .returning();
     return goal;
   }
 
-  async updateSavingsGoal(id: number, updates: Partial<SavingsGoal>): Promise<SavingsGoal> {
-    const [updated] = await db
+  async updateSavingsGoal(userId: string, id: number, updates: Partial<SavingsGoal>): Promise<SavingsGoal> {
+    const [goal] = await db
       .update(savingsGoals)
       .set(updates)
-      .where(eq(savingsGoals.id, id))
+      .where(and(eq(savingsGoals.id, id), eq(savingsGoals.userId, userId)))
       .returning();
-    
-    if (!updated) {
-      throw new Error("Savings goal not found");
-    }
-    return updated;
+    return goal;
   }
 
-  async deleteSavingsGoal(id: number): Promise<void> {
-    await db.delete(savingsGoals).where(eq(savingsGoals.id, id));
+  async deleteSavingsGoal(userId: string, id: number): Promise<void> {
+    await db.delete(savingsGoals).where(and(eq(savingsGoals.id, id), eq(savingsGoals.userId, userId)));
   }
 
   // Loans
-  async getLoans(): Promise<Loan[]> {
-    return await db.select().from(loans);
+  async getLoans(userId: string): Promise<Loan[]> {
+    return await db.select().from(loans).where(eq(loans.userId, userId)).orderBy(loans.name);
   }
 
-  async getLoan(id: number): Promise<Loan | undefined> {
-    const [loan] = await db.select().from(loans).where(eq(loans.id, id));
-    return loan || undefined;
+  async getLoan(userId: string, id: number): Promise<Loan | undefined> {
+    const [loan] = await db.select().from(loans).where(and(eq(loans.id, id), eq(loans.userId, userId)));
+    return loan;
   }
 
-  async createLoan(insertLoan: InsertLoan): Promise<Loan> {
+  async createLoan(userId: string, insertLoan: InsertLoan): Promise<Loan> {
     const [loan] = await db
       .insert(loans)
-      .values(insertLoan)
+      .values({...insertLoan, userId})
       .returning();
     return loan;
   }
 
-  async updateLoan(id: number, updates: Partial<Loan>): Promise<Loan> {
-    const [updated] = await db
+  async updateLoan(userId: string, id: number, updates: Partial<Loan>): Promise<Loan> {
+    const [loan] = await db
       .update(loans)
       .set(updates)
-      .where(eq(loans.id, id))
+      .where(and(eq(loans.id, id), eq(loans.userId, userId)))
       .returning();
-    
-    if (!updated) {
-      throw new Error("Loan not found");
-    }
-    return updated;
+    return loan;
   }
 
-  async deleteLoan(id: number): Promise<void> {
-    await db.delete(loans).where(eq(loans.id, id));
+  async deleteLoan(userId: string, id: number): Promise<void> {
+    await db.delete(loans).where(and(eq(loans.id, id), eq(loans.userId, userId)));
   }
 
   // Financial Summary
-  async getFinancialSummary(): Promise<{
+  async getFinancialSummary(userId: string): Promise<{
     netWorth: number;
     monthlyIncome: number;
     monthlyExpenses: number;
     totalSavings: number;
     totalDebt: number;
   }> {
-    const allTransactions = await this.getTransactions();
-    const goals = await this.getSavingsGoals();
-    const allLoans = await this.getLoans();
-
+    // Get current month's transactions
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const monthlyTransactions = allTransactions.filter((t) => {
-      const transactionDate = new Date(t.date);
-      return (
-        transactionDate.getMonth() === currentMonth &&
-        transactionDate.getFullYear() === currentYear
-      );
-    });
+    const monthlyTransactions = await db
+      .select()
+      .from(transactions)
+      .where(and(
+        eq(transactions.userId, userId),
+        gte(transactions.date, startOfMonth),
+        lte(transactions.date, endOfMonth)
+      ));
 
     const monthlyIncome = monthlyTransactions
-      .filter((t) => t.type === "income" || t.type === "savings_withdrawal" || t.type === "loan_received")
+      .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
     const monthlyExpenses = monthlyTransactions
-      .filter((t) => t.type === "expense" || t.type === "savings_deposit" || t.type === "loan_payment")
+      .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
-    const totalSavings = goals.reduce(
-      (sum, g) => sum + parseFloat(g.currentAmount),
-      0
-    );
+    // Get savings goals total
+    const userSavingsGoals = await db.select().from(savingsGoals).where(eq(savingsGoals.userId, userId));
+    const totalSavings = userSavingsGoals.reduce((sum, goal) => sum + parseFloat(goal.currentAmount), 0);
 
-    const totalDebt = allLoans.reduce((sum, l) => sum + parseFloat(l.balance), 0);
+    // Get total debt from loans
+    const userLoans = await db.select().from(loans).where(eq(loans.userId, userId));
+    const totalDebt = userLoans.reduce((sum, loan) => sum + parseFloat(loan.balance), 0);
 
     const netWorth = totalSavings - totalDebt;
 

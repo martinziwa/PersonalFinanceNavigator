@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import {
   insertTransactionSchema,
   insertBudgetSchema,
@@ -9,30 +10,48 @@ import {
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Transactions
-  app.get("/api/transactions", async (_req, res) => {
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const transactions = await storage.getTransactions();
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Transactions
+  app.get("/api/transactions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const transactions = await storage.getTransactions(userId);
       res.json(transactions);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch transactions" });
     }
   });
 
-  app.post("/api/transactions", async (req, res) => {
+  app.post("/api/transactions", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const transaction = insertTransactionSchema.parse(req.body);
-      const created = await storage.createTransaction(transaction);
+      const created = await storage.createTransaction(userId, transaction);
       res.status(201).json(created);
     } catch (error) {
       res.status(400).json({ message: "Invalid transaction data" });
     }
   });
 
-  app.delete("/api/transactions/:id", async (req, res) => {
+  app.delete("/api/transactions/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
-      await storage.deleteTransaction(id);
+      await storage.deleteTransaction(userId, id);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete transaction" });
@@ -40,40 +59,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Budgets
-  app.get("/api/budgets", async (_req, res) => {
+  app.get("/api/budgets", isAuthenticated, async (req: any, res) => {
     try {
-      const budgets = await storage.getBudgets();
+      const userId = req.user.claims.sub;
+      const budgets = await storage.getBudgets(userId);
       res.json(budgets);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch budgets" });
     }
   });
 
-  app.post("/api/budgets", async (req, res) => {
+  app.post("/api/budgets", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const budget = insertBudgetSchema.parse(req.body);
-      const created = await storage.createBudget(budget);
+      const created = await storage.createBudget(userId, budget);
       res.status(201).json(created);
     } catch (error) {
       res.status(400).json({ message: "Invalid budget data" });
     }
   });
 
-  app.put("/api/budgets/:id", async (req, res) => {
+  app.put("/api/budgets/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
       const updates = req.body;
-      const updated = await storage.updateBudget(id, updates);
+      const updated = await storage.updateBudget(userId, id, updates);
       res.json(updated);
     } catch (error) {
       res.status(400).json({ message: "Failed to update budget" });
     }
   });
 
-  app.delete("/api/budgets/:id", async (req, res) => {
+  app.delete("/api/budgets/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
-      await storage.deleteBudget(id);
+      await storage.deleteBudget(userId, id);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete budget" });
@@ -81,40 +104,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Savings Goals
-  app.get("/api/goals", async (_req, res) => {
+  app.get("/api/goals", isAuthenticated, async (req: any, res) => {
     try {
-      const goals = await storage.getSavingsGoals();
+      const userId = req.user.claims.sub;
+      const goals = await storage.getSavingsGoals(userId);
       res.json(goals);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch savings goals" });
     }
   });
 
-  app.post("/api/goals", async (req, res) => {
+  app.post("/api/goals", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const goal = insertSavingsGoalSchema.parse(req.body);
-      const created = await storage.createSavingsGoal(goal);
+      const created = await storage.createSavingsGoal(userId, goal);
       res.status(201).json(created);
     } catch (error) {
       res.status(400).json({ message: "Invalid savings goal data" });
     }
   });
 
-  app.put("/api/goals/:id", async (req, res) => {
+  app.put("/api/goals/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
       const updates = req.body;
-      const updated = await storage.updateSavingsGoal(id, updates);
+      const updated = await storage.updateSavingsGoal(userId, id, updates);
       res.json(updated);
     } catch (error) {
       res.status(400).json({ message: "Failed to update savings goal" });
     }
   });
 
-  app.delete("/api/goals/:id", async (req, res) => {
+  app.delete("/api/goals/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
-      await storage.deleteSavingsGoal(id);
+      await storage.deleteSavingsGoal(userId, id);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete savings goal" });
@@ -122,19 +149,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Loans
-  app.get("/api/loans", async (_req, res) => {
+  app.get("/api/loans", isAuthenticated, async (req: any, res) => {
     try {
-      const loans = await storage.getLoans();
+      const userId = req.user.claims.sub;
+      const loans = await storage.getLoans(userId);
       res.json(loans);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch loans" });
     }
   });
 
-  app.post("/api/loans", async (req, res) => {
+  app.post("/api/loans", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const loan = insertLoanSchema.parse(req.body);
-      const created = await storage.createLoan(loan);
+      const created = await storage.createLoan(userId, loan);
       res.status(201).json(created);
     } catch (error) {
       console.error("Loan validation error:", error);
@@ -142,21 +171,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/loans/:id", async (req, res) => {
+  app.put("/api/loans/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
       const updates = req.body;
-      const updated = await storage.updateLoan(id, updates);
+      const updated = await storage.updateLoan(userId, id, updates);
       res.json(updated);
     } catch (error) {
       res.status(400).json({ message: "Failed to update loan" });
     }
   });
 
-  app.delete("/api/loans/:id", async (req, res) => {
+  app.delete("/api/loans/:id", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
-      await storage.deleteLoan(id);
+      await storage.deleteLoan(userId, id);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete loan" });
@@ -164,9 +195,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Financial Summary
-  app.get("/api/financial-summary", async (_req, res) => {
+  app.get("/api/financial-summary", isAuthenticated, async (req: any, res) => {
     try {
-      const summary = await storage.getFinancialSummary();
+      const userId = req.user.claims.sub;
+      const summary = await storage.getFinancialSummary(userId);
       res.json(summary);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch financial summary" });
