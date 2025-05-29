@@ -47,6 +47,17 @@ export default function Transactions() {
     return true;
   });
 
+  // Calculate aggregate amounts
+  const totalIncome = filteredTransactions
+    .filter(t => t.type === "income" || t.type === "savings_withdrawal" || t.type === "loan_received")
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+  const totalExpenses = filteredTransactions
+    .filter(t => t.type === "expense" || t.type === "savings_deposit" || t.type === "loan_payment")
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+  const netAmount = totalIncome - totalExpenses;
+
 
 
   const formatDate = (date: string | Date) => {
@@ -100,6 +111,33 @@ export default function Transactions() {
       <Header title="Transactions" subtitle="Track your finances" />
       
       <main className="pb-20 px-4 space-y-4 pt-4">
+        {/* Transaction Summary */}
+        {filteredTransactions.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+            <h3 className="font-semibold text-gray-900 mb-3">Transaction Summary</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-sm text-gray-500">Income</div>
+                <div className="font-semibold text-green-600">
+                  {formatCurrency(totalIncome)}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-gray-500">Expenses</div>
+                <div className="font-semibold text-red-600">
+                  {formatCurrency(totalExpenses)}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-gray-500">Net</div>
+                <div className={`font-semibold ${netAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(netAmount)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex space-x-3">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
