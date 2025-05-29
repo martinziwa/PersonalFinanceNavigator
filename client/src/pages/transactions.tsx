@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Trash2, Filter, Plus } from "lucide-react";
+import { Trash2, Filter, Plus, Edit2 } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import TransactionModal from "@/components/modals/transaction-modal";
@@ -13,6 +13,7 @@ import { formatCurrency } from "@/lib/currency";
 
 export default function Transactions() {
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   
@@ -40,6 +41,16 @@ export default function Transactions() {
       });
     },
   });
+
+  const openEditDialog = (transaction: any) => {
+    setEditingTransaction(transaction);
+    setIsTransactionModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsTransactionModalOpen(false);
+    setEditingTransaction(null);
+  };
 
   const filteredTransactions = transactions.filter((transaction) => {
     if (categoryFilter !== "all" && transaction.category !== categoryFilter) return false;
@@ -235,6 +246,15 @@ export default function Transactions() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => openEditDialog(transaction)}
+                      className="p-2 text-blue-600 hover:bg-blue-50"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => deleteTransactionMutation.mutate(transaction.id)}
                       disabled={deleteTransactionMutation.isPending}
                       className="p-2 text-red-600 hover:bg-red-50"
@@ -261,7 +281,8 @@ export default function Transactions() {
       
       <TransactionModal
         isOpen={isTransactionModalOpen}
-        onClose={() => setIsTransactionModalOpen(false)}
+        onClose={closeModal}
+        editingTransaction={editingTransaction}
       />
     </div>
   );

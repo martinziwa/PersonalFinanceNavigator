@@ -30,6 +30,7 @@ type TransactionFormData = z.infer<typeof transactionSchema>;
 interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  editingTransaction?: any;
 }
 
 const categories = [
@@ -46,7 +47,7 @@ const categories = [
   { value: "other", label: "Other" },
 ];
 
-export default function TransactionModal({ isOpen, onClose }: TransactionModalProps) {
+export default function TransactionModal({ isOpen, onClose, editingTransaction }: TransactionModalProps) {
   const { toast } = useToast();
   
   const form = useForm<TransactionFormData>({
