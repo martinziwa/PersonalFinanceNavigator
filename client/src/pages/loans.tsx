@@ -16,6 +16,18 @@ import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
 import type { InsertLoan } from "@shared/schema";
 
+const frequencyOptions = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "biweekly", label: "Biweekly" },
+  { value: "triweekly", label: "Triweekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "bimonthly", label: "Bimonthly" },
+  { value: "trimonthly", label: "Trimonthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "annually", label: "Annually" },
+];
+
 const loanSchema = z.object({
   name: z.string().min(1, "Loan name is required"),
   principalAmount: z.string().min(1, "Principal amount is required").refine(
@@ -32,6 +44,12 @@ const loanSchema = z.object({
   ),
   interestType: z.enum(["simple", "compound"], { 
     required_error: "Please select interest type" 
+  }),
+  interestPeriod: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"], {
+    required_error: "Please select interest period"
+  }),
+  repaymentFrequency: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"], {
+    required_error: "Please select repayment frequency"
   }),
   minPayment: z.string().min(1, "Minimum payment is required").refine(
     (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
@@ -121,6 +139,8 @@ export default function Loans() {
       balance: data.balance,
       interestRate: data.interestRate,
       interestType: data.interestType,
+      interestPeriod: data.interestPeriod,
+      repaymentFrequency: data.repaymentFrequency,
       minPayment: data.minPayment,
       nextPaymentDate: data.dueDate,
       icon: "💳",
@@ -263,6 +283,54 @@ export default function Loans() {
                           <option value="">Select interest type</option>
                           <option value="simple">Simple Interest</option>
                           <option value="compound">Compound Interest</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="interestPeriod"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Interest Period</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white"
+                        >
+                          <option value="">Select interest period</option>
+                          {frequencyOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="repaymentFrequency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Repayment Frequency</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white"
+                        >
+                          <option value="">Select repayment frequency</option>
+                          {frequencyOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
                         </select>
                       </FormControl>
                       <FormMessage />
