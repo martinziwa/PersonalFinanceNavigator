@@ -65,6 +65,8 @@ export const insertSavingsGoalSchema = createInsertSchema(savingsGoals).omit({
 
 export const insertLoanSchema = createInsertSchema(loans).omit({
   id: true,
+}).extend({
+  nextPaymentDate: z.string().transform((val) => new Date(val)),
 });
 
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;

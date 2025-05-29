@@ -137,7 +137,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const created = await storage.createLoan(loan);
       res.status(201).json(created);
     } catch (error) {
-      res.status(400).json({ message: "Invalid loan data" });
+      console.error("Loan validation error:", error);
+      res.status(400).json({ message: "Invalid loan data", error: error.message });
     }
   });
 
