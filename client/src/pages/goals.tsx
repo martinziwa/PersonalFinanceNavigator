@@ -25,6 +25,10 @@ const goalSchema = z.object({
     (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
     "Target amount must be a positive number"
   ),
+  startingSavings: z.string().optional().refine(
+    (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= 0),
+    "Starting savings must be a non-negative number"
+  ),
   deadline: z.string().optional(),
   icon: z.string().min(1, "Icon is required"),
   color: z.string().min(1, "Color is required"),
@@ -71,6 +75,7 @@ export default function Goals() {
     defaultValues: {
       name: "",
       targetAmount: "",
+      startingSavings: "",
       deadline: "",
       icon: "",
       color: "",
@@ -151,6 +156,7 @@ export default function Goals() {
     const goalData = {
       name: data.name,
       targetAmount: data.targetAmount,
+      startingSavings: data.startingSavings || "0",
       deadline: data.deadline ? new Date(data.deadline) : null,
       icon: data.icon,
       color: data.color,
@@ -184,6 +190,7 @@ export default function Goals() {
       form.reset({
         name: editingGoal.name,
         targetAmount: editingGoal.targetAmount,
+        startingSavings: editingGoal.startingSavings || "0",
         deadline: deadlineValue,
         icon: editingGoal.icon,
         color: editingGoal.color,
@@ -192,6 +199,7 @@ export default function Goals() {
       form.reset({
         name: "",
         targetAmount: "",
+        startingSavings: "",
         deadline: "",
         icon: "",
         color: "",
@@ -263,6 +271,25 @@ export default function Goals() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Target Amount</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="startingSavings"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Starting Savings (Optional)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
