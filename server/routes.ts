@@ -182,7 +182,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const created = await storage.createSavingsGoal(userId, goal);
       res.status(201).json(created);
     } catch (error) {
-      res.status(400).json({ message: "Invalid savings goal data" });
+      console.error("Goal creation error:", error);
+      res.status(400).json({ message: "Invalid savings goal data", error: error.message });
     }
   });
 
@@ -190,11 +191,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
-      const updates = req.body;
-      const updated = await storage.updateSavingsGoal(userId, id, updates);
+      // Validate the update data using the same schema
+      const validatedData = insertSavingsGoalSchema.parse(req.body);
+      const updated = await storage.updateSavingsGoal(userId, id, validatedData);
       res.json(updated);
     } catch (error) {
-      res.status(400).json({ message: "Failed to update savings goal" });
+      console.error("Goal update error:", error);
+      res.status(400).json({ message: "Failed to update savings goal", error: error.message });
     }
   });
 
