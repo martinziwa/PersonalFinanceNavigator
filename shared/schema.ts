@@ -75,7 +75,8 @@ export const loans = pgTable("loans", {
 
 export const insertTransactionSchema = createInsertSchema(transactions).omit({
   id: true,
-  date: true,
+}).extend({
+  date: z.string().transform((val) => new Date(val)),
 });
 
 export const insertBudgetSchema = createInsertSchema(budgets).omit({

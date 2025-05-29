@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -86,15 +86,77 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
     },
   });
 
+  const updateTransactionMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertTransaction> }) => {
+      const response = await apiRequest("PUT", `/api/transactions/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      toast({
+        title: "Success",
+        description: "Transaction updated successfully",
+      });
+      form.reset();
+      onClose();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update transaction",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: TransactionFormData) => {
-    createTransactionMutation.mutate({
-      amount: data.amount,
-      description: data.description,
-      category: data.category,
-      type: data.type,
-      date: new Date(data.date),
-    });
+    if (editingTransaction) {
+      updateTransactionMutation.mutate({
+        id: editingTransaction.id,
+        data: {
+          amount: data.amount,
+          description: data.description,
+          category: data.category,
+          type: data.type,
+          date: new Date(data.date),
+        }
+      });
+    } else {
+      createTransactionMutation.mutate({
+        amount: data.amount,
+        description: data.description,
+        category: data.category,
+        type: data.type,
+        date: new Date(data.date),
+      });
+    }
   };
+
+  // Pre-populate form when editing
+  React.useEffect(() => {
+    if (editingTransaction && isOpen) {
+      const transactionDate = new Date(editingTransaction.date);
+      const formattedDate = transactionDate.toISOString().split('T')[0];
+      
+      form.reset({
+        amount: editingTransaction.amount,
+        description: editingTransaction.description,
+        category: editingTransaction.category,
+        type: editingTransaction.type,
+        date: formattedDate,
+      });
+    } else if (!editingTransaction && isOpen) {
+      form.reset({
+        amount: "",
+        description: "",
+        category: "",
+        type: "expense",
+        date: new Date().toISOString().split('T')[0],
+      });
+    }
+  }, [editingTransaction, isOpen, form]);
 
   if (!isOpen) return null;
 
@@ -102,7 +164,9 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
       <div className="w-full max-w-sm mx-auto bg-white rounded-t-3xl p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Add Transaction</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {editingTransaction ? "Edit Transaction" : "Add Transaction"}
+          </h2>
           <Button
             variant="ghost"
             size="sm"
@@ -235,9 +299,12 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
               <Button
                 type="submit"
                 className="flex-1 py-3 bg-primary text-white"
-                disabled={createTransactionMutation.isPending}
+                disabled={createTransactionMutation.isPending || updateTransactionMutation.isPending}
               >
-                {createTransactionMutation.isPending ? "Adding..." : "Add Transaction"}
+                {editingTransaction
+                  ? (updateTransactionMutation.isPending ? "Updating..." : "Update Transaction")
+                  : (createTransactionMutation.isPending ? "Adding..." : "Add Transaction")
+                }
               </Button>
             </div>
           </form>
