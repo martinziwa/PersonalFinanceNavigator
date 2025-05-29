@@ -147,6 +147,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
         category: editingTransaction.category,
         type: editingTransaction.type,
         date: formattedDate,
+        savingsGoalId: editingTransaction.savingsGoalId ? editingTransaction.savingsGoalId.toString() : "",
       });
     } else if (!editingTransaction && isOpen) {
       form.reset({
@@ -155,6 +156,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
         category: "",
         type: "expense",
         date: new Date().toISOString().split('T')[0],
+        savingsGoalId: "",
       });
     }
   }, [editingTransaction, isOpen, form]);
@@ -286,6 +288,38 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
                 </FormItem>
               )}
             />
+
+            {/* Savings Goal Selector - Show only for savings transactions */}
+            {(form.watch("type") === "savings_deposit" || form.watch("type") === "savings_withdrawal") && (
+              <FormField
+                control={form.control}
+                name="savingsGoalId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Savings Goal</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
+                          <SelectValue placeholder="Select a savings goal" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {goals.length === 0 ? (
+                          <SelectItem value="" disabled>No savings goals available</SelectItem>
+                        ) : (
+                          goals.map((goal) => (
+                            <SelectItem key={goal.id} value={goal.id.toString()}>
+                              {goal.icon} {goal.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="flex space-x-4 pt-4">
               <Button
