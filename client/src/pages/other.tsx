@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { BarChart3, Settings, HelpCircle, Shield } from "lucide-react";
+import { BarChart3, Settings, HelpCircle, Shield, CreditCard } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,14 @@ const menuItems = [
     icon: BarChart3,
     color: "bg-blue-100",
     iconColor: "text-blue-600"
+  },
+  {
+    path: "/loans",
+    label: "Loans",
+    description: "Manage your loans and debt payments",
+    icon: CreditCard,
+    color: "bg-red-100",
+    iconColor: "text-red-600"
   },
   {
     path: "/settings",
