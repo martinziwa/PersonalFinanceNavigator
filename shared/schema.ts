@@ -1,9 +1,10 @@
-import { pgTable, text, serial, integer, boolean, decimal, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, decimal, timestamp, varchar, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description").notNull(),
   category: text("category").notNull(),
@@ -13,7 +14,8 @@ export const transactions = pgTable("transactions", {
 
 export const budgets = pgTable("budgets", {
   id: serial("id").primaryKey(),
-  category: text("category").notNull().unique(),
+  userId: varchar("user_id").references(() => users.id),
+  category: text("category").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   spent: decimal("spent", { precision: 10, scale: 2 }).default("0").notNull(),
   period: text("period").default("monthly").notNull(),
@@ -24,6 +26,7 @@ export const budgets = pgTable("budgets", {
 
 export const savingsGoals = pgTable("savings_goals", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
   name: text("name").notNull(),
   targetAmount: decimal("target_amount", { precision: 10, scale: 2 }).notNull(),
   currentAmount: decimal("current_amount", { precision: 10, scale: 2 }).default("0").notNull(),
@@ -32,8 +35,31 @@ export const savingsGoals = pgTable("savings_goals", {
   color: text("color").notNull(),
 });
 
+// Session storage table for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// User storage table for Replit Auth
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().notNull(),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const loans = pgTable("loans", {
   id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
   name: text("name").notNull(),
   principalAmount: decimal("principal_amount", { precision: 10, scale: 2 }),
   balance: decimal("balance", { precision: 10, scale: 2 }).notNull(),
@@ -84,3 +110,6 @@ export type SavingsGoal = typeof savingsGoals.$inferSelect;
 
 export type InsertLoan = z.infer<typeof insertLoanSchema>;
 export type Loan = typeof loans.$inferSelect;
+
+export type UpsertUser = typeof users.$inferInsert;
+export type User = typeof users.$inferSelect;
