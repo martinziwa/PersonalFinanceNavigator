@@ -589,9 +589,12 @@ export default function Loans() {
                 <Button 
                   type="submit" 
                   className="w-full bg-primary text-white rounded-xl"
-                  disabled={createLoanMutation.isPending}
+                  disabled={createLoanMutation.isPending || updateLoanMutation.isPending}
                 >
-                  {createLoanMutation.isPending ? "Adding..." : "Add Loan"}
+                  {editingLoan
+                    ? (updateLoanMutation.isPending ? "Updating..." : "Edit Loan")
+                    : (createLoanMutation.isPending ? "Adding..." : "Add Loan")
+                  }
                 </Button>
               </form>
             </Form>

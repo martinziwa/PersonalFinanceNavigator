@@ -239,11 +239,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
-      const updates = req.body;
-      const updated = await storage.updateLoan(userId, id, updates);
+      // Validate the update data using the same schema
+      const validatedData = insertLoanSchema.parse(req.body);
+      const updated = await storage.updateLoan(userId, id, validatedData);
       res.json(updated);
     } catch (error) {
-      res.status(400).json({ message: "Failed to update loan" });
+      console.error("Loan update error:", error);
+      res.status(400).json({ message: "Failed to update loan", error: error.message });
     }
   });
 
