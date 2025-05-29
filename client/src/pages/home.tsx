@@ -117,7 +117,9 @@ export default function Home() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">Financial Overview</h2>
-            <button className="text-primary text-sm font-medium">View Reports</button>
+            <Link href="/reports">
+              <button className="text-primary text-sm font-medium">View Reports</button>
+            </Link>
           </div>
 
           {/* Net Worth Card */}
