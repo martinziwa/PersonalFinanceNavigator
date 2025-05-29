@@ -69,6 +69,8 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
     },
   });
 
+  const selectedType = form.watch("type");
+
   const createTransactionMutation = useMutation({
     mutationFn: async (data: InsertTransaction) => {
       const response = await apiRequest("POST", "/api/transactions", data);
@@ -153,6 +155,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
         type: editingTransaction.type,
         date: formattedDate,
         savingsGoalId: editingTransaction.savingsGoalId ? editingTransaction.savingsGoalId.toString() : "",
+        loanId: editingTransaction.loanId ? editingTransaction.loanId.toString() : "",
       });
     } else if (!editingTransaction && isOpen) {
       form.reset({
@@ -162,6 +165,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
         type: "expense",
         date: new Date().toISOString().split('T')[0],
         savingsGoalId: "",
+        loanId: "",
       });
     }
   }, [editingTransaction, isOpen, form]);
@@ -315,6 +319,38 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
                           goals.map((goal) => (
                             <SelectItem key={goal.id} value={goal.id.toString()}>
                               {goal.icon} {goal.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Loan Selector - only show for loan-related transactions */}
+            {(form.watch("type") === "loan_received" || form.watch("type") === "loan_payment") && (
+              <FormField
+                control={form.control}
+                name="loanId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Loan</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
+                          <SelectValue placeholder="Select a loan" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {loans.length === 0 ? (
+                          <SelectItem value="" disabled>No loans available</SelectItem>
+                        ) : (
+                          loans.map((loan) => (
+                            <SelectItem key={loan.id} value={loan.id.toString()}>
+                              {loan.icon} {loan.name}
                             </SelectItem>
                           ))
                         )}
