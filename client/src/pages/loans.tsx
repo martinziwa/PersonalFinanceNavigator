@@ -34,13 +34,13 @@ const loanSchema = z.object({
     (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
     "Principal amount must be a positive number"
   ),
-  balance: z.string().min(1, "Current balance is required").refine(
-    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
-    "Balance must be a positive number"
+  balance: z.string().optional().refine(
+    (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) > 0),
+    "Balance must be a positive number if provided"
   ),
-  interestRate: z.string().min(1, "Interest rate is required").refine(
-    (val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0,
-    "Interest rate must be a valid number"
+  interestRate: z.string().optional().refine(
+    (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= 0),
+    "Interest rate must be a valid number if provided"
   ),
   interestType: z.enum(["simple", "compound"], { 
     required_error: "Please select interest type" 
@@ -137,10 +137,15 @@ export default function Loans() {
   
   // Real-time calculation effect
   React.useEffect(() => {
-    const { balance, interestRate, minPayment, payoffTime, interestType, interestPeriod, repaymentFrequency } = watchedValues;
+    const { principalAmount, balance, interestRate, minPayment, payoffTime, interestType, interestPeriod, repaymentFrequency } = watchedValues;
     
-    const balanceNum = parseFloat(balance || "0");
-    const rateNum = parseFloat(interestRate || "0");
+    // Use principalAmount as default if balance is not provided
+    const effectiveBalance = balance || principalAmount;
+    // Use 0% as default if interest rate is not provided
+    const effectiveRate = interestRate || "0";
+    
+    const balanceNum = parseFloat(effectiveBalance || "0");
+    const rateNum = parseFloat(effectiveRate);
     const paymentNum = parseFloat(minPayment || "0");
     const timeNum = parseFloat(payoffTime || "0");
     
@@ -236,8 +241,8 @@ export default function Loans() {
     const loanData = {
       name: data.name,
       principalAmount: data.principalAmount,
-      balance: data.balance,
-      interestRate: data.interestRate,
+      balance: data.balance || data.principalAmount, // Default to principal amount if not provided
+      interestRate: data.interestRate || "0", // Default to 0% if not provided
       interestType: data.interestType,
       interestPeriod: data.interestPeriod,
       repaymentFrequency: data.repaymentFrequency,
@@ -419,13 +424,13 @@ export default function Loans() {
                   name="balance"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Current Balance (MWK)</FormLabel>
+                      <FormLabel>Current Balance (MWK) - Optional</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="number"
                           step="0.01"
-                          placeholder="0.00"
+                          placeholder="Leave empty to use principal amount"
                           className="px-4 py-3 border border-gray-300 rounded-xl"
                         />
                       </FormControl>
@@ -439,13 +444,13 @@ export default function Loans() {
                   name="interestRate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Interest Rate (%)</FormLabel>
+                      <FormLabel>Interest Rate (%) - Optional</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="number"
                           step="0.01"
-                          placeholder="5.00"
+                          placeholder="Leave empty for 0% (interest-free loan)"
                           className="px-4 py-3 border border-gray-300 rounded-xl"
                         />
                       </FormControl>
