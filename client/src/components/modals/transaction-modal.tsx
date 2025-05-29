@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useGoals } from "@/hooks/use-goals";
+import { useLoans } from "@/hooks/use-loans";
 import type { InsertTransaction } from "@shared/schema";
 
 const transactionSchema = z.object({
@@ -25,6 +26,7 @@ const transactionSchema = z.object({
   type: z.enum(["income", "expense", "savings_deposit", "savings_withdrawal", "loan_received", "loan_payment"]),
   date: z.string().min(1, "Date is required"),
   savingsGoalId: z.string().optional(),
+  loanId: z.string().optional(),
 });
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
@@ -52,6 +54,7 @@ const categories = [
 export default function TransactionModal({ isOpen, onClose, editingTransaction }: TransactionModalProps) {
   const { toast } = useToast();
   const { data: goals = [] } = useGoals();
+  const { data: loans = [] } = useLoans();
   
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
@@ -62,6 +65,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
       type: "expense",
       date: new Date().toISOString().split('T')[0], // Default to today's date
       savingsGoalId: "",
+      loanId: "",
     },
   });
 
@@ -123,6 +127,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
       type: data.type,
       date: new Date(data.date),
       savingsGoalId: data.savingsGoalId && data.savingsGoalId !== "" ? parseInt(data.savingsGoalId) : undefined,
+      loanId: data.loanId && data.loanId !== "" ? parseInt(data.loanId) : undefined,
     };
 
     if (editingTransaction) {
