@@ -18,7 +18,11 @@ import type { InsertLoan } from "@shared/schema";
 
 const loanSchema = z.object({
   name: z.string().min(1, "Loan name is required"),
-  balance: z.string().min(1, "Balance is required").refine(
+  principalAmount: z.string().min(1, "Principal amount is required").refine(
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+    "Principal amount must be a positive number"
+  ),
+  balance: z.string().min(1, "Current balance is required").refine(
     (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
     "Balance must be a positive number"
   ),
@@ -26,6 +30,9 @@ const loanSchema = z.object({
     (val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0,
     "Interest rate must be a valid number"
   ),
+  interestType: z.enum(["simple", "compound"], { 
+    required_error: "Please select interest type" 
+  }),
   minPayment: z.string().min(1, "Minimum payment is required").refine(
     (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
     "Minimum payment must be a positive number"
@@ -110,8 +117,10 @@ export default function Loans() {
   const onSubmit = (data: LoanFormData) => {
     const loanData = {
       name: data.name,
+      principalAmount: data.principalAmount,
       balance: data.balance,
       interestRate: data.interestRate,
+      interestType: data.interestType,
       minPayment: data.minPayment,
       nextPaymentDate: data.dueDate,
       icon: "💳",
@@ -173,10 +182,30 @@ export default function Loans() {
 
                 <FormField
                   control={form.control}
+                  name="principalAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Principal Amount (MWK)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          step="0.01"
+                          placeholder="Original loan amount"
+                          className="px-4 py-3 border border-gray-300 rounded-xl"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="balance"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Current Balance</FormLabel>
+                      <FormLabel>Current Balance (MWK)</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -205,6 +234,27 @@ export default function Loans() {
                           placeholder="5.00"
                           className="px-4 py-3 border border-gray-300 rounded-xl"
                         />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="interestType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Interest Type</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white"
+                        >
+                          <option value="">Select interest type</option>
+                          <option value="simple">Simple Interest</option>
+                          <option value="compound">Compound Interest</option>
+                        </select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
