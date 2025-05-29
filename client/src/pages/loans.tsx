@@ -215,18 +215,64 @@ export default function Loans() {
     setIsDialogOpen(true);
   };
 
-  const calculateMonthsToPayoff = (balance: number, payment: number, rate: number, interestType: string = "compound") => {
-    if (rate === 0) return Math.ceil(balance / payment);
+  // Convert frequency to periods per year
+  const getPeriodsPerYear = (frequency: string) => {
+    switch (frequency) {
+      case "daily": return 365;
+      case "weekly": return 52;
+      case "biweekly": return 26;
+      case "triweekly": return 17.33; // 52/3
+      case "monthly": return 12;
+      case "bimonthly": return 6;
+      case "trimonthly": return 4;
+      case "quarterly": return 4;
+      case "annually": return 1;
+      default: return 12;
+    }
+  };
+
+  const calculatePayoffPeriods = (
+    balance: number, 
+    payment: number, 
+    annualRate: number, 
+    interestType: string = "compound",
+    interestFreq: string = "monthly",
+    paymentFreq: string = "monthly"
+  ) => {
+    if (annualRate === 0) return Math.ceil(balance / payment);
+    
+    const interestPeriodsPerYear = getPeriodsPerYear(interestFreq);
+    const paymentPeriodsPerYear = getPeriodsPerYear(paymentFreq);
+    const periodRate = annualRate / 100 / interestPeriodsPerYear;
     
     if (interestType === "simple") {
-      // For simple interest, we approximate the payoff time
-      const monthlyRate = rate / 100 / 12;
-      const totalInterest = balance * monthlyRate;
-      return Math.ceil((balance + totalInterest) / payment);
+      // Simple interest: I = P * r * t
+      const totalInterest = balance * (annualRate / 100);
+      const totalAmount = balance + totalInterest;
+      return Math.ceil(totalAmount / payment);
     } else {
-      // Compound interest calculation
-      const monthlyRate = rate / 100 / 12;
-      return Math.ceil(Math.log(1 + (balance * monthlyRate) / payment) / Math.log(1 + monthlyRate));
+      // Compound interest with different frequencies
+      if (interestFreq === paymentFreq) {
+        // Same frequency - standard formula
+        return Math.ceil(Math.log(1 + (balance * periodRate) / payment) / Math.log(1 + periodRate));
+      } else {
+        // Different frequencies - iterative calculation
+        let remainingBalance = balance;
+        let periods = 0;
+        const maxPeriods = 1000; // Safety limit
+        
+        while (remainingBalance > 0.01 && periods < maxPeriods) {
+          // Apply interest for one payment period
+          const interestPeriodsInPaymentPeriod = interestPeriodsPerYear / paymentPeriodsPerYear;
+          const effectiveRate = Math.pow(1 + periodRate, interestPeriodsInPaymentPeriod) - 1;
+          
+          remainingBalance = remainingBalance * (1 + effectiveRate);
+          remainingBalance = Math.max(0, remainingBalance - payment);
+          periods++;
+        }
+        
+        return periods;
+      }
     }
   };
 
@@ -483,8 +529,31 @@ export default function Loans() {
               const balance = parseFloat(loan.balance);
               const minPayment = parseFloat(loan.minPayment);
               const interestRate = parseFloat(loan.interestRate);
-              const monthsToPayoff = calculateMonthsToPayoff(balance, minPayment, interestRate);
-              const totalInterest = (minPayment * monthsToPayoff) - balance;
+              const interestType = loan.interestType || "compound";
+              const interestPeriod = loan.interestPeriod || "monthly";
+              const repaymentFreq = loan.repaymentFrequency || "monthly";
+              
+              const payoffPeriods = calculatePayoffPeriods(
+                balance,
+                minPayment,
+                interestRate,
+                interestType,
+                interestPeriod,
+                repaymentFreq
+              );
+              
+              const totalInterest = payoffPeriods * minPayment - balance;
+              
+              // Convert periods to a readable format
+              const getTimeDisplay = (periods: number, frequency: string) => {
+                if (frequency === "daily") return `${periods} days`;
+                if (frequency === "weekly") return `${periods} weeks`;
+                if (frequency === "biweekly") return `${Math.round(periods / 26 * 12)} months`;
+                if (frequency === "monthly") return `${periods} months`;
+                if (frequency === "quarterly") return `${periods} quarters`;
+                if (frequency === "annually") return `${periods} years`;
+                return `${periods} payments`;
+              };
 
               return (
                 <div key={loan.id} className="bg-white rounded-xl p-4 border border-gray-100">
@@ -538,7 +607,7 @@ export default function Loans() {
                     <div className="flex justify-between border-t pt-2">
                       <span className="text-sm text-gray-500">Payoff Time:</span>
                       <span className="font-medium text-orange-600">
-                        {monthsToPayoff} months
+                        {getTimeDisplay(payoffPeriods, repaymentFreq)}
                       </span>
                     </div>
                     {totalInterest > 0 && (
