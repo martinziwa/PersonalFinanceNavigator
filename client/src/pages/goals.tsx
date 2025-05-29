@@ -216,7 +216,7 @@ export default function Goals() {
           </DialogTrigger>
           <DialogContent className="max-w-sm mx-auto">
             <DialogHeader>
-              <DialogTitle>Create Savings Goal</DialogTitle>
+              <DialogTitle>{editingGoal ? "Edit Savings Goal" : "Create Savings Goal"}</DialogTitle>
             </DialogHeader>
             
             <Form {...form}>
@@ -297,9 +297,13 @@ export default function Goals() {
                   <Button
                     type="button"
                     variant="secondary"
-                    onClick={() => setIsDialogOpen(false)}
+                    onClick={() => {
+                      setIsDialogOpen(false);
+                      setEditingGoal(null);
+                      form.reset();
+                    }}
                     className="flex-1"
-                    disabled={createGoalMutation.isPending}
+                    disabled={createGoalMutation.isPending || updateGoalMutation.isPending}
                   >
                     Cancel
                   </Button>
