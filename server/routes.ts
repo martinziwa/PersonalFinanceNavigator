@@ -13,11 +13,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // Guest login route
+  app.get('/api/guest-login', (req: any, res) => {
+    // Create a guest session
+    const guestUser = {
+      claims: {
+        sub: `guest-${Date.now()}`,
+        email: null,
+        first_name: "Guest",
+        last_name: "User",
+        profile_image_url: null
+      },
+      access_token: "guest-token",
+      refresh_token: null,
+      expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+    };
+    
+    req.login(guestUser, (err: any) => {
+      if (err) {
+        return res.status(500).json({ message: "Failed to create guest session" });
+      }
+      res.redirect('/');
+    });
+  });
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
+      if (!user && userId.startsWith('guest-')) {
+        // Create guest user on first access
+        const guestUser = await storage.upsertUser({
+          id: userId,
+          email: null,
+          firstName: "Guest",
+          lastName: "User",
+          profileImageUrl: null
+        });
+        return res.json(guestUser);
+      }
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);

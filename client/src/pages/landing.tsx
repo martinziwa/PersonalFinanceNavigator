@@ -45,13 +45,23 @@ export default function Landing() {
           </div>
         </div>
 
-        {/* Login Button */}
-        <Button 
-          onClick={handleLogin}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-xl text-lg"
-        >
-          Get Started
-        </Button>
+        {/* Login Buttons */}
+        <div className="space-y-3">
+          <Button 
+            onClick={handleLogin}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-xl text-lg"
+          >
+            Get Started
+          </Button>
+          
+          <Button 
+            onClick={() => window.location.href = '/api/guest-login'}
+            variant="outline"
+            className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-semibold py-4 rounded-xl text-lg"
+          >
+            Try as Guest
+          </Button>
+        </div>
 
         <p className="text-sm text-gray-500 mt-4">
           Secure login powered by Replit

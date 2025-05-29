@@ -139,6 +139,11 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return next();
   }
 
+  // Handle guest users - they expire after 24 hours
+  if (user.claims?.sub?.startsWith('guest-')) {
+    return res.status(401).json({ message: "Guest session expired" });
+  }
+
   const refreshToken = user.refresh_token;
   if (!refreshToken) {
     return res.redirect("/api/login");
