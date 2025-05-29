@@ -129,10 +129,19 @@ export default function Loans() {
     createLoanMutation.mutate(loanData);
   };
 
-  const calculateMonthsToPayoff = (balance: number, payment: number, rate: number) => {
+  const calculateMonthsToPayoff = (balance: number, payment: number, rate: number, interestType: string = "compound") => {
     if (rate === 0) return Math.ceil(balance / payment);
-    const monthlyRate = rate / 100 / 12;
-    return Math.ceil(Math.log(1 + (balance * monthlyRate) / payment) / Math.log(1 + monthlyRate));
+    
+    if (interestType === "simple") {
+      // For simple interest, we approximate the payoff time
+      const monthlyRate = rate / 100 / 12;
+      const totalInterest = balance * monthlyRate;
+      return Math.ceil((balance + totalInterest) / payment);
+    } else {
+      // Compound interest calculation
+      const monthlyRate = rate / 100 / 12;
+      return Math.ceil(Math.log(1 + (balance * monthlyRate) / payment) / Math.log(1 + monthlyRate));
+    }
   };
 
   const formatDate = (date: string | Date) => {

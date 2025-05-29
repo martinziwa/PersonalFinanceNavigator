@@ -35,10 +35,10 @@ export const savingsGoals = pgTable("savings_goals", {
 export const loans = pgTable("loans", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  principalAmount: decimal("principal_amount", { precision: 10, scale: 2 }).notNull(),
+  principalAmount: decimal("principal_amount", { precision: 10, scale: 2 }),
   balance: decimal("balance", { precision: 10, scale: 2 }).notNull(),
   interestRate: decimal("interest_rate", { precision: 5, scale: 2 }).notNull(),
-  interestType: text("interest_type").notNull(), // "simple" or "compound"
+  interestType: text("interest_type"), // "simple" or "compound"
   minPayment: decimal("min_payment", { precision: 10, scale: 2 }).notNull(),
   nextPaymentDate: timestamp("next_payment_date").notNull(),
   icon: text("icon").notNull(),
