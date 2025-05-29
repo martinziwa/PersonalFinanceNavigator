@@ -12,6 +12,7 @@ import { useBudgets } from "@/hooks/use-budgets";
 import { useGoals } from "@/hooks/use-goals";
 import { useLoans } from "@/hooks/use-loans";
 import { formatCurrency } from "@/lib/currency";
+import type { Transaction } from "@shared/schema";
 
 interface FinancialSummary {
   netWorth: number;
@@ -34,6 +35,22 @@ export default function Home() {
   const { data: loans = [] } = useLoans();
 
   const recentTransactions = transactions.slice(0, 4);
+
+  // Calculate actual savings for a goal based on transactions
+  const calculateGoalProgress = (goalId: number) => {
+    const goalTransactions = transactions.filter((transaction: Transaction) => 
+      transaction.savingsGoalId === goalId
+    );
+    
+    return goalTransactions.reduce((total: number, transaction: Transaction) => {
+      if (transaction.type === 'savings_deposit') {
+        return total + parseFloat(transaction.amount);
+      } else if (transaction.type === 'savings_withdrawal') {
+        return total - parseFloat(transaction.amount);
+      }
+      return total;
+    }, 0);
+  };
 
   // Calculate aggregate amounts
   const totalIncome = transactions

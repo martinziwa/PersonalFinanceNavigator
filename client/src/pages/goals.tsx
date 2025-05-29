@@ -13,10 +13,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useGoals } from "@/hooks/use-goals";
+import { useTransactions } from "@/hooks/use-transactions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
-import type { InsertSavingsGoal } from "@shared/schema";
+import type { InsertSavingsGoal, Transaction } from "@shared/schema";
 
 const goalSchema = z.object({
   name: z.string().min(1, "Goal name is required"),
@@ -48,7 +49,24 @@ export default function Goals() {
   const [contributeAmount, setContributeAmount] = useState("");
   
   const { data: goals = [], isLoading } = useGoals();
+  const { data: transactions = [] } = useTransactions();
   const { toast } = useToast();
+
+  // Calculate actual savings for a goal based on transactions
+  const calculateGoalProgress = (goalId: number) => {
+    const goalTransactions = transactions.filter((transaction: Transaction) => 
+      transaction.savingsGoalId === goalId
+    );
+    
+    return goalTransactions.reduce((total: number, transaction: Transaction) => {
+      if (transaction.type === 'savings_deposit') {
+        return total + parseFloat(transaction.amount);
+      } else if (transaction.type === 'savings_withdrawal') {
+        return total - parseFloat(transaction.amount);
+      }
+      return total;
+    }, 0);
+  };
 
   const form = useForm<GoalFormData>({
     resolver: zodResolver(goalSchema),
@@ -348,8 +366,10 @@ export default function Goals() {
         ) : (
           <div className="space-y-4">
             {goals.map((goal) => {
-              const percentage = (parseFloat(goal.currentAmount) / parseFloat(goal.targetAmount)) * 100;
-              const remaining = parseFloat(goal.targetAmount) - parseFloat(goal.currentAmount);
+              const actualSavings = calculateGoalProgress(goal.id);
+              const targetAmount = parseFloat(goal.targetAmount);
+              const percentage = (actualSavings / targetAmount) * 100;
+              const remaining = targetAmount - actualSavings;
               const isCompleted = percentage >= 100;
               
               return (
@@ -407,10 +427,10 @@ export default function Goals() {
                   <div className="mb-2">
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-gray-600">
-                        {formatCurrency(parseFloat(goal.currentAmount))}
+                        {formatCurrency(actualSavings)}
                       </span>
                       <span className="text-gray-900 font-medium">
-                        {formatCurrency(parseFloat(goal.targetAmount))}
+                        {formatCurrency(targetAmount)}
                       </span>
                     </div>
                     <ProgressBar
