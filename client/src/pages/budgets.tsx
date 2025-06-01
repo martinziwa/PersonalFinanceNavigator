@@ -8,7 +8,7 @@ import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import ProgressBar from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -65,26 +65,6 @@ export default function Budgets() {
   
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
-
-  // Calculate actual spending for each budget category
-  const calculateSpentAmount = (budget: any) => {
-    const budgetStart = new Date(budget.startDate);
-    const budgetEnd = new Date(budget.endDate);
-    
-    const categoryTransactions = transactions.filter((transaction: Transaction) => {
-      const transactionDate = new Date(transaction.date);
-      return (
-        transaction.category === budget.category &&
-        transaction.type === 'expense' &&
-        transactionDate >= budgetStart &&
-        transactionDate <= budgetEnd
-      );
-    });
-
-    return categoryTransactions.reduce((total: number, transaction: Transaction) => {
-      return total + parseFloat(transaction.amount);
-    }, 0);
-  };
   const { toast } = useToast();
 
   const form = useForm<BudgetFormData>({
@@ -166,59 +146,6 @@ export default function Budgets() {
     },
   });
 
-  const onSubmit = (data: BudgetFormData) => {
-    const budgetData = {
-      category: data.category,
-      amount: data.amount,
-      period: data.period,
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
-      icon: data.icon,
-    };
-    
-    if (editingBudget) {
-      updateBudgetMutation.mutate({
-        id: editingBudget.id,
-        data: budgetData
-      });
-    } else {
-      createBudgetMutation.mutate(budgetData);
-    }
-  };
-
-  const handleCategoryChange = (category: string) => {
-    const categoryData = categories.find(c => c.value === category);
-    if (categoryData) {
-      form.setValue("icon", categoryData.icon);
-    }
-  };
-
-  // Pre-populate form when editing
-  React.useEffect(() => {
-    if (editingBudget && isDialogOpen) {
-      const startDate = new Date(editingBudget.startDate);
-      const endDate = new Date(editingBudget.endDate);
-      
-      form.reset({
-        category: editingBudget.category,
-        amount: editingBudget.amount,
-        period: editingBudget.period,
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
-        icon: editingBudget.icon,
-      });
-    } else if (!editingBudget && isDialogOpen) {
-      form.reset({
-        category: "",
-        amount: "",
-        period: "monthly",
-        startDate: "",
-        endDate: "",
-        icon: "",
-      });
-    }
-  }, [editingBudget, isDialogOpen, form]);
-
   // Budget allocation functions
   const totalPercentage = useMemo(() => {
     return Object.values(budgetAllocations).reduce((sum, val) => sum + val, 0);
@@ -254,8 +181,8 @@ export default function Budgets() {
           category,
           amount,
           period: "monthly",
-          startDate: today.toISOString().split('T')[0],
-          endDate: nextMonth.toISOString().split('T')[0],
+          startDate: today,
+          endDate: nextMonth,
           icon: categoryData?.icon || "📝"
         };
         
@@ -274,6 +201,31 @@ export default function Budgets() {
     });
   };
 
+  const onSubmit = (data: BudgetFormData) => {
+    const budgetData = {
+      ...data,
+      amount: data.amount,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
+    };
+
+    if (editingBudget) {
+      updateBudgetMutation.mutate({
+        id: editingBudget.id,
+        data: budgetData
+      });
+    } else {
+      createBudgetMutation.mutate(budgetData);
+    }
+  };
+
+  const handleCategoryChange = (category: string) => {
+    const categoryData = categories.find(c => c.value === category);
+    if (categoryData) {
+      form.setValue("icon", categoryData.icon);
+    }
+  };
+
   const handleEditBudget = (budget: any) => {
     setEditingBudget(budget);
     setIsDialogOpen(true);
@@ -288,6 +240,47 @@ export default function Budgets() {
     setEditingBudget(null);
     setIsDialogOpen(true);
   };
+
+  // Pre-populate form when editing
+  React.useEffect(() => {
+    if (editingBudget && isDialogOpen) {
+      const startDate = new Date(editingBudget.startDate);
+      const endDate = new Date(editingBudget.endDate);
+      
+      form.reset({
+        category: editingBudget.category,
+        amount: editingBudget.amount,
+        period: editingBudget.period,
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        icon: editingBudget.icon,
+      });
+    } else if (!editingBudget && isDialogOpen) {
+      form.reset({
+        category: "",
+        amount: "",
+        period: "monthly",
+        startDate: "",
+        endDate: "",
+        icon: "",
+      });
+    }
+  }, [editingBudget, isDialogOpen, form]);
+
+  if (isLoading) {
+    return (
+      <div className="max-w-sm mx-auto bg-white min-h-screen relative">
+        <Header title="Budgets" subtitle="Manage your spending limits" />
+        <main className="pb-20 px-4 pt-4">
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="text-gray-500 mt-2">Loading budgets...</p>
+          </div>
+        </main>
+        <BottomNavigation />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-sm mx-auto bg-white min-h-screen relative flex flex-col">
@@ -307,7 +300,6 @@ export default function Budgets() {
           </TabsList>
 
           <TabsContent value="allocator" className="space-y-4">
-            {/* Budget Allocation Slider */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Budget Allocation</CardTitle>
@@ -384,7 +376,6 @@ export default function Budgets() {
           </TabsContent>
 
           <TabsContent value="list" className="space-y-4">
-            {/* Add Budget Button */}
             <Button 
               onClick={handleCreateNew}
               className="w-full bg-primary text-white py-3"
@@ -392,6 +383,97 @@ export default function Budgets() {
               <Plus className="h-4 w-4 mr-2" />
               Create New Budget
             </Button>
+
+            {budgets.length === 0 ? (
+              <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
+                <PieChart className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500">No budgets yet</p>
+                <p className="text-sm text-gray-400 mt-1">Create your first budget to start tracking spending</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {budgets.map((budget: any) => {
+                  const categoryTransactions = transactions.filter((transaction: Transaction) => {
+                    return transaction.category === budget.category && 
+                           transaction.type === "expense" &&
+                           new Date(transaction.date) >= new Date(budget.startDate) &&
+                           new Date(transaction.date) <= new Date(budget.endDate);
+                  });
+
+                  const totalSpent = categoryTransactions.reduce((total: number, transaction: Transaction) => {
+                    return total + parseFloat(transaction.amount);
+                  }, 0);
+
+                  const budgetAmount = parseFloat(budget.amount);
+                  const percentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
+                  const isOverBudget = percentage > 100;
+
+                  return (
+                    <div key={budget.id} className="bg-white rounded-xl p-4 border border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <span className="text-lg">{budget.icon}</span>
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-gray-900 capitalize">
+                              {budget.category.replace('_', ' ')}
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                              {formatCurrency(totalSpent)} of {formatCurrency(budgetAmount)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <div className="text-right">
+                            <div className={`text-sm font-semibold ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
+                              {percentage.toFixed(1)}%
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {formatCurrency(budgetAmount - totalSpent)} left
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditBudget(budget)}
+                            className="p-2 text-blue-600 hover:bg-blue-50"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteBudgetMutation.mutate(budget.id)}
+                            disabled={deleteBudgetMutation.isPending}
+                            className="p-2 text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <ProgressBar
+                        percentage={percentage}
+                        color={
+                          isOverBudget ? "bg-red-500" :
+                          percentage > 80 ? "bg-yellow-500" :
+                          "bg-green-500"
+                        }
+                      />
+                      
+                      {isOverBudget && (
+                        <div className="mt-2 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                          ⚠️ Budget exceeded! Consider reviewing your spending.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
 
         <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
           <DialogContent className="max-w-sm mx-auto">
@@ -443,8 +525,7 @@ export default function Budgets() {
                       <FormControl>
                         <Input
                           type="number"
-                          step="0.01"
-                          placeholder="0.00"
+                          placeholder="Enter amount"
                           {...field}
                         />
                       </FormControl>
@@ -461,10 +542,7 @@ export default function Budgets() {
                       <FormItem>
                         <FormLabel>Start Date</FormLabel>
                         <FormControl>
-                          <Input
-                            type="date"
-                            {...field}
-                          />
+                          <Input type="date" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -478,10 +556,7 @@ export default function Budgets() {
                       <FormItem>
                         <FormLabel>End Date</FormLabel>
                         <FormControl>
-                          <Input
-                            type="date"
-                            {...field}
-                          />
+                          <Input type="date" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -489,136 +564,27 @@ export default function Budgets() {
                   />
                 </div>
 
-                <div className="flex space-x-4">
+                <div className="flex gap-3 pt-4">
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="outline"
                     onClick={handleCloseDialog}
                     className="flex-1"
-                    disabled={createBudgetMutation.isPending || updateBudgetMutation.isPending}
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="flex-1 bg-primary text-white"
                     disabled={createBudgetMutation.isPending || updateBudgetMutation.isPending}
+                    className="flex-1"
                   >
-                    {editingBudget
-                      ? (updateBudgetMutation.isPending ? "Updating..." : "Update Budget")
-                      : (createBudgetMutation.isPending ? "Creating..." : "Create Budget")
-                    }
+                    {editingBudget ? "Update Budget" : "Create Budget"}
                   </Button>
                 </div>
               </form>
             </Form>
           </DialogContent>
         </Dialog>
-
-        {/* Budgets List */}
-        {isLoading ? (
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl p-4 border border-gray-100 animate-pulse">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-10 h-10 bg-gray-200 rounded-xl"></div>
-                  <div className="flex-1">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                  <div className="h-4 bg-gray-200 rounded w-16"></div>
-                </div>
-                <div className="h-2 bg-gray-200 rounded"></div>
-              </div>
-            ))}
-          </div>
-        ) : budgets.length === 0 ? (
-          <div className="bg-white rounded-xl p-8 border border-gray-100 text-center">
-            <div className="text-4xl mb-4">📊</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No budgets yet</h3>
-            <p className="text-gray-500 mb-4">
-              Create your first budget to start tracking your spending
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {budgets.map((budget) => {
-              const actualSpent = calculateSpentAmount(budget);
-              const percentage = (actualSpent / parseFloat(budget.amount)) * 100;
-              const remaining = parseFloat(budget.amount) - actualSpent;
-              const isOverBudget = percentage > 100;
-              
-              return (
-                <div key={budget.id} className="bg-white rounded-xl p-4 border border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-                        <span className="text-lg">{budget.icon}</span>
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900 capitalize">
-                          {budget.category.replace('_', ' ')}
-                        </h3>
-                        <p className="text-xs text-gray-500">
-                          {new Date(budget.startDate).toLocaleDateString()} - {new Date(budget.endDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(actualSpent)} / {formatCurrency(parseFloat(budget.amount))}
-                        </div>
-                        <div className={`text-xs ${
-                          isOverBudget ? "text-red-600" : remaining < parseFloat(budget.amount) * 0.2 ? "text-yellow-600" : "text-green-600"
-                        }`}>
-                          {isOverBudget ? 
-                            `Over by ${formatCurrency(Math.abs(remaining))}` : 
-                            `${formatCurrency(remaining)} left`
-                          }
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditBudget(budget)}
-                        className="p-2 text-blue-600 hover:bg-blue-50"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteBudgetMutation.mutate(budget.id)}
-                        disabled={deleteBudgetMutation.isPending}
-                        className="p-2 text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <ProgressBar
-                    percentage={percentage}
-                    color={
-                      isOverBudget ? "bg-red-500" :
-                      percentage > 80 ? "bg-yellow-500" :
-                      "bg-green-500"
-                    }
-                  />
-                  
-                  {isOverBudget && (
-                    <div className="mt-2 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
-                      ⚠️ Budget exceeded! Consider reviewing your spending.
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-          </TabsContent>
-        </Tabs>
       </main>
 
       <BottomNavigation />
