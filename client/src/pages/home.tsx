@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { TrendingUp, ArrowDown, ArrowUp, Plus } from "lucide-react";
+import { TrendingUp, ArrowDown, ArrowUp, Plus, AlertTriangle, Clock, Target } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import StatCard from "@/components/ui/stat-card";
 import ProgressBar from "@/components/ui/progress-bar";
 import TransactionModal from "@/components/modals/transaction-modal";
+import { Button } from "@/components/ui/button";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useGoals } from "@/hooks/use-goals";
@@ -35,6 +36,115 @@ export default function Home() {
   const { data: loans = [] } = useLoans();
 
   const recentTransactions = transactions.slice(0, 4);
+
+  // Generate spending alerts
+  const spendingAlerts = useMemo(() => {
+    const alerts: Array<{
+      id: string;
+      type: 'budget_exceeded' | 'goal_deadline' | 'loan_payment';
+      title: string;
+      message: string;
+      severity: 'high' | 'medium' | 'low';
+      icon: React.ReactNode;
+      actionText?: string;
+      actionLink?: string;
+    }> = [];
+
+    // Check for budget overruns
+    budgets.forEach((budget: any) => {
+      const categoryTransactions = transactions.filter((transaction: Transaction) => {
+        return transaction.category === budget.category && 
+               transaction.type === "expense" &&
+               new Date(transaction.date) >= new Date(budget.startDate) &&
+               new Date(transaction.date) <= new Date(budget.endDate);
+      });
+
+      const totalSpent = categoryTransactions.reduce((total: number, transaction: Transaction) => {
+        return total + parseFloat(transaction.amount);
+      }, 0);
+
+      const budgetAmount = parseFloat(budget.amount);
+      const percentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
+
+      if (percentage > 100) {
+        alerts.push({
+          id: `budget-${budget.id}`,
+          type: 'budget_exceeded',
+          title: 'Budget Exceeded',
+          message: `You've spent ${formatCurrency(totalSpent)} on ${budget.category.replace('_', ' ')}, which is ${(percentage - 100).toFixed(1)}% over your ${formatCurrency(budgetAmount)} budget.`,
+          severity: 'high',
+          icon: <AlertTriangle className="h-4 w-4" />,
+          actionText: 'View Budget',
+          actionLink: '/budgets'
+        });
+      } else if (percentage > 80) {
+        alerts.push({
+          id: `budget-warning-${budget.id}`,
+          type: 'budget_exceeded',
+          title: 'Budget Warning',
+          message: `You've used ${percentage.toFixed(1)}% of your ${budget.category.replace('_', ' ')} budget (${formatCurrency(totalSpent)} of ${formatCurrency(budgetAmount)}).`,
+          severity: 'medium',
+          icon: <AlertTriangle className="h-4 w-4" />,
+          actionText: 'View Budget',
+          actionLink: '/budgets'
+        });
+      }
+    });
+
+    // Check for upcoming loan payments
+    loans.forEach((loan: any) => {
+      if (loan.nextPaymentDate) {
+        const paymentDate = new Date(loan.nextPaymentDate);
+        const today = new Date();
+        const daysUntilPayment = Math.ceil((paymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysUntilPayment <= 7 && daysUntilPayment >= 0) {
+          alerts.push({
+            id: `loan-payment-${loan.id}`,
+            type: 'loan_payment',
+            title: 'Upcoming Loan Payment',
+            message: `${loan.name} payment of ${formatCurrency(parseFloat(loan.repaymentAmount || "0"))} is due ${daysUntilPayment === 0 ? 'today' : daysUntilPayment === 1 ? 'tomorrow' : `in ${daysUntilPayment} days`}.`,
+            severity: daysUntilPayment <= 2 ? 'high' : 'medium',
+            icon: <Clock className="h-4 w-4" />,
+            actionText: 'View Loans',
+            actionLink: '/loans'
+          });
+        }
+      }
+    });
+
+    // Check for goal deadlines
+    goals.forEach((goal: any) => {
+      if (goal.deadline) {
+        const deadline = new Date(goal.deadline);
+        const today = new Date();
+        const daysUntilDeadline = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        const currentAmount = calculateGoalProgress(goal.id, goal.currentAmount);
+        const targetAmount = parseFloat(goal.targetAmount);
+        const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
+
+        if (daysUntilDeadline <= 30 && daysUntilDeadline >= 0 && progress < 80) {
+          alerts.push({
+            id: `goal-deadline-${goal.id}`,
+            type: 'goal_deadline',
+            title: 'Goal Deadline Approaching',
+            message: `${goal.name} is ${progress.toFixed(1)}% complete with ${daysUntilDeadline} days remaining until your ${deadline.toLocaleDateString()} deadline.`,
+            severity: daysUntilDeadline <= 7 ? 'high' : 'medium',
+            icon: <Target className="h-4 w-4" />,
+            actionText: 'View Goals',
+            actionLink: '/goals'
+          });
+        }
+      }
+    });
+
+    // Sort by severity (high first)
+    return alerts.sort((a, b) => {
+      const severityOrder = { high: 3, medium: 2, low: 1 };
+      return severityOrder[b.severity] - severityOrder[a.severity];
+    }).slice(0, 3); // Show max 3 alerts
+  }, [budgets, loans, goals, transactions]);
 
   // Calculate actual savings for a goal based on starting savings plus transactions
   const calculateGoalProgress = (goalId: number, startingSavings: string = "0") => {
@@ -130,6 +240,78 @@ export default function Home() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Spending Alerts */}
+        {spendingAlerts.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900">Alerts</h2>
+            <div className="space-y-3">
+              {spendingAlerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className={`rounded-xl p-4 border ${
+                    alert.severity === 'high' 
+                      ? 'bg-red-50 border-red-200' 
+                      : alert.severity === 'medium'
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-blue-50 border-blue-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3 flex-1">
+                      <div className={`p-2 rounded-lg ${
+                        alert.severity === 'high' 
+                          ? 'bg-red-100 text-red-600' 
+                          : alert.severity === 'medium'
+                          ? 'bg-amber-100 text-amber-600'
+                          : 'bg-blue-100 text-blue-600'
+                      }`}>
+                        {alert.icon}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className={`font-medium ${
+                          alert.severity === 'high' 
+                            ? 'text-red-900' 
+                            : alert.severity === 'medium'
+                            ? 'text-amber-900'
+                            : 'text-blue-900'
+                        }`}>
+                          {alert.title}
+                        </h3>
+                        <p className={`text-sm mt-1 ${
+                          alert.severity === 'high' 
+                            ? 'text-red-700' 
+                            : alert.severity === 'medium'
+                            ? 'text-amber-700'
+                            : 'text-blue-700'
+                        }`}>
+                          {alert.message}
+                        </p>
+                      </div>
+                    </div>
+                    {alert.actionText && alert.actionLink && (
+                      <Link href={alert.actionLink}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={`ml-3 ${
+                            alert.severity === 'high' 
+                              ? 'border-red-300 text-red-700 hover:bg-red-100' 
+                              : alert.severity === 'medium'
+                              ? 'border-amber-300 text-amber-700 hover:bg-amber-100'
+                              : 'border-blue-300 text-blue-700 hover:bg-blue-100'
+                          }`}
+                        >
+                          {alert.actionText}
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Financial Overview */}
