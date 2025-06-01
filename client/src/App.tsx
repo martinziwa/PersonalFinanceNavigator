@@ -11,6 +11,7 @@ import Goals from "@/pages/goals";
 import Reports from "@/pages/reports";
 import Loans from "@/pages/loans";
 import Other from "@/pages/other";
+import Calendar from "@/pages/calendar";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
@@ -29,6 +30,7 @@ function Router() {
           <Route path="/goals" component={Goals} />
           <Route path="/reports" component={Reports} />
           <Route path="/loans" component={Loans} />
+          <Route path="/calendar" component={Calendar} />
           <Route path="/other" component={Other} />
         </>
       )}

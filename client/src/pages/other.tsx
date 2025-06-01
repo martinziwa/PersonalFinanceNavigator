@@ -1,10 +1,18 @@
 import { Link } from "wouter";
-import { BarChart3, Settings, HelpCircle, Shield, CreditCard } from "lucide-react";
+import { BarChart3, Settings, HelpCircle, Shield, CreditCard, Calendar } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import { Button } from "@/components/ui/button";
 
 const menuItems = [
+  {
+    path: "/calendar",
+    label: "Calendar",
+    description: "View important financial dates and events",
+    icon: Calendar,
+    color: "bg-purple-100",
+    iconColor: "text-purple-600"
+  },
   {
     path: "/reports",
     label: "Reports",
