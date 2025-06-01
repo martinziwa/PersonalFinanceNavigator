@@ -12,6 +12,7 @@ import { useGoals } from "@/hooks/use-goals";
 import { useLoans } from "@/hooks/use-loans";
 import { useBudgets } from "@/hooks/use-budgets";
 import { formatCurrency } from "@/lib/currency";
+import jsPDF from "jspdf";
 import type { Transaction } from "@shared/schema";
 
 interface FinancialSummary {
@@ -151,38 +152,132 @@ export default function Reports() {
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
-  // Generate downloadable report
+  // Generate PDF report
   const generateReport = () => {
-    const reportData = {
-      period: `${startDate} to ${endDate}`,
-      summary: {
-        totalIncome,
-        totalExpenses,
-        netAmount,
-        transactionCount: transactions.length
-      },
-      categoryBreakdown: Object.fromEntries(topCategories),
-      monthlyTrends: Object.fromEntries(monthlyTrends),
-      goalProgress: goals.map(goal => ({
-        name: goal.name,
-        target: parseFloat(goal.targetAmount),
-        current: parseFloat(goal.currentAmount || "0")
-      })),
-      loanSummary: loans.map(loan => ({
-        name: loan.name,
-        balance: parseFloat(loan.balance),
-        nextPayment: loan.nextPaymentDate
-      }))
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    let yPosition = 20;
+
+    // Helper function to add text with wrapping
+    const addText = (text: string, x: number, y: number, options: any = {}) => {
+      pdf.text(text, x, y, options);
+      return y + (options.lineHeight || 7);
     };
 
-    const dataStr = JSON.stringify(reportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `financial-report-${startDate}-to-${endDate}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+    // Title
+    pdf.setFontSize(20);
+    pdf.setFont("helvetica", "bold");
+    yPosition = addText("Financial Report", 20, yPosition);
+    
+    // Period
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "normal");
+    yPosition = addText(`Period: ${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`, 20, yPosition + 5);
+    yPosition += 10;
+
+    // Summary Section
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    yPosition = addText("Summary", 20, yPosition);
+    yPosition += 5;
+
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "normal");
+    yPosition = addText(`Total Income: ${formatCurrency(totalIncome)}`, 20, yPosition);
+    yPosition = addText(`Total Expenses: ${formatCurrency(totalExpenses)}`, 20, yPosition);
+    yPosition = addText(`Net Amount: ${formatCurrency(netAmount)}`, 20, yPosition);
+    yPosition = addText(`Transaction Count: ${transactions.length}`, 20, yPosition);
+    yPosition += 10;
+
+    // Category Breakdown
+    if (topCategories.length > 0) {
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      yPosition = addText("Top Spending Categories", 20, yPosition);
+      yPosition += 5;
+
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "normal");
+      topCategories.forEach(([category, amount]) => {
+        const totalExpenses = Object.values(categorySpending).reduce((sum, val) => sum + val, 0);
+        const percentage = totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0;
+        yPosition = addText(`${category.replace('_', ' ')}: ${formatCurrency(amount)} (${percentage.toFixed(1)}%)`, 20, yPosition);
+      });
+      yPosition += 10;
+    }
+
+    // Monthly Trends
+    if (monthlyTrends.length > 0) {
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      yPosition = addText("Monthly Trends", 20, yPosition);
+      yPosition += 5;
+
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "normal");
+      monthlyTrends.forEach(([monthKey, data]) => {
+        const netIncome = data.income - data.expenses;
+        yPosition = addText(`${getMonthName(monthKey)}:`, 20, yPosition);
+        yPosition = addText(`  Income: ${formatCurrency(data.income)}`, 25, yPosition);
+        yPosition = addText(`  Expenses: ${formatCurrency(data.expenses)}`, 25, yPosition);
+        yPosition = addText(`  Net: ${formatCurrency(netIncome)}`, 25, yPosition);
+        yPosition += 3;
+      });
+      yPosition += 10;
+    }
+
+    // Goals Progress
+    if (goals.length > 0) {
+      if (yPosition > 250) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      yPosition = addText("Savings Goals Progress", 20, yPosition);
+      yPosition += 5;
+
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "normal");
+      goals.forEach(goal => {
+        const current = parseFloat(goal.currentAmount || "0");
+        const target = parseFloat(goal.targetAmount);
+        const progress = target > 0 ? (current / target) * 100 : 0;
+        yPosition = addText(`${goal.name}: ${formatCurrency(current)} / ${formatCurrency(target)} (${progress.toFixed(1)}%)`, 20, yPosition);
+      });
+      yPosition += 10;
+    }
+
+    // Loans Summary
+    if (loans.length > 0) {
+      if (yPosition > 250) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      yPosition = addText("Loans Summary", 20, yPosition);
+      yPosition += 5;
+
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "normal");
+      loans.forEach(loan => {
+        yPosition = addText(`${loan.name}: Balance ${formatCurrency(parseFloat(loan.balance))}`, 20, yPosition);
+        if (loan.nextPaymentDate) {
+          yPosition = addText(`  Next Payment: ${new Date(loan.nextPaymentDate).toLocaleDateString()}`, 25, yPosition);
+        }
+      });
+    }
+
+    // Generate timestamp
+    pdf.setFontSize(8);
+    pdf.setFont("helvetica", "italic");
+    pdf.text(`Generated on ${new Date().toLocaleString()}`, 20, pdf.internal.pageSize.getHeight() - 10);
+
+    // Save the PDF
+    pdf.save(`financial-report-${startDate}-to-${endDate}.pdf`);
   };
 
   return (
