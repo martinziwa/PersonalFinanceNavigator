@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Plus, Trash2, Edit } from "lucide-react";
+import { Plus, Trash2, Edit, PieChart, Sliders } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import ProgressBar from "@/components/ui/progress-bar";
@@ -12,6 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useTransactions } from "@/hooks/use-transactions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -47,6 +50,18 @@ const categories = [
 export default function Budgets() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("list");
+  const [totalBudgetAmount, setTotalBudgetAmount] = useState(10000);
+  const [budgetAllocations, setBudgetAllocations] = useState<Record<string, number>>({
+    food: 30,
+    transportation: 15,
+    shopping: 10,
+    entertainment: 8,
+    bills: 25,
+    healthcare: 7,
+    education: 3,
+    other: 2
+  });
   
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
@@ -204,6 +219,61 @@ export default function Budgets() {
     }
   }, [editingBudget, isDialogOpen, form]);
 
+  // Budget allocation functions
+  const totalPercentage = useMemo(() => {
+    return Object.values(budgetAllocations).reduce((sum, val) => sum + val, 0);
+  }, [budgetAllocations]);
+
+  const handleAllocationChange = (category: string, percentage: number) => {
+    setBudgetAllocations(prev => ({
+      ...prev,
+      [category]: percentage
+    }));
+  };
+
+  const normalizeAllocations = () => {
+    if (totalPercentage === 0) return;
+    
+    const factor = 100 / totalPercentage;
+    const normalized = Object.fromEntries(
+      Object.entries(budgetAllocations).map(([key, value]) => [key, Math.round(value * factor)])
+    );
+    setBudgetAllocations(normalized);
+  };
+
+  const createBudgetsFromAllocation = async () => {
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    
+    for (const [category, percentage] of Object.entries(budgetAllocations)) {
+      if (percentage > 0) {
+        const amount = (totalBudgetAmount * percentage / 100).toFixed(0);
+        const categoryData = categories.find(c => c.value === category);
+        
+        const budgetData = {
+          category,
+          amount,
+          period: "monthly",
+          startDate: today.toISOString().split('T')[0],
+          endDate: nextMonth.toISOString().split('T')[0],
+          icon: categoryData?.icon || "📝"
+        };
+        
+        try {
+          await apiRequest("POST", "/api/budgets", budgetData);
+        } catch (error) {
+          console.error(`Failed to create budget for ${category}:`, error);
+        }
+      }
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+    toast({
+      title: "Success",
+      description: "Budgets created from allocation",
+    });
+  };
+
   const handleEditBudget = (budget: any) => {
     setEditingBudget(budget);
     setIsDialogOpen(true);
@@ -224,14 +294,104 @@ export default function Budgets() {
       <Header title="Budgets" subtitle="Manage your spending" />
       
       <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4">
-        {/* Add Budget Button */}
-        <Button 
-          onClick={handleCreateNew}
-          className="w-full bg-primary text-white py-3"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create New Budget
-        </Button>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="list" className="flex items-center gap-2">
+              <PieChart className="h-4 w-4" />
+              Budget List
+            </TabsTrigger>
+            <TabsTrigger value="allocator" className="flex items-center gap-2">
+              <Sliders className="h-4 w-4" />
+              Allocator
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="allocator" className="space-y-4">
+            {/* Budget Allocation Slider */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Budget Allocation</CardTitle>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600">Total Budget:</label>
+                  <Input
+                    type="number"
+                    value={totalBudgetAmount}
+                    onChange={(e) => setTotalBudgetAmount(Number(e.target.value))}
+                    className="w-32 text-sm"
+                    placeholder="Enter amount"
+                  />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {categories.map((category) => {
+                  const percentage = budgetAllocations[category.value] || 0;
+                  const amount = (totalBudgetAmount * percentage / 100);
+                  
+                  return (
+                    <div key={category.value} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{category.icon}</span>
+                          <span className="text-sm font-medium">{category.label}</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold">{percentage}%</div>
+                          <div className="text-xs text-gray-500">{formatCurrency(amount)}</div>
+                        </div>
+                      </div>
+                      <Slider
+                        value={[percentage]}
+                        onValueChange={(value) => handleAllocationChange(category.value, value[0])}
+                        max={100}
+                        step={1}
+                        className="w-full"
+                      />
+                    </div>
+                  );
+                })}
+                
+                <div className="border-t pt-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Total Allocation:</span>
+                    <span className={`font-bold ${totalPercentage === 100 ? 'text-green-600' : totalPercentage > 100 ? 'text-red-600' : 'text-amber-600'}`}>
+                      {totalPercentage}%
+                    </span>
+                  </div>
+                  
+                  {totalPercentage !== 100 && (
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={normalizeAllocations}
+                        className="flex-1"
+                      >
+                        Normalize to 100%
+                      </Button>
+                    </div>
+                  )}
+                  
+                  <Button 
+                    onClick={createBudgetsFromAllocation}
+                    disabled={totalPercentage === 0}
+                    className="w-full"
+                  >
+                    Create Budgets from Allocation
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="list" className="space-y-4">
+            {/* Add Budget Button */}
+            <Button 
+              onClick={handleCreateNew}
+              className="w-full bg-primary text-white py-3"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create New Budget
+            </Button>
 
         <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
           <DialogContent className="max-w-sm mx-auto">
@@ -457,6 +617,8 @@ export default function Budgets() {
             })}
           </div>
         )}
+          </TabsContent>
+        </Tabs>
       </main>
 
       <BottomNavigation />
