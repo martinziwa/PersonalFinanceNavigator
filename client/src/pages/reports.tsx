@@ -1,10 +1,18 @@
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, PieChart, BarChart3 } from "lucide-react";
+import { TrendingUp, TrendingDown, PieChart, BarChart3, Calendar, Download } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import StatCard from "@/components/ui/stat-card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTransactions } from "@/hooks/use-transactions";
+import { useGoals } from "@/hooks/use-goals";
+import { useLoans } from "@/hooks/use-loans";
+import { useBudgets } from "@/hooks/use-budgets";
 import { formatCurrency } from "@/lib/currency";
+import type { Transaction } from "@shared/schema";
 
 interface FinancialSummary {
   netWorth: number;
@@ -15,11 +23,65 @@ interface FinancialSummary {
 }
 
 export default function Reports() {
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - 1);
+    return date.toISOString().split('T')[0];
+  });
+  
+  const [endDate, setEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  
+  const [reportPeriod, setReportPeriod] = useState("custom");
+
   const { data: financialSummary } = useQuery<FinancialSummary>({
     queryKey: ["/api/financial-summary"],
   });
 
-  const { data: transactions = [] } = useTransactions();
+  const { data: allTransactions = [] } = useTransactions();
+  const { data: goals = [] } = useGoals();
+  const { data: loans = [] } = useLoans();
+  const { data: budgets = [] } = useBudgets();
+
+  // Handle preset period selection
+  const handlePeriodChange = (period: string) => {
+    setReportPeriod(period);
+    const today = new Date();
+    const start = new Date();
+    
+    switch (period) {
+      case "week":
+        start.setDate(today.getDate() - 7);
+        break;
+      case "month":
+        start.setMonth(today.getMonth() - 1);
+        break;
+      case "quarter":
+        start.setMonth(today.getMonth() - 3);
+        break;
+      case "year":
+        start.setFullYear(today.getFullYear() - 1);
+        break;
+      case "custom":
+        return; // Don't change dates for custom
+    }
+    
+    setStartDate(start.toISOString().split('T')[0]);
+    setEndDate(today.toISOString().split('T')[0]);
+  };
+
+  // Filter transactions based on selected date range
+  const transactions = useMemo(() => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999); // Include the entire end date
+    
+    return allTransactions.filter((transaction: Transaction) => {
+      const transactionDate = new Date(transaction.date);
+      return transactionDate >= start && transactionDate <= end;
+    });
+  }, [allTransactions, startDate, endDate]);
 
   // Calculate aggregate amounts
   const totalIncome = transactions
@@ -89,11 +151,102 @@ export default function Reports() {
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
+  // Generate downloadable report
+  const generateReport = () => {
+    const reportData = {
+      period: `${startDate} to ${endDate}`,
+      summary: {
+        totalIncome,
+        totalExpenses,
+        netAmount,
+        transactionCount: transactions.length
+      },
+      categoryBreakdown: Object.fromEntries(topCategories),
+      monthlyTrends: Object.fromEntries(monthlyTrends),
+      goalProgress: goals.map(goal => ({
+        name: goal.name,
+        target: parseFloat(goal.targetAmount),
+        current: parseFloat(goal.currentAmount || "0")
+      })),
+      loanSummary: loans.map(loan => ({
+        name: loan.name,
+        balance: parseFloat(loan.balance),
+        nextPayment: loan.nextPaymentDate
+      }))
+    };
+
+    const dataStr = JSON.stringify(reportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `financial-report-${startDate}-to-${endDate}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="max-w-sm mx-auto bg-white min-h-screen relative">
       <Header title="Financial Reports" subtitle="Analyze your finances" />
       
       <main className="pb-20 px-4 space-y-6 pt-4">
+        {/* Date Range Selector */}
+        <div className="bg-white rounded-xl p-4 border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900">Report Period</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={generateReport}
+              className="flex items-center space-x-2"
+            >
+              <Download className="h-4 w-4" />
+              <span>Export</span>
+            </Button>
+          </div>
+          
+          <div className="space-y-4">
+            <Select value={reportPeriod} onValueChange={handlePeriodChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">Last 7 days</SelectItem>
+                <SelectItem value="month">Last 30 days</SelectItem>
+                <SelectItem value="quarter">Last 3 months</SelectItem>
+                <SelectItem value="year">Last year</SelectItem>
+                <SelectItem value="custom">Custom range</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {reportPeriod === "custom" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm text-gray-600 mb-1 block">Start Date</label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600 mb-1 block">End Date</label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="text-xs text-gray-500 text-center">
+              {transactions.length} transactions found in selected period
+            </div>
+          </div>
+        </div>
         {/* Transaction Summary */}
         {transactions.length > 0 && (
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
