@@ -95,7 +95,120 @@ export default function Reports() {
 
   const netAmount = totalIncome - totalExpenses;
 
+  // Calculate spending alerts summary for the period
+  const spendingAlertsSummary = useMemo(() => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Loan payment analysis
+    let currentLoanPayments = 0;
+    let missedLoanPayments = 0;
+    
+    loans.forEach((loan: any) => {
+      if (loan.nextPaymentDate) {
+        const paymentDate = new Date(loan.nextPaymentDate);
+        if (paymentDate >= start && paymentDate <= end) {
+          const loanPayments = transactions.filter(t => 
+            t.type === "loan_payment" && 
+            t.loanId === loan.id &&
+            new Date(t.date) >= start && 
+            new Date(t.date) <= end
+          );
+          
+          if (loanPayments.length > 0) {
+            currentLoanPayments++;
+          } else if (paymentDate < new Date()) {
+            missedLoanPayments++;
+          }
+        }
+      }
+    });
 
+    // Savings goals analysis
+    let achievedGoals = 0;
+    let goalsAbove80Percent = 0;
+    
+    goals.forEach((goal: any) => {
+      const goalTransactions = transactions.filter(t => 
+        t.savingsGoalId === goal.id &&
+        new Date(t.date) >= start && 
+        new Date(t.date) <= end
+      );
+      
+      const transactionTotal = goalTransactions.reduce((total, transaction) => {
+        if (transaction.type === 'savings_deposit') {
+          return total + parseFloat(transaction.amount);
+        } else if (transaction.type === 'savings_withdrawal') {
+          return total - parseFloat(transaction.amount);
+        }
+        return total;
+      }, 0);
+      
+      const currentAmount = parseFloat(goal.currentAmount || "0") + transactionTotal;
+      const targetAmount = parseFloat(goal.targetAmount);
+      const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
+      
+      if (progress >= 100) {
+        achievedGoals++;
+      } else if (progress >= 80) {
+        goalsAbove80Percent++;
+      }
+    });
+
+    // Budget analysis for the period
+    let exceededBudgets = 0;
+    let budgetsNearLimit = 0;
+    
+    budgets.forEach((budget: any) => {
+      const budgetStart = new Date(budget.startDate);
+      const budgetEnd = new Date(budget.endDate);
+      
+      // Check if budget period overlaps with report period
+      if (budgetStart <= end && budgetEnd >= start) {
+        const periodStart = new Date(Math.max(start.getTime(), budgetStart.getTime()));
+        const periodEnd = new Date(Math.min(end.getTime(), budgetEnd.getTime()));
+        
+        const categoryTransactions = transactions.filter(t => {
+          const transactionDate = new Date(t.date);
+          return t.category === budget.category && 
+                 t.type === "expense" &&
+                 transactionDate >= periodStart &&
+                 transactionDate <= periodEnd;
+        });
+
+        const totalSpent = categoryTransactions.reduce((total, transaction) => {
+          return total + parseFloat(transaction.amount);
+        }, 0);
+
+        const budgetAmount = parseFloat(budget.amount);
+        const percentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
+
+        if (percentage > 100) {
+          exceededBudgets++;
+        } else if (percentage >= 80) {
+          budgetsNearLimit++;
+        }
+      }
+    });
+
+    return {
+      loanPayments: {
+        current: currentLoanPayments,
+        missed: missedLoanPayments,
+        total: currentLoanPayments + missedLoanPayments
+      },
+      goals: {
+        achieved: achievedGoals,
+        above80Percent: goalsAbove80Percent,
+        total: goals.length
+      },
+      budgets: {
+        exceeded: exceededBudgets,
+        nearLimit: budgetsNearLimit,
+        total: budgets.length
+      }
+    };
+  }, [transactions, loans, goals, budgets, startDate, endDate]);
 
   // Calculate category spending
   const categorySpending = transactions
@@ -187,6 +300,19 @@ export default function Reports() {
     yPosition = addText(`Total Expenses: ${formatCurrency(totalExpenses)}`, 20, yPosition);
     yPosition = addText(`Net Amount: ${formatCurrency(netAmount)}`, 20, yPosition);
     yPosition = addText(`Transaction Count: ${transactions.length}`, 20, yPosition);
+    yPosition += 10;
+
+    // Spending Alerts Summary
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    yPosition = addText("Spending Alerts Summary", 20, yPosition);
+    yPosition += 5;
+
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "normal");
+    yPosition = addText(`Loan Payments: ${spendingAlertsSummary.loanPayments.current} current, ${spendingAlertsSummary.loanPayments.missed} missed`, 20, yPosition);
+    yPosition = addText(`Savings Goals: ${spendingAlertsSummary.goals.achieved} achieved, ${spendingAlertsSummary.goals.above80Percent} above 80%`, 20, yPosition);
+    yPosition = addText(`Budget Performance: ${spendingAlertsSummary.budgets.exceeded} exceeded, ${spendingAlertsSummary.budgets.nearLimit} near limit`, 20, yPosition);
     yPosition += 10;
 
     // Category Breakdown
@@ -342,6 +468,76 @@ export default function Reports() {
             </div>
           </div>
         </div>
+
+        {/* Spending Alerts Summary */}
+        <div className="bg-white rounded-xl p-4 border border-gray-100">
+          <h3 className="font-semibold text-gray-900 mb-4">Spending Alerts Summary</h3>
+          <div className="grid grid-cols-1 gap-4">
+            {/* Loan Payments */}
+            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <span className="text-blue-600 text-sm">🏛️</span>
+                </div>
+                <div>
+                  <div className="font-medium text-blue-900">Loan Payments</div>
+                  <div className="text-sm text-blue-700">
+                    {spendingAlertsSummary.loanPayments.current} current, {spendingAlertsSummary.loanPayments.missed} missed
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-blue-900">
+                  {spendingAlertsSummary.loanPayments.total}
+                </div>
+                <div className="text-xs text-blue-600">total due</div>
+              </div>
+            </div>
+
+            {/* Savings Goals */}
+            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <span className="text-green-600 text-sm">🎯</span>
+                </div>
+                <div>
+                  <div className="font-medium text-green-900">Savings Goals</div>
+                  <div className="text-sm text-green-700">
+                    {spendingAlertsSummary.goals.achieved} achieved, {spendingAlertsSummary.goals.above80Percent} above 80%
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-green-900">
+                  {spendingAlertsSummary.goals.total}
+                </div>
+                <div className="text-xs text-green-600">total goals</div>
+              </div>
+            </div>
+
+            {/* Budget Performance */}
+            <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-100">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                  <span className="text-amber-600 text-sm">📊</span>
+                </div>
+                <div>
+                  <div className="font-medium text-amber-900">Budget Performance</div>
+                  <div className="text-sm text-amber-700">
+                    {spendingAlertsSummary.budgets.exceeded} exceeded, {spendingAlertsSummary.budgets.nearLimit} near limit
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-amber-900">
+                  {spendingAlertsSummary.budgets.total}
+                </div>
+                <div className="text-xs text-amber-600">total budgets</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Transaction Summary */}
         {transactions.length > 0 && (
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
