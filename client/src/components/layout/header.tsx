@@ -13,7 +13,7 @@ interface HeaderProps {
   subtitle?: string;
 }
 
-export default function Header({ title = "Personal Finance Navigator", subtitle = "Good morning" }: HeaderProps) {
+export default function Header({ title = "Personal Finance Tracker", subtitle = "Good morning" }: HeaderProps) {
   const { user } = useAuth();
 
   const handleLogout = () => {
