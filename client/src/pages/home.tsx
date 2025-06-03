@@ -103,7 +103,7 @@ export default function Home() {
             id: `loan-payment-${loan.id}`,
             type: 'loan_payment',
             title: 'Upcoming Loan Payment',
-            message: `${loan.name} payment of ${formatCurrency(parseFloat(loan.repaymentAmount || "0"))} is due ${daysUntilPayment === 0 ? 'today' : daysUntilPayment === 1 ? 'tomorrow' : `in ${daysUntilPayment} days`}.`,
+            message: `${loan.name} payment of ${formatCurrency(parseFloat(loan.minPayment || "0"))} is due ${daysUntilPayment === 0 ? 'today' : daysUntilPayment === 1 ? 'tomorrow' : `in ${daysUntilPayment} days`}.`,
             severity: daysUntilPayment <= 2 ? 'high' : 'medium',
             icon: <Clock className="h-4 w-4" />,
             actionText: 'View Loans',
