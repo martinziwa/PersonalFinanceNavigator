@@ -116,21 +116,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/budgets", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      console.log("Fetching budgets for user:", userId);
       const budgets = await storage.getBudgets(userId);
+      console.log("Fetched budgets:", budgets);
       res.json(budgets);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch budgets" });
+      console.error("Budget fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch budgets", error: error.message });
     }
   });
 
   app.post("/api/budgets", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      console.log("Budget creation request body:", req.body);
       const budget = insertBudgetSchema.parse(req.body);
+      console.log("Parsed budget data:", budget);
       const created = await storage.createBudget(userId, budget);
       res.status(201).json(created);
     } catch (error) {
-      res.status(400).json({ message: "Invalid budget data" });
+      console.error("Budget creation error:", error);
+      res.status(400).json({ message: "Invalid budget data", error: error.message });
     }
   });
 
