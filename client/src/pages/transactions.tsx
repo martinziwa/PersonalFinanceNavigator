@@ -152,8 +152,8 @@ export default function Transactions() {
     return icons[category] || "📝";
   };
 
-  const categories = [
-    { value: "all", label: "All Categories" },
+  // Predefined categories
+  const predefinedCategories = [
     { value: "food", label: "Food & Dining" },
     { value: "transportation", label: "Transportation" },
     { value: "shopping", label: "Shopping" },
@@ -165,6 +165,24 @@ export default function Transactions() {
     { value: "savings", label: "Savings Account" },
     { value: "loan", label: "Loan" },
     { value: "other", label: "Other" },
+  ];
+
+  // Get unique categories from existing transactions
+  const uniqueCategories = new Set<string>();
+  transactions.forEach(t => uniqueCategories.add(t.category));
+  const existingCategories = Array.from(uniqueCategories);
+  
+  // Combine predefined and custom categories
+  const allAvailableCategories = [
+    ...predefinedCategories,
+    ...existingCategories
+      .filter(cat => !predefinedCategories.some(predef => predef.value === cat))
+      .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' ') }))
+  ].sort((a, b) => a.label.localeCompare(b.label));
+
+  const categories = [
+    { value: "all", label: "All Categories" },
+    ...allAvailableCategories
   ];
 
   return (
