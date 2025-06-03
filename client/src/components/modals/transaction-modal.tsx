@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { X } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useGoals } from "@/hooks/use-goals";
 import { useLoans } from "@/hooks/use-loans";
+import { useTransactions } from "@/hooks/use-transactions";
 import type { InsertTransaction } from "@shared/schema";
 
 const transactionSchema = z.object({
@@ -55,6 +56,9 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
   const { toast } = useToast();
   const { data: goals = [] } = useGoals();
   const { data: loans = [] } = useLoans();
+  const { data: transactions = [] } = useTransactions();
+  const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
   
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
@@ -70,6 +74,28 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
   });
 
   const selectedType = form.watch("type");
+
+  // Get unique categories from existing transactions
+  const uniqueCategories = new Set<string>();
+  transactions.forEach(t => uniqueCategories.add(t.category));
+  const existingCategories = Array.from(uniqueCategories);
+  
+  // Combine predefined and existing categories
+  const allCategories = [
+    ...categories,
+    ...existingCategories
+      .filter(cat => !categories.some(predef => predef.value === cat))
+      .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' ') }))
+  ].sort((a, b) => a.label.localeCompare(b.label));
+
+  const handleAddCustomCategory = () => {
+    if (customCategoryInput.trim()) {
+      const categoryValue = customCategoryInput.toLowerCase().replace(/\s+/g, '_');
+      form.setValue("category", categoryValue);
+      setCustomCategoryInput("");
+      setIsAddingCustomCategory(false);
+    }
+  };
 
   const createTransactionMutation = useMutation({
     mutationFn: async (data: InsertTransaction) => {
@@ -235,20 +261,75 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.value} value={category.value}>
-                          {category.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {isAddingCustomCategory ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Enter custom category"
+                          value={customCategoryInput}
+                          onChange={(e) => setCustomCategoryInput(e.target.value)}
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddCustomCategory();
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          onClick={handleAddCustomCategory}
+                          className="px-4 py-3 bg-primary text-white rounded-xl"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          setIsAddingCustomCategory(false);
+                          setCustomCategoryInput("");
+                        }}
+                        className="text-sm text-gray-500"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <Select 
+                        onValueChange={(value) => {
+                          if (value === "__add_custom__") {
+                            setIsAddingCustomCategory(true);
+                            field.onChange("");
+                          } else {
+                            field.onChange(value);
+                          }
+                        }} 
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {allCategories.map((category) => (
+                            <SelectItem key={category.value} value={category.value}>
+                              {category.label}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="__add_custom__" className="text-primary font-medium">
+                            <div className="flex items-center gap-2">
+                              <Plus className="h-4 w-4" />
+                              Add Custom Category
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
