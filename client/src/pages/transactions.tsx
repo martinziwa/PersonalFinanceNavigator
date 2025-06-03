@@ -16,6 +16,8 @@ export default function Transactions() {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date");
+  const [sortOrder, setSortOrder] = useState("desc");
   
   const { data: transactions = [], isLoading } = useTransactions();
   const { toast } = useToast();
@@ -52,18 +54,53 @@ export default function Transactions() {
     setEditingTransaction(null);
   };
 
-  const filteredTransactions = transactions.filter((transaction) => {
-    if (categoryFilter !== "all" && transaction.category !== categoryFilter) return false;
-    if (typeFilter !== "all" && transaction.type !== typeFilter) return false;
-    return true;
-  });
+  const filteredAndSortedTransactions = transactions
+    .filter((transaction) => {
+      if (categoryFilter !== "all" && transaction.category !== categoryFilter) return false;
+      if (typeFilter !== "all" && transaction.type !== typeFilter) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case "date":
+          aValue = new Date(a.date).getTime();
+          bValue = new Date(b.date).getTime();
+          break;
+        case "amount":
+          aValue = parseFloat(a.amount);
+          bValue = parseFloat(b.amount);
+          break;
+        case "description":
+          aValue = a.description.toLowerCase();
+          bValue = b.description.toLowerCase();
+          break;
+        case "category":
+          aValue = a.category.toLowerCase();
+          bValue = b.category.toLowerCase();
+          break;
+        case "type":
+          aValue = a.type.toLowerCase();
+          bValue = b.type.toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+      
+      if (sortOrder === "asc") {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
 
   // Calculate aggregate amounts
-  const totalIncome = filteredTransactions
+  const totalIncome = filteredAndSortedTransactions
     .filter(t => t.type === "income" || t.type === "savings_withdrawal" || t.type === "loan_received")
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
-  const totalExpenses = filteredTransactions
+  const totalExpenses = filteredAndSortedTransactions
     .filter(t => t.type === "expense" || t.type === "savings_deposit" || t.type === "loan_payment")
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
@@ -123,7 +160,7 @@ export default function Transactions() {
       
       <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4">
         {/* Transaction Summary */}
-        {filteredTransactions.length > 0 && (
+        {filteredAndSortedTransactions.length > 0 && (
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
             <h3 className="font-semibold text-gray-900 mb-3">Transaction Summary</h3>
             <div className="grid grid-cols-3 gap-4">
@@ -149,35 +186,62 @@ export default function Transactions() {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="flex space-x-3">
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category.value} value={category.value}>
-                  {category.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Filters and Sorting */}
+        <div className="space-y-3">
+          <div className="flex space-x-3">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category.value} value={category.value}>
+                    {category.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="flex-1">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="income">💰 Income</SelectItem>
-              <SelectItem value="expense">💸 Expense</SelectItem>
-              <SelectItem value="savings_deposit">🏦 Savings Deposit</SelectItem>
-              <SelectItem value="savings_withdrawal">🏧 Savings Withdrawal</SelectItem>
-              <SelectItem value="loan_received">📈 Loan Received</SelectItem>
-              <SelectItem value="loan_payment">📉 Loan Payment</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="income">💰 Income</SelectItem>
+                <SelectItem value="expense">💸 Expense</SelectItem>
+                <SelectItem value="savings_deposit">🏦 Savings Deposit</SelectItem>
+                <SelectItem value="savings_withdrawal">🏧 Savings Withdrawal</SelectItem>
+                <SelectItem value="loan_received">📈 Loan Received</SelectItem>
+                <SelectItem value="loan_payment">📉 Loan Payment</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex space-x-3">
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date">Date</SelectItem>
+                <SelectItem value="amount">Amount</SelectItem>
+                <SelectItem value="description">Description</SelectItem>
+                <SelectItem value="category">Category</SelectItem>
+                <SelectItem value="type">Type</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortOrder} onValueChange={setSortOrder}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Order" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="asc">Ascending</SelectItem>
+                <SelectItem value="desc">Descending</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Transactions List */}
@@ -196,7 +260,7 @@ export default function Transactions() {
               </div>
             ))}
           </div>
-        ) : filteredTransactions.length === 0 ? (
+        ) : filteredAndSortedTransactions.length === 0 ? (
           <div className="bg-white rounded-xl p-8 border border-gray-100 text-center">
             <div className="text-4xl mb-4">📊</div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No transactions found</h3>
@@ -216,7 +280,7 @@ export default function Transactions() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredTransactions.map((transaction) => (
+            {filteredAndSortedTransactions.map((transaction) => (
               <div key={transaction.id} className="bg-white rounded-xl p-4 border border-gray-100">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3 flex-1">
