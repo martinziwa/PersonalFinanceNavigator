@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -59,6 +59,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
   const { data: transactions = [] } = useTransactions();
   const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
   
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
@@ -74,24 +75,64 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
   });
 
   const selectedType = form.watch("type");
+  const selectedCategory = form.watch("category");
+
+  // Reset form when modal opens/closes or when editing
+  useEffect(() => {
+    if (isOpen) {
+      if (editingTransaction) {
+        form.reset({
+          amount: editingTransaction.amount,
+          description: editingTransaction.description,
+          category: editingTransaction.category,
+          type: editingTransaction.type,
+          date: new Date(editingTransaction.date).toISOString().split('T')[0],
+          savingsGoalId: editingTransaction.savingsGoalId?.toString() || "",
+          loanId: editingTransaction.loanId?.toString() || "",
+        });
+      } else {
+        form.reset({
+          amount: "",
+          description: "",
+          category: "",
+          type: "expense",
+          date: new Date().toISOString().split('T')[0],
+          savingsGoalId: "",
+          loanId: "",
+        });
+      }
+      setIsAddingCustomCategory(false);
+      setCustomCategoryInput("");
+    }
+  }, [isOpen, editingTransaction, form]);
 
   // Get unique categories from existing transactions
   const uniqueCategories = new Set<string>();
   transactions.forEach(t => uniqueCategories.add(t.category));
   const existingCategories = Array.from(uniqueCategories);
   
-  // Combine predefined and existing categories
+  // Combine predefined, existing, and custom categories
   const allCategories = [
     ...categories,
     ...existingCategories
       .filter(cat => !categories.some(predef => predef.value === cat))
+      .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' ') })),
+    ...customCategories
+      .filter(cat => !categories.some(predef => predef.value === cat) && !existingCategories.includes(cat))
       .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' ') }))
   ].sort((a, b) => a.label.localeCompare(b.label));
 
   const handleAddCustomCategory = () => {
     if (customCategoryInput.trim()) {
       const categoryValue = customCategoryInput.toLowerCase().replace(/\s+/g, '_');
+      
+      // Add to custom categories state
+      setCustomCategories(prev => [...prev, categoryValue]);
+      
+      // Set the form value
       form.setValue("category", categoryValue);
+      
+      // Reset state
       setCustomCategoryInput("");
       setIsAddingCustomCategory(false);
     }
