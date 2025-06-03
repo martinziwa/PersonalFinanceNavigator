@@ -24,6 +24,7 @@ export const budgets = pgTable("budgets", {
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   icon: text("icon").notNull(),
+  description: text("description"),
 });
 
 export const savingsGoals = pgTable("savings_goals", {

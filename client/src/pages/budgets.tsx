@@ -32,6 +32,7 @@ const budgetSchema = z.object({
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
   icon: z.string().min(1, "Icon is required"),
+  description: z.string().optional(),
 });
 
 type BudgetFormData = z.infer<typeof budgetSchema>;
@@ -84,6 +85,7 @@ export default function Budgets() {
       startDate: "",
       endDate: "",
       icon: "",
+      description: "",
     },
   });
 
@@ -262,6 +264,7 @@ export default function Budgets() {
         startDate: startDate.toISOString().split('T')[0],
         endDate: endDate.toISOString().split('T')[0],
         icon: editingBudget.icon,
+        description: editingBudget.description || "",
       });
     } else if (!editingBudget && isDialogOpen) {
       form.reset({
@@ -271,6 +274,7 @@ export default function Budgets() {
         startDate: "",
         endDate: "",
         icon: "",
+        description: "",
       });
     }
   }, [editingBudget, isDialogOpen, form]);
@@ -449,6 +453,11 @@ export default function Budgets() {
                             <h3 className="font-medium text-gray-900 capitalize">
                               {budget.category.replace('_', ' ')}
                             </h3>
+                            {budget.description && (
+                              <p className="text-xs text-gray-600 mb-1">
+                                {budget.description}
+                              </p>
+                            )}
                             <p className="text-sm text-gray-500">
                               {formatCurrency(totalSpent)} of {formatCurrency(budgetAmount)}
                             </p>
@@ -593,6 +602,23 @@ export default function Budgets() {
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description (Optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Add a description to help identify this budget"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <div className="flex gap-3 pt-4">
                   <Button
