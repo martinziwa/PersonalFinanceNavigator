@@ -17,6 +17,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, sum } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (IMPORTANT) these user operations are mandatory for Replit Auth.
@@ -116,7 +117,7 @@ export class DatabaseStorage implements IStorage {
 
   // Budgets
   async getBudgets(userId: string): Promise<Budget[]> {
-    return await db.select().from(budgets).where(eq(budgets.userId, userId)).orderBy(budgets.category);
+    return await db.select().from(budgets).where(eq(budgets.userId, userId)).orderBy(desc(budgets.id));
   }
 
   async getBudget(userId: string, id: number): Promise<Budget | undefined> {
