@@ -37,13 +37,13 @@ const goalSchema = z.object({
 type GoalFormData = z.infer<typeof goalSchema>;
 
 const goalTypes = [
-  { value: "emergency", label: "Emergency Fund", icon: "🛡️", color: "#059669" },
-  { value: "vacation", label: "Vacation", icon: "✈️", color: "#7C3AED" },
-  { value: "house", label: "House Down Payment", icon: "🏠", color: "#DC2626" },
   { value: "car", label: "New Car", icon: "🚗", color: "#2563EB" },
   { value: "education", label: "Education", icon: "🎓", color: "#D97706" },
-  { value: "retirement", label: "Retirement", icon: "👴", color: "#059669" },
+  { value: "emergency", label: "Emergency Fund", icon: "🛡️", color: "#059669" },
+  { value: "house", label: "House Down Payment", icon: "🏠", color: "#DC2626" },
   { value: "other", label: "Other", icon: "🎯", color: "#6B7280" },
+  { value: "retirement", label: "Retirement", icon: "👴", color: "#059669" },
+  { value: "vacation", label: "Vacation", icon: "✈️", color: "#7C3AED" },
 ];
 
 export default function Goals() {

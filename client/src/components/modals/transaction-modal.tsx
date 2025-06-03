@@ -38,17 +38,17 @@ interface TransactionModalProps {
 }
 
 const categories = [
-  { value: "food", label: "Food & Dining" },
-  { value: "transportation", label: "Transportation" },
-  { value: "shopping", label: "Shopping" },
-  { value: "entertainment", label: "Entertainment" },
   { value: "bills", label: "Bills & Utilities" },
-  { value: "healthcare", label: "Healthcare" },
   { value: "education", label: "Education" },
+  { value: "entertainment", label: "Entertainment" },
+  { value: "food", label: "Food & Dining" },
+  { value: "healthcare", label: "Healthcare" },
   { value: "income", label: "Income" },
-  { value: "savings", label: "Savings Account" },
   { value: "loan", label: "Loan" },
   { value: "other", label: "Other" },
+  { value: "savings", label: "Savings Account" },
+  { value: "shopping", label: "Shopping" },
+  { value: "transportation", label: "Transportation" },
 ];
 
 export default function TransactionModal({ isOpen, onClose, editingTransaction }: TransactionModalProps) {
