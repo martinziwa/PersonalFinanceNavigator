@@ -52,6 +52,14 @@ export default function Budgets() {
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("list");
   const [totalBudgetAmount, setTotalBudgetAmount] = useState(10000);
+  const [budgetStartDate, setBudgetStartDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [budgetEndDate, setBudgetEndDate] = useState(() => {
+    const date = new Date();
+    date.setMonth(date.getMonth() + 1);
+    return date.toISOString().split('T')[0];
+  });
   const [budgetAllocations, setBudgetAllocations] = useState<Record<string, number>>({
     food: 30,
     transportation: 15,
@@ -169,8 +177,8 @@ export default function Budgets() {
   };
 
   const createBudgetsFromAllocation = async () => {
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    const startDate = new Date(budgetStartDate);
+    const endDate = new Date(budgetEndDate);
     
     for (const [category, percentage] of Object.entries(budgetAllocations)) {
       if (percentage > 0) {
@@ -181,8 +189,8 @@ export default function Budgets() {
           category,
           amount,
           period: "monthly",
-          startDate: today,
-          endDate: nextMonth,
+          startDate: startDate,
+          endDate: endDate,
           icon: categoryData?.icon || "📝"
         };
         
@@ -303,15 +311,37 @@ export default function Budgets() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Budget Allocation</CardTitle>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600">Total Budget:</label>
-                  <Input
-                    type="number"
-                    value={totalBudgetAmount}
-                    onChange={(e) => setTotalBudgetAmount(Number(e.target.value))}
-                    className="w-32 text-sm"
-                    placeholder="Enter amount"
-                  />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Total Budget:</label>
+                    <Input
+                      type="number"
+                      value={totalBudgetAmount}
+                      onChange={(e) => setTotalBudgetAmount(Number(e.target.value))}
+                      className="w-32 text-sm"
+                      placeholder="Enter amount"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm text-gray-600 mb-1 block">Start Date</label>
+                      <Input
+                        type="date"
+                        value={budgetStartDate}
+                        onChange={(e) => setBudgetStartDate(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600 mb-1 block">End Date</label>
+                      <Input
+                        type="date"
+                        value={budgetEndDate}
+                        onChange={(e) => setBudgetEndDate(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
