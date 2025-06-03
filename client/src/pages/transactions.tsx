@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Trash2, Filter, Plus, Edit2 } from "lucide-react";
+import { Trash2, Filter, Plus, Edit2, Search } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import TransactionModal from "@/components/modals/transaction-modal";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTransactions } from "@/hooks/use-transactions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -18,6 +19,7 @@ export default function Transactions() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [searchQuery, setSearchQuery] = useState("");
   
   const { data: transactions = [], isLoading } = useTransactions();
   const { toast } = useToast();
@@ -58,6 +60,17 @@ export default function Transactions() {
     .filter((transaction) => {
       if (categoryFilter !== "all" && transaction.category !== categoryFilter) return false;
       if (typeFilter !== "all" && transaction.type !== typeFilter) return false;
+      
+      // Search functionality - check category, type, and description
+      if (searchQuery !== "") {
+        const query = searchQuery.toLowerCase();
+        const categoryMatch = transaction.category.toLowerCase().includes(query);
+        const typeMatch = transaction.type.toLowerCase().includes(query);
+        const descriptionMatch = transaction.description.toLowerCase().includes(query);
+        
+        if (!categoryMatch && !typeMatch && !descriptionMatch) return false;
+      }
+      
       return true;
     })
     .sort((a, b) => {
@@ -185,6 +198,18 @@ export default function Transactions() {
             </div>
           </div>
         )}
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            type="text"
+            placeholder="Search by category, type, or description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
 
         {/* Filters and Sorting */}
         <div className="space-y-3">
