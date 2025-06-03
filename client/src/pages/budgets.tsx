@@ -38,14 +38,14 @@ const budgetSchema = z.object({
 type BudgetFormData = z.infer<typeof budgetSchema>;
 
 const categories = [
-  { value: "food", label: "Food & Dining", icon: "🍽️" },
-  { value: "transportation", label: "Transportation", icon: "🚗" },
-  { value: "shopping", label: "Shopping", icon: "🛍️" },
-  { value: "entertainment", label: "Entertainment", icon: "🎬" },
   { value: "bills", label: "Bills & Utilities", icon: "📄" },
-  { value: "healthcare", label: "Healthcare", icon: "🏥" },
   { value: "education", label: "Education", icon: "📚" },
+  { value: "entertainment", label: "Entertainment", icon: "🎬" },
+  { value: "food", label: "Food & Dining", icon: "🍽️" },
+  { value: "healthcare", label: "Healthcare", icon: "🏥" },
   { value: "other", label: "Other", icon: "📝" },
+  { value: "shopping", label: "Shopping", icon: "🛍️" },
+  { value: "transportation", label: "Transportation", icon: "🚗" },
 ];
 
 export default function Budgets() {

@@ -117,7 +117,7 @@ export class DatabaseStorage implements IStorage {
 
   // Budgets
   async getBudgets(userId: string): Promise<Budget[]> {
-    return await db.select().from(budgets).where(eq(budgets.userId, userId)).orderBy(desc(budgets.id));
+    return await db.select().from(budgets).where(eq(budgets.userId, userId)).orderBy(desc(budgets.startDate), budgets.category);
   }
 
   async getBudget(userId: string, id: number): Promise<Budget | undefined> {
