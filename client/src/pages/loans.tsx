@@ -761,6 +761,12 @@ export default function Loans() {
                       <span className="text-sm text-gray-500">Repayment Amount:</span>
                       <span className="font-medium">{formatCurrency(minPayment)}</span>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Repayments Needed:</span>
+                      <span className="font-medium text-blue-600">
+                        {payoffPeriods} payments
+                      </span>
+                    </div>
                     <div className="flex justify-between border-t pt-2">
                       <span className="text-sm text-gray-500">Payoff Time:</span>
                       <span className="font-medium text-orange-600">
