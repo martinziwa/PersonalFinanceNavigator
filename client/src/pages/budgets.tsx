@@ -786,23 +786,25 @@ export default function Budgets() {
                     return yearB - yearA || monthB - monthA; // Sort newest first
                   });
                   
-                  return sortedMonthKeys.map((monthKey) => (
-                    <div key={monthKey} className="space-y-3 mb-6">
-                      {/* Month Header */}
-                      <div className="sticky top-0 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 z-10">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-sm font-semibold text-blue-700">
-                            {formatMonthHeader(monthKey)}
-                          </h3>
-                          <div className="text-xs text-blue-600">
-                            {groupedBudgets[monthKey].length} budget{groupedBudgets[monthKey].length !== 1 ? 's' : ''}
+                  return (
+                    <div className="space-y-6">
+                      {sortedMonthKeys.map((monthKey) => (
+                        <div key={monthKey} className="space-y-3">
+                          {/* Month Header */}
+                          <div className="sticky top-0 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 z-10">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-sm font-semibold text-blue-700">
+                                {formatMonthHeader(monthKey)}
+                              </h3>
+                              <div className="text-xs text-blue-600">
+                                {groupedBudgets[monthKey].length} budget{groupedBudgets[monthKey].length !== 1 ? 's' : ''}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
 
-                      {/* Budgets for this month */}
-                      <div className="space-y-3">
-                        {groupedBudgets[monthKey].map((budget: any) => {
+                          {/* Budgets for this month */}
+                          <div className="space-y-3">
+                            {groupedBudgets[monthKey].map((budget: any) => {
                     const categoryTransactions = transactions.filter((transaction: Transaction) => {
                     return transaction.category === budget.category && 
                            transaction.type === "expense" &&
@@ -942,10 +944,12 @@ export default function Budgets() {
                         )}
                       </div>
                     </div>
-                  ))}
-                      </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ));
+                  );
                 })()}
               </div>
             )}
