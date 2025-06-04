@@ -256,8 +256,8 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
-      <div className="w-full max-w-sm mx-auto bg-white rounded-t-3xl p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="w-full max-w-sm mx-auto bg-white rounded-t-3xl flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">
             {editingTransaction ? "Edit Transaction" : "Add Transaction"}
           </h2>
@@ -271,8 +271,9 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
           </Button>
         </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="flex-1 overflow-y-auto p-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="amount"
@@ -539,8 +540,9 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
                 }
               </Button>
             </div>
-          </form>
-        </Form>
+            </form>
+          </Form>
+        </div>
       </div>
     </div>
   );
