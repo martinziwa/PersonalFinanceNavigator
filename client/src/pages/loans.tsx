@@ -50,12 +50,11 @@ const loanSchema = z.object({
   interestPeriod: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"], {
     required_error: "Please select interest period"
   }),
-  repaymentFrequency: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"], {
-    required_error: "Please select repayment frequency"
-  }),
+  useRecurringPayments: z.boolean().default(false),
+  repaymentFrequency: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"]).optional(),
   minPayment: z.string().optional(),
   payoffTime: z.string().optional(),
-  dueDate: z.string().min(1, "Due date is required"),
+  dueDate: z.string().optional(),
   startDate: z.string().min(1, "Start date is required"),
 });
 
@@ -171,6 +170,8 @@ export default function Loans() {
 
   // Watch form values for real-time calculations
   const watchedValues = form.watch();
+  const interestType = form.watch("interestType");
+  const useRecurringPayments = form.watch("useRecurringPayments");
   
   // Real-time calculation effect
   React.useEffect(() => {
@@ -526,29 +527,31 @@ export default function Loans() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="interestPeriod"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Compounding Frequency</FormLabel>
-                      <FormControl>
-                        <select
-                          {...field}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white"
-                        >
-                          <option value="">Select compounding frequency</option>
-                          {frequencyOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {interestType === "compound" && (
+                  <FormField
+                    control={form.control}
+                    name="interestPeriod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Compounding Frequency</FormLabel>
+                        <FormControl>
+                          <select
+                            {...field}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white"
+                          >
+                            <option value="">Select compounding frequency</option>
+                            {frequencyOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={form.control}

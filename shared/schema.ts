@@ -72,9 +72,10 @@ export const loans = pgTable("loans", {
   interestRate: decimal("interest_rate", { precision: 5, scale: 2 }).notNull(),
   interestType: text("interest_type"), // "simple" or "compound"
   interestPeriod: text("interest_period"), // frequency of interest calculation
+  useRecurringPayments: boolean("use_recurring_payments").default(false).notNull(),
   repaymentFrequency: text("repayment_frequency"), // frequency of payments
-  minPayment: decimal("min_payment", { precision: 10, scale: 2 }).notNull(),
-  nextPaymentDate: timestamp("next_payment_date").notNull(),
+  minPayment: decimal("min_payment", { precision: 10, scale: 2 }),
+  nextPaymentDate: timestamp("next_payment_date"),
   startDate: timestamp("start_date").defaultNow().notNull(), // When the loan began
   icon: text("icon").notNull(),
   color: text("color").notNull(),
