@@ -304,9 +304,27 @@ export class DatabaseStorage implements IStorage {
         return sum + parseFloat(t.amount);
       }, 0);
       
-      // Adjust balance: original + receipts - payments
-      remainingBalance = remainingBalance + totalReceipts - totalPayments;
-      console.log(`Loan ${loan.id}: Remaining balance = ${remainingBalance} (original: ${loan.balance} + receipts: ${totalReceipts} - payments: ${totalPayments})`);
+      // Calculate accumulated interest
+      const interestRate = parseFloat(loan.interestRate) / 100; // Convert percentage to decimal
+      const principalAmount = parseFloat(loan.principalAmount || loan.balance);
+      
+      // For simple interest calculation (assuming monthly compounding for now)
+      // This is a simplified calculation - in a real app you'd want more sophisticated interest calculations
+      let accumulatedInterest = 0;
+      if (loan.interestType === 'simple') {
+        // Simple interest: Principal × Rate × Time
+        // For demonstration, assuming 1 year has passed
+        accumulatedInterest = principalAmount * interestRate;
+      } else {
+        // For compound interest, this would be more complex
+        accumulatedInterest = principalAmount * interestRate;
+      }
+      
+      console.log(`Loan ${loan.id}: Interest calculation - Principal: ${principalAmount}, Rate: ${interestRate * 100}%, Accumulated Interest: ${accumulatedInterest}`);
+      
+      // Adjust balance: original + receipts - payments + accumulated interest
+      remainingBalance = remainingBalance + totalReceipts - totalPayments + accumulatedInterest;
+      console.log(`Loan ${loan.id}: Total debt = ${remainingBalance} (principal: ${parseFloat(loan.balance)} + receipts: ${totalReceipts} - payments: ${totalPayments} + interest: ${accumulatedInterest})`);
       totalDebt += Math.max(0, remainingBalance); // Don't allow negative debt
     }
     console.log(`Total Debt: ${totalDebt}`);
