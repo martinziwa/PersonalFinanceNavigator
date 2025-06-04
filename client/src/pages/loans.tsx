@@ -301,6 +301,8 @@ export default function Loans() {
     setEditingLoan(loan);
     const nextPaymentDate = new Date(loan.nextPaymentDate);
     const formattedDate = nextPaymentDate.toISOString().split('T')[0];
+    const startDate = new Date(loan.startDate);
+    const formattedStartDate = startDate.toISOString().split('T')[0];
     
     form.reset({
       name: loan.name,
@@ -312,12 +314,14 @@ export default function Loans() {
       repaymentFrequency: loan.repaymentFrequency || "monthly",
       minPayment: loan.minPayment,
       dueDate: formattedDate,
+      startDate: formattedStartDate,
     });
     setIsDialogOpen(true);
   };
 
   const openCreateDialog = () => {
     setEditingLoan(null);
+    const today = new Date().toISOString().split('T')[0];
     form.reset({
       name: "",
       principalAmount: "",
@@ -328,6 +332,7 @@ export default function Loans() {
       repaymentFrequency: "monthly",
       minPayment: "",
       dueDate: "",
+      startDate: today,
     });
     setIsDialogOpen(true);
   };
@@ -598,6 +603,24 @@ export default function Loans() {
                           type="number"
                           step="1"
                           placeholder="Number of payment periods"
+                          className="px-4 py-3 border border-gray-300 rounded-xl"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Loan Start Date</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="date"
                           className="px-4 py-3 border border-gray-300 rounded-xl"
                         />
                       </FormControl>

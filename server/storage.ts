@@ -311,13 +311,11 @@ export class DatabaseStorage implements IStorage {
       const interestRate = parseFloat(loan.interestRate) / 100; // Convert percentage to decimal
       const principalAmount = parseFloat(loan.principalAmount || loan.balance);
       
-      // Calculate time elapsed since loan creation (assuming loan was created when it was added)
-      // In a real app, you'd store the loan creation date
+      // Calculate time elapsed since loan start date
       const currentDate = new Date();
-      const loanCreationDate = new Date(currentDate); // Fallback to current date
-      loanCreationDate.setFullYear(currentDate.getFullYear() - 1); // Assume 1 year ago for demo
+      const loanStartDate = new Date(loan.startDate);
       
-      const timeElapsedDays = Math.max(1, Math.floor((currentDate.getTime() - loanCreationDate.getTime()) / (1000 * 60 * 60 * 24)));
+      const timeElapsedDays = Math.max(1, Math.floor((currentDate.getTime() - loanStartDate.getTime()) / (1000 * 60 * 60 * 24)));
       const timeElapsedYears = timeElapsedDays / 365;
       
       let accumulatedInterest = 0;
