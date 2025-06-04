@@ -245,55 +245,75 @@ export class DatabaseStorage implements IStorage {
     const userSavingsGoals = await db.select().from(savingsGoals).where(eq(savingsGoals.userId, userId));
     let totalSavings = 0;
     
+    console.log('=== SAVINGS CALCULATION ===');
     for (const goal of userSavingsGoals) {
       // Start with initial current amount
       let goalProgress = parseFloat(goal.currentAmount);
+      console.log(`Goal ${goal.id} (${goal.name}): Starting amount = ${goalProgress}`);
       
       // Add savings deposits and subtract withdrawals for this goal
       const goalTransactions = allUserTransactions.filter((t: any) => t.savingsGoalId === goal.id);
-      goalProgress += goalTransactions.reduce((sum: number, t: any) => {
+      console.log(`Goal ${goal.id}: Found ${goalTransactions.length} transactions`);
+      
+      const transactionTotal = goalTransactions.reduce((sum: number, t: any) => {
         if (t.type === 'savings_deposit') {
+          console.log(`  Deposit: +${t.amount}`);
           return sum + parseFloat(t.amount);
         } else if (t.type === 'savings_withdrawal') {
+          console.log(`  Withdrawal: -${t.amount}`);
           return sum - parseFloat(t.amount);
         }
         return sum;
       }, 0);
       
+      goalProgress += transactionTotal;
+      console.log(`Goal ${goal.id}: Final progress = ${goalProgress} (starting: ${goal.currentAmount} + transactions: ${transactionTotal})`);
       totalSavings += goalProgress;
     }
+    console.log(`Total Savings: ${totalSavings}`);
 
     // Get total debt from loans and adjust for loan payments
     const userLoans = await db.select().from(loans).where(eq(loans.userId, userId));
     let totalDebt = 0;
     
+    console.log('=== LOAN CALCULATION ===');
     for (const loan of userLoans) {
       // Start with original loan balance
       let remainingBalance = parseFloat(loan.balance);
+      console.log(`Loan ${loan.id} (${loan.name}): Original balance = ${remainingBalance}`);
       
       // Subtract loan payments made for this loan
       const loanPayments = allUserTransactions.filter((t: any) => 
         t.loanId === loan.id && t.type === 'loan_payment'
       );
-      const totalPayments = loanPayments.reduce((sum: number, t: any) => 
-        sum + parseFloat(t.amount), 0
-      );
+      console.log(`Loan ${loan.id}: Found ${loanPayments.length} payments`);
+      
+      const totalPayments = loanPayments.reduce((sum: number, t: any) => {
+        console.log(`  Payment: -${t.amount}`);
+        return sum + parseFloat(t.amount);
+      }, 0);
       
       // Add loan receipts (increases debt)
       const loanReceipts = allUserTransactions.filter((t: any) => 
         t.loanId === loan.id && t.type === 'loan_received'
       );
-      const totalReceipts = loanReceipts.reduce((sum: number, t: any) => 
-        sum + parseFloat(t.amount), 0
-      );
+      console.log(`Loan ${loan.id}: Found ${loanReceipts.length} receipts`);
+      
+      const totalReceipts = loanReceipts.reduce((sum: number, t: any) => {
+        console.log(`  Receipt: +${t.amount}`);
+        return sum + parseFloat(t.amount);
+      }, 0);
       
       // Adjust balance: original + receipts - payments
       remainingBalance = remainingBalance + totalReceipts - totalPayments;
+      console.log(`Loan ${loan.id}: Remaining balance = ${remainingBalance} (original: ${loan.balance} + receipts: ${totalReceipts} - payments: ${totalPayments})`);
       totalDebt += Math.max(0, remainingBalance); // Don't allow negative debt
     }
+    console.log(`Total Debt: ${totalDebt}`);
 
     // Calculate net worth only from savings and loans (excluding income/expenses)
     const netWorth = totalSavings - totalDebt;
+    console.log(`Net Worth: ${totalSavings} - ${totalDebt} = ${netWorth}`);
 
     return {
       netWorth,
