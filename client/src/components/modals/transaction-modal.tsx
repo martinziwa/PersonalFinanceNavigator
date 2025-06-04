@@ -411,6 +411,25 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
 
             <FormField
               control={form.control}
+              name="time"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Time (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="time"
+                      className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Enter time"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="type"
               render={({ field }) => (
                 <FormItem>
