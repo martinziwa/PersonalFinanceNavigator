@@ -263,9 +263,34 @@ export class DatabaseStorage implements IStorage {
       totalSavings += goalProgress;
     }
 
-    // Get total debt from loans
+    // Get total debt from loans and adjust for loan payments
     const userLoans = await db.select().from(loans).where(eq(loans.userId, userId));
-    const totalDebt = userLoans.reduce((sum, loan) => sum + parseFloat(loan.balance), 0);
+    let totalDebt = 0;
+    
+    for (const loan of userLoans) {
+      // Start with original loan balance
+      let remainingBalance = parseFloat(loan.balance);
+      
+      // Subtract loan payments made for this loan
+      const loanPayments = allUserTransactions.filter((t: any) => 
+        t.loanId === loan.id && t.type === 'loan_payment'
+      );
+      const totalPayments = loanPayments.reduce((sum: number, t: any) => 
+        sum + parseFloat(t.amount), 0
+      );
+      
+      // Add loan receipts (increases debt)
+      const loanReceipts = allUserTransactions.filter((t: any) => 
+        t.loanId === loan.id && t.type === 'loan_received'
+      );
+      const totalReceipts = loanReceipts.reduce((sum: number, t: any) => 
+        sum + parseFloat(t.amount), 0
+      );
+      
+      // Adjust balance: original + receipts - payments
+      remainingBalance = remainingBalance + totalReceipts - totalPayments;
+      totalDebt += Math.max(0, remainingBalance); // Don't allow negative debt
+    }
 
     // Calculate net worth only from savings and loans (excluding income/expenses)
     const netWorth = totalSavings - totalDebt;
