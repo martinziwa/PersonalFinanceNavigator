@@ -75,6 +75,7 @@ export const loans = pgTable("loans", {
   repaymentFrequency: text("repayment_frequency"), // frequency of payments
   minPayment: decimal("min_payment", { precision: 10, scale: 2 }).notNull(),
   nextPaymentDate: timestamp("next_payment_date").notNull(),
+  startDate: timestamp("start_date").defaultNow().notNull(), // When the loan began
   icon: text("icon").notNull(),
   color: text("color").notNull(),
 });
@@ -108,6 +109,7 @@ export const insertLoanSchema = createInsertSchema(loans).omit({
   id: true,
 }).extend({
   nextPaymentDate: z.string().transform((val) => new Date(val)),
+  startDate: z.string().transform((val) => new Date(val)),
 });
 
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;

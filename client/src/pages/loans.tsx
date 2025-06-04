@@ -56,6 +56,7 @@ const loanSchema = z.object({
   minPayment: z.string().optional(),
   payoffTime: z.string().optional(),
   dueDate: z.string().min(1, "Due date is required"),
+  startDate: z.string().min(1, "Start date is required"),
 });
 
 type LoanFormData = z.infer<typeof loanSchema>;
@@ -118,6 +119,7 @@ export default function Loans() {
       repaymentFrequency: "monthly",
       minPayment: "",
       dueDate: "",
+      startDate: "",
     },
   });
 
@@ -283,6 +285,7 @@ export default function Loans() {
       repaymentFrequency: data.repaymentFrequency,
       minPayment: data.minPayment || "0",
       nextPaymentDate: new Date(data.dueDate),
+      startDate: new Date(data.startDate),
       icon: "💳",
       color: "#DC2626",
     };
