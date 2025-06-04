@@ -75,6 +75,7 @@ export default function Budgets() {
   const [customCategoryInput, setCustomCategoryInput] = useState("");
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("dateAdded");
   
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
@@ -484,34 +485,63 @@ export default function Budgets() {
               Create New Budget
             </Button>
 
-            {/* Category Filter */}
+            {/* Filter and Sort Controls */}
             {budgets.length > 0 && (
-              <div className="bg-white rounded-xl p-4 border border-gray-100">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-gray-700">Filter by Category</h3>
-                  <span className="text-xs text-gray-500">
-                    {categoryFilter === "all" ? budgets.length : budgets.filter(b => b.category === categoryFilter).length} budgets
-                  </span>
+              <div className="space-y-4">
+                {/* Category Filter */}
+                <div className="bg-white rounded-xl p-4 border border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-gray-700">Filter by Category</h3>
+                    <span className="text-xs text-gray-500">
+                      {(() => {
+                        const filtered = budgets.filter(b => categoryFilter === "all" || b.category === categoryFilter);
+                        return `${filtered.length} of ${budgets.length} budgets`;
+                      })()}
+                    </span>
+                  </div>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {Array.from(new Set(budgets.map(b => b.category))).sort().map(category => {
+                        const categoryData = categories.find(c => c.value === category);
+                        return (
+                          <SelectItem key={category} value={category}>
+                            <div className="flex items-center gap-2">
+                              <span>{categoryData?.icon || "📝"}</span>
+                              <span className="capitalize">{category}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {Array.from(new Set(budgets.map(b => b.category))).sort().map(category => {
-                      const categoryData = categories.find(c => c.value === category);
-                      return (
-                        <SelectItem key={category} value={category}>
-                          <div className="flex items-center gap-2">
-                            <span>{categoryData?.icon || "📝"}</span>
-                            <span className="capitalize">{category}</span>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
+
+                {/* Sort Controls */}
+                <div className="bg-white rounded-xl p-4 border border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-gray-700">Sort Budgets</h3>
+                  </div>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sort by..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dateAdded">Date Added (Newest First)</SelectItem>
+                      <SelectItem value="dateAddedOld">Date Added (Oldest First)</SelectItem>
+                      <SelectItem value="category">Category (A-Z)</SelectItem>
+                      <SelectItem value="categoryDesc">Category (Z-A)</SelectItem>
+                      <SelectItem value="amount">Amount (High to Low)</SelectItem>
+                      <SelectItem value="amountAsc">Amount (Low to High)</SelectItem>
+                      <SelectItem value="startDate">Start Date (Newest)</SelectItem>
+                      <SelectItem value="startDateOld">Start Date (Oldest)</SelectItem>
+                      <SelectItem value="endDate">End Date (Nearest)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
 
@@ -524,8 +554,34 @@ export default function Budgets() {
             ) : (
               <div className="space-y-4">
                 {(() => {
-                  const filteredBudgets = budgets.filter((budget: any) => categoryFilter === "all" || budget.category === categoryFilter);
+                  let filteredBudgets = budgets.filter((budget: any) => categoryFilter === "all" || budget.category === categoryFilter);
   
+                  // Apply sorting
+                  filteredBudgets = filteredBudgets.sort((a: any, b: any) => {
+                    switch (sortBy) {
+                      case "dateAdded":
+                        return new Date(b.createdAt || b.id).getTime() - new Date(a.createdAt || a.id).getTime();
+                      case "dateAddedOld":
+                        return new Date(a.createdAt || a.id).getTime() - new Date(b.createdAt || b.id).getTime();
+                      case "category":
+                        return a.category.localeCompare(b.category);
+                      case "categoryDesc":
+                        return b.category.localeCompare(a.category);
+                      case "amount":
+                        return parseFloat(b.amount) - parseFloat(a.amount);
+                      case "amountAsc":
+                        return parseFloat(a.amount) - parseFloat(b.amount);
+                      case "startDate":
+                        return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+                      case "startDateOld":
+                        return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+                      case "endDate":
+                        return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
+                      default:
+                        return new Date(b.createdAt || b.id).getTime() - new Date(a.createdAt || a.id).getTime();
+                    }
+                  });
+
                   if (filteredBudgets.length === 0 && categoryFilter !== "all") {
                     return (
                       <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
