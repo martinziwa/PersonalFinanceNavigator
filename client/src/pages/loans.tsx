@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { Trash2, Plus, Edit } from "lucide-react";
+import { Trash2, Plus, Edit, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/currency";
@@ -40,10 +40,6 @@ const loanSchema = z.object({
     (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
     "Principal amount must be a positive number"
   ),
-  balance: z.string().optional().refine(
-    (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) > 0),
-    "Balance must be a positive number if provided"
-  ),
   interestRate: z.string().optional().refine(
     (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= 0),
     "Interest rate must be a valid number if provided"
@@ -51,6 +47,10 @@ const loanSchema = z.object({
   interestType: z.enum(["simple", "compound"], { 
     required_error: "Please select interest type" 
   }),
+  currentRepayment: z.string().optional().refine(
+    (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= 0),
+    "Current repayment must be a positive number if provided"
+  ),
   interestPeriod: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"], {
     required_error: "Please select interest period"
   }),
@@ -72,6 +72,7 @@ const loanTypes = [
 export default function Loans() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState<any>(null);
+  const [transactionHistoryLoan, setTransactionHistoryLoan] = useState<any>(null);
   
   const { data: loans = [], isLoading } = useLoans();
   const { data: transactions = [] } = useTransactions();
@@ -103,6 +104,20 @@ export default function Loans() {
     }
   };
 
+  // Calculate payment allocation for simple interest loans
+  const calculatePaymentAllocation = (totalPayment: number, principal: number, totalInterest: number) => {
+    const totalDue = principal + totalInterest;
+    if (totalDue <= 0) return { principalPortion: 0, interestPortion: 0 };
+    
+    const principalRatio = principal / totalDue;
+    const interestRatio = totalInterest / totalDue;
+    
+    return {
+      principalPortion: totalPayment * principalRatio,
+      interestPortion: totalPayment * interestRatio
+    };
+  };
+
   // Calculate comprehensive loan progress with interest tracking
   const calculateLoanProgress = (loan: any) => {
     if (!loan) {
@@ -123,7 +138,6 @@ export default function Loans() {
     }
 
     const principal = parseFloat(loan.principalAmount || "0");
-    const currentBalance = parseFloat(loan.balance || "0");
     const totalInterest = calculateTotalInterest(loan);
     const totalAmountDue = principal + totalInterest;
     
@@ -133,23 +147,43 @@ export default function Loans() {
     );
     
     // Calculate total payments made through transactions
-    const totalPaymentsMade = loanPayments.reduce((total: number, transaction: Transaction) => {
+    const transactionPayments = loanPayments.reduce((total: number, transaction: Transaction) => {
       return total + parseFloat(transaction.amount || "0");
     }, 0);
     
-    // Calculate how much of the principal has been paid
-    const principalPaid = Math.max(0, principal - currentBalance);
+    // Add current repayment for simple interest loans
+    let currentRepaymentAmount = 0;
+    if (loan.interestType === "simple" && loan.currentRepayment) {
+      currentRepaymentAmount = parseFloat(loan.currentRepayment || "0");
+    }
     
-    // Calculate how much has gone to interest
-    const interestPaid = Math.max(0, totalPaymentsMade - principalPaid);
+    const totalPaymentsMade = transactionPayments + currentRepaymentAmount;
+    
+    // Calculate payment allocation
+    let principalPaid = 0;
+    let interestPaid = 0;
+    
+    if (loan.interestType === "simple") {
+      // For simple interest, allocate payments proportionally
+      const currentAllocation = calculatePaymentAllocation(currentRepaymentAmount, principal, totalInterest);
+      const transactionAllocation = calculatePaymentAllocation(transactionPayments, principal, totalInterest);
+      
+      principalPaid = currentAllocation.principalPortion + transactionAllocation.principalPortion;
+      interestPaid = currentAllocation.interestPortion + transactionAllocation.interestPortion;
+    } else {
+      // For compound interest with amortization, use existing logic
+      const currentBalance = parseFloat(loan.balance || loan.principalAmount || "0");
+      principalPaid = Math.max(0, principal - currentBalance);
+      interestPaid = Math.max(0, totalPaymentsMade - principalPaid);
+    }
     
     // Remaining amounts
-    const principalRemaining = currentBalance;
+    const principalRemaining = Math.max(0, principal - principalPaid);
     const interestRemaining = Math.max(0, totalInterest - interestPaid);
     const totalRemaining = principalRemaining + interestRemaining;
     
     // Progress percentages
-    const totalProgressPercentage = totalAmountDue > 0 ? ((totalPaymentsMade) / totalAmountDue) * 100 : 0;
+    const totalProgressPercentage = totalAmountDue > 0 ? (totalPaymentsMade / totalAmountDue) * 100 : 0;
     const principalProgressPercentage = principal > 0 ? (principalPaid / principal) * 100 : 0;
     const interestProgressPercentage = totalInterest > 0 ? (interestPaid / totalInterest) * 100 : 0;
     
@@ -181,9 +215,9 @@ export default function Loans() {
     defaultValues: {
       name: "",
       principalAmount: "",
-      balance: "",
       interestRate: "",
       interestType: "simple",
+      currentRepayment: "",
       interestPeriod: "monthly",
       isAmortized: false,
       repaymentFrequency: "monthly",
@@ -292,7 +326,10 @@ export default function Loans() {
     const submitData: InsertLoan = {
       name: data.name,
       principalAmount: data.principalAmount,
-      balance: data.balance || data.principalAmount,
+      balance: data.interestType === "simple" ? 
+        (parseFloat(data.principalAmount) - parseFloat(data.currentRepayment || "0")).toString() : 
+        data.principalAmount,
+      currentRepayment: data.interestType === "simple" ? data.currentRepayment : undefined,
       interestRate: data.interestRate || "0",
       interestType: data.interestType,
       interestPeriod: data.interestPeriod,
@@ -320,7 +357,7 @@ export default function Loans() {
     form.reset({
       name: loan.name,
       principalAmount: loan.principalAmount,
-      balance: loan.balance,
+      currentRepayment: loan.currentRepayment || "",
       interestRate: loan.interestRate,
       interestType: loan.interestType,
       interestPeriod: loan.interestPeriod,
