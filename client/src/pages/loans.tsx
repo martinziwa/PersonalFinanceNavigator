@@ -759,6 +759,42 @@ export default function Loans() {
                     </div>
                   </div>
 
+                  {/* Loan Term - Always visible for both simple and compound interest */}
+                  <div className="space-y-4 border-t pt-4">
+                    <h4 className="font-medium">Loan Term</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {form.watch("interestType") === "simple" 
+                        ? "Required for simple interest calculation (Principal × Rate × Time)"
+                        : "Required for compound interest calculation"
+                      }
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="loanTermYears">Loan Term (Years)</Label>
+                        <Input
+                          id="loanTermYears"
+                          type="number"
+                          min="0"
+                          {...form.register("loanTermYears")}
+                          placeholder="e.g., 5"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="loanTermMonths">Additional Months</Label>
+                        <Input
+                          id="loanTermMonths"
+                          type="number"
+                          min="0"
+                          max="11"
+                          {...form.register("loanTermMonths")}
+                          placeholder="e.g., 6"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Amortization Checkbox - Only show for compound interest */}
                   {form.watch("interestType") === "compound" && (
                     <div className="flex items-center space-x-2">
@@ -795,30 +831,7 @@ export default function Loans() {
                         </Select>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="loanTermYears">Loan Term (Years)</Label>
-                          <Input
-                            id="loanTermYears"
-                            type="number"
-                            min="0"
-                            {...form.register("loanTermYears")}
-                            placeholder="e.g., 5"
-                          />
-                        </div>
 
-                        <div>
-                          <Label htmlFor="loanTermMonths">Additional Months</Label>
-                          <Input
-                            id="loanTermMonths"
-                            type="number"
-                            min="0"
-                            max="11"
-                            {...form.register("loanTermMonths")}
-                            placeholder="e.g., 6"
-                          />
-                        </div>
-                      </div>
 
                       {calculatedPayment && (
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
