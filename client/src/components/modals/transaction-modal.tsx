@@ -26,6 +26,7 @@ const transactionSchema = z.object({
   category: z.string().min(1, "Category is required"),
   type: z.enum(["income", "expense", "savings_deposit", "savings_withdrawal", "loan_received", "loan_payment"]),
   date: z.string().min(1, "Date is required"),
+  time: z.string().optional(),
   savingsGoalId: z.string().optional(),
   loanId: z.string().optional(),
 });
@@ -61,6 +62,12 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
   const [customCategoryInput, setCustomCategoryInput] = useState("");
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   
+  // Helper function to get current time in HH:MM format
+  const getCurrentTime = () => {
+    const now = new Date();
+    return now.toTimeString().slice(0, 5); // Format: HH:MM
+  };
+
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
@@ -69,6 +76,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
       category: "",
       type: "expense",
       date: new Date().toISOString().split('T')[0], // Default to today's date
+      time: getCurrentTime(), // Default to current time
       savingsGoalId: "",
       loanId: "",
     },
@@ -81,12 +89,17 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
   useEffect(() => {
     if (isOpen) {
       if (editingTransaction) {
+        // Extract time from existing transaction date or use current time as fallback
+        const transactionDate = new Date(editingTransaction.date);
+        const timeString = editingTransaction.time || transactionDate.toTimeString().slice(0, 5);
+        
         form.reset({
           amount: editingTransaction.amount,
           description: editingTransaction.description,
           category: editingTransaction.category,
           type: editingTransaction.type,
           date: new Date(editingTransaction.date).toISOString().split('T')[0],
+          time: timeString,
           savingsGoalId: editingTransaction.savingsGoalId?.toString() || "",
           loanId: editingTransaction.loanId?.toString() || "",
         });
@@ -97,6 +110,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
           category: "",
           type: "expense",
           date: new Date().toISOString().split('T')[0],
+          time: getCurrentTime(),
           savingsGoalId: "",
           loanId: "",
         });
@@ -195,6 +209,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
       category: data.category,
       type: data.type,
       date: new Date(data.date),
+      time: data.time || getCurrentTime(), // Include time field with fallback to current time
       savingsGoalId: data.savingsGoalId && data.savingsGoalId !== "" ? parseInt(data.savingsGoalId) : undefined,
       loanId: data.loanId && data.loanId !== "" ? parseInt(data.loanId) : undefined,
     };

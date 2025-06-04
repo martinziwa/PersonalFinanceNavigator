@@ -10,6 +10,7 @@ export const transactions = pgTable("transactions", {
   category: text("category").notNull(),
   type: text("type").notNull(), // 'income', 'expense', 'savings_deposit', 'savings_withdrawal', 'loan_received', 'loan_payment'
   date: timestamp("date").defaultNow().notNull(),
+  time: text("time"), // Optional time field for precise transaction timing
   savingsGoalId: integer("savings_goal_id").references(() => savingsGoals.id),
   loanId: integer("loan_id").references(() => loans.id),
 });
