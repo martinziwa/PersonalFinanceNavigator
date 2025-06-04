@@ -238,15 +238,42 @@ export class DatabaseStorage implements IStorage {
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
-    // Get savings goals total
+    // Get savings goals total - calculate actual progress from transactions
     const userSavingsGoals = await db.select().from(savingsGoals).where(eq(savingsGoals.userId, userId));
-    const totalSavings = userSavingsGoals.reduce((sum, goal) => sum + parseFloat(goal.currentAmount), 0);
+    let totalSavings = 0;
+    
+    for (const goal of userSavingsGoals) {
+      // Start with initial current amount
+      let goalProgress = parseFloat(goal.currentAmount);
+      
+      // Add savings deposits and subtract withdrawals for this goal
+      const goalTransactions = allTransactions.filter(t => t.savingsGoalId === goal.id);
+      goalProgress += goalTransactions.reduce((sum, t) => {
+        if (t.type === 'savings_deposit') {
+          return sum + parseFloat(t.amount);
+        } else if (t.type === 'savings_withdrawal') {
+          return sum - parseFloat(t.amount);
+        }
+        return sum;
+      }, 0);
+      
+      totalSavings += goalProgress;
+    }
 
     // Get total debt from loans
     const userLoans = await db.select().from(loans).where(eq(loans.userId, userId));
     const totalDebt = userLoans.reduce((sum, loan) => sum + parseFloat(loan.balance), 0);
 
-    const netWorth = totalSavings - totalDebt;
+    // Calculate net worth including all income and subtracting all expenses
+    const totalIncome = allTransactions
+      .filter(t => t.type === 'income' || t.type === 'loan_received')
+      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    
+    const totalExpenses = allTransactions
+      .filter(t => t.type === 'expense' || t.type === 'loan_payment')
+      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+    const netWorth = totalSavings + totalIncome - totalExpenses - totalDebt;
 
     return {
       netWorth,
