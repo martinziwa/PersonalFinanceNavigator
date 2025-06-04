@@ -112,6 +112,8 @@ export const insertLoanSchema = createInsertSchema(loans).omit({
 }).extend({
   nextPaymentDate: z.string().transform((val) => new Date(val)),
   startDate: z.string().transform((val) => new Date(val)),
+  loanTermMonths: z.number().optional(),
+  calculatedPayment: z.string().optional(),
 });
 
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;

@@ -1,31 +1,35 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Plus, Trash2, Calculator, Edit } from "lucide-react";
-import Header from "@/components/layout/header";
-import BottomNavigation from "@/components/layout/bottom-navigation";
+import { useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import { Trash2, Plus, Edit } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { formatCurrency } from "@/lib/currency";
 import { useLoans } from "@/hooks/use-loans";
 import { useTransactions } from "@/hooks/use-transactions";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/currency";
-import ProgressBar from "@/components/ui/progress-bar";
-import type { InsertLoan, Transaction } from "@shared/schema";
+import type { InsertLoan } from "@shared/schema";
+import type { Transaction } from "@shared/schema";
+import Header from "@/components/layout/header";
+import BottomNavigation from "@/components/layout/bottom-navigation";
 
 const frequencyOptions = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
-  { value: "biweekly", label: "Biweekly" },
-  { value: "triweekly", label: "Triweekly" },
+  { value: "biweekly", label: "Bi-weekly" },
+  { value: "triweekly", label: "Tri-weekly" },
   { value: "monthly", label: "Monthly" },
-  { value: "bimonthly", label: "Bimonthly" },
-  { value: "trimonthly", label: "Trimonthly" },
+  { value: "bimonthly", label: "Bi-monthly" },
+  { value: "trimonthly", label: "Tri-monthly" },
   { value: "quarterly", label: "Quarterly" },
   { value: "annually", label: "Annually" },
 ];
@@ -61,17 +65,12 @@ const loanSchema = z.object({
 type LoanFormData = z.infer<typeof loanSchema>;
 
 const loanTypes = [
-  { value: "personal", label: "Personal Loan", icon: "👤" },
-  { value: "auto", label: "Auto Loan", icon: "🚗" },
-  { value: "home", label: "Home Loan", icon: "🏠" },
-  { value: "education", label: "Education Loan", icon: "🎓" },
-  { value: "business", label: "Business Loan", icon: "💼" },
-  { value: "credit_card", label: "Credit Card", icon: "💳" },
-  { value: "other", label: "Other", icon: "📄" },
+  { value: "simple", label: "Simple Interest" },
+  { value: "compound", label: "Compound Interest" },
 ];
 
 export default function Loans() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState<any>(null);
   
   const { data: loans = [], isLoading } = useLoans();
@@ -125,735 +124,494 @@ export default function Loans() {
     },
   });
 
-  // Calculate payoff time from payment amount
-  const calculatePayoffTime = (balance: number, rate: number, payment: number, interestType: string, interestPeriod: string, repaymentFreq: string): number => {
-    if (balance <= 0 || rate < 0 || payment <= 0) return 0;
+  // Calculate amortized payment amount
+  const calculateAmortizedPayment = (principal: number, rate: number, termMonths: number): number => {
+    if (principal <= 0 || rate <= 0 || termMonths <= 0) return 0;
     
-    const periodsPerYear = getPeriodsPerYear(repaymentFreq);
-    const interestPeriodsPerYear = getPeriodsPerYear(interestPeriod);
-    const effectiveRate = rate / 100 / interestPeriodsPerYear;
+    const monthlyRate = rate / 100 / 12;
     
-    if (interestType === "simple") {
-      // Simple interest calculation
-      const totalInterestPerPeriod = balance * effectiveRate * (interestPeriodsPerYear / periodsPerYear);
-      const principalPerPayment = payment - totalInterestPerPeriod;
-      if (principalPerPayment <= 0) return Infinity;
-      return Math.ceil(balance / principalPerPayment);
-    } else {
-      // Compound interest calculation
-      const periodicRate = effectiveRate * (interestPeriodsPerYear / periodsPerYear);
-      if (periodicRate === 0) return Math.ceil(balance / payment);
-      if (payment <= balance * periodicRate) return Infinity;
-      
-      return Math.ceil(Math.log(1 + (balance * periodicRate) / payment) / Math.log(1 + periodicRate));
+    if (monthlyRate === 0) {
+      return principal / termMonths;
     }
+    
+    return (principal * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / 
+           (Math.pow(1 + monthlyRate, termMonths) - 1);
   };
 
-  // Calculate required payment from payoff time
-  const calculateRequiredPayment = (balance: number, rate: number, periods: number, interestType: string, interestPeriod: string, repaymentFreq: string): number => {
-    if (balance <= 0 || rate < 0 || periods <= 0) return 0;
+  // Watch form values for amortization calculations
+  const watchedValues = form.watch(['principalAmount', 'interestRate', 'loanTermYears', 'loanTermMonths', 'interestType', 'isAmortized']);
+
+  // Calculate payment amount for amortized loans
+  const [calculatedPayment, setCalculatedPayment] = useState<string>("");
+
+  useEffect(() => {
+    const [principal, interestRate, termYears, termMonths, interestType, isAmortized] = watchedValues;
     
-    const periodsPerYear = getPeriodsPerYear(repaymentFreq);
-    const interestPeriodsPerYear = getPeriodsPerYear(interestPeriod);
-    const effectiveRate = rate / 100 / interestPeriodsPerYear;
-    
-    if (interestType === "simple") {
-      // Simple interest calculation
-      const totalInterestPerPeriod = balance * effectiveRate * (interestPeriodsPerYear / periodsPerYear);
-      const principalPerPayment = balance / periods;
-      return principalPerPayment + totalInterestPerPeriod;
-    } else {
-      // Compound interest calculation
-      const periodicRate = effectiveRate * (interestPeriodsPerYear / periodsPerYear);
-      if (periodicRate === 0) return balance / periods;
+    if (isAmortized && interestType === 'compound' && principal && interestRate) {
+      const principalNum = parseFloat(principal);
+      const rateNum = parseFloat(interestRate);
+      const yearsNum = parseInt(termYears || "0");
+      const monthsNum = parseInt(termMonths || "0");
+      const totalMonths = yearsNum * 12 + monthsNum;
       
-      return (balance * periodicRate * Math.pow(1 + periodicRate, periods)) / (Math.pow(1 + periodicRate, periods) - 1);
-    }
-  };
-
-  // Watch form values for real-time calculations
-  const watchedValues = form.watch();
-  const interestType = form.watch("interestType");
-  const useRecurringPayments = form.watch("useRecurringPayments");
-  
-  // Real-time calculation effect
-  React.useEffect(() => {
-    const { principalAmount, balance, interestRate, minPayment, payoffTime, interestType, interestPeriod, repaymentFrequency } = watchedValues;
-    
-    // Use principalAmount as default if balance is not provided
-    const effectiveBalance = balance || principalAmount;
-    // Use 0% as default if interest rate is not provided
-    const effectiveRate = interestRate || "0";
-    
-    const balanceNum = parseFloat(effectiveBalance || "0");
-    const rateNum = parseFloat(effectiveRate);
-    const paymentNum = parseFloat(minPayment || "0");
-    const timeNum = parseFloat(payoffTime || "0");
-    
-    if (balanceNum > 0 && rateNum >= 0 && interestType && interestPeriod && repaymentFrequency) {
-      // If payment is entered but not payoff time, calculate payoff time
-      if (paymentNum > 0 && !payoffTime) {
-        const calculatedTime = calculatePayoffTime(balanceNum, rateNum, paymentNum, interestType, interestPeriod, repaymentFrequency);
-        if (calculatedTime !== Infinity && calculatedTime > 0) {
-          form.setValue("payoffTime", calculatedTime.toString(), { shouldValidate: false });
-        }
+      if (principalNum > 0 && rateNum >= 0 && totalMonths > 0) {
+        const payment = calculateAmortizedPayment(principalNum, rateNum, totalMonths);
+        setCalculatedPayment(payment.toFixed(2));
+      } else {
+        setCalculatedPayment("");
       }
-      // If payoff time is entered but not payment, calculate required payment
-      else if (timeNum > 0 && !minPayment) {
-        const calculatedPayment = calculateRequiredPayment(balanceNum, rateNum, timeNum, interestType, interestPeriod, repaymentFrequency);
-        if (calculatedPayment > 0) {
-          form.setValue("minPayment", calculatedPayment.toFixed(2), { shouldValidate: false });
-        }
-      }
+    } else {
+      setCalculatedPayment("");
     }
-  }, [watchedValues, form]);
+  }, watchedValues);
 
-  const createLoanMutation = useMutation({
+  const mutation = useMutation({
     mutationFn: async (data: InsertLoan) => {
-      const response = await apiRequest("POST", "/api/loans", data);
-      return response.json();
+      if (editingLoan) {
+        return apiRequest("PATCH", `/api/loans/${editingLoan.id}`, data);
+      } else {
+        return apiRequest("POST", "/api/loans", data);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
-      toast({
-        title: "Success",
-        description: "Loan added successfully",
-      });
-      form.reset();
-      setIsDialogOpen(false);
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to add loan",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateLoanMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertLoan> }) => {
-      const response = await apiRequest("PUT", `/api/loans/${id}`, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
-      toast({
-        title: "Success",
-        description: "Loan updated successfully",
-      });
-      setIsDialogOpen(false);
+      setIsModalOpen(false);
       setEditingLoan(null);
       form.reset();
+      setCalculatedPayment("");
+      toast({
+        title: "Success",
+        description: `Loan ${editingLoan ? "updated" : "created"} successfully`,
+      });
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to update loan",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  const deleteLoanMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/loans/${id}`);
+      return apiRequest("DELETE", `/api/loans/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
       toast({
         title: "Success",
         description: "Loan deleted successfully",
       });
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to delete loan",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: LoanFormData) => {
-    const loanData = {
+    // Convert loan term to total months for database storage
+    const yearsNum = parseInt(data.loanTermYears || "0");
+    const monthsNum = parseInt(data.loanTermMonths || "0");
+    const totalMonths = yearsNum * 12 + monthsNum;
+
+    const submitData: InsertLoan = {
       name: data.name,
       principalAmount: data.principalAmount,
-      balance: data.balance || data.principalAmount, // Default to principal amount if not provided
-      interestRate: data.interestRate || "0", // Default to 0% if not provided
+      balance: data.balance || data.principalAmount,
+      interestRate: data.interestRate || "0",
       interestType: data.interestType,
       interestPeriod: data.interestPeriod,
-      useRecurringPayments: data.useRecurringPayments,
+      isAmortized: data.isAmortized,
       repaymentFrequency: data.repaymentFrequency,
-      minPayment: data.minPayment || "0",
-      nextPaymentDate: data.dueDate ? new Date(data.dueDate) : new Date(),
-      startDate: new Date(data.startDate),
-      icon: "💳",
-      color: "#DC2626",
+      loanTermMonths: data.isAmortized ? totalMonths : undefined,
+      calculatedPayment: data.isAmortized && calculatedPayment ? calculatedPayment : undefined,
+      nextPaymentDate: data.dueDate || new Date().toISOString().split('T')[0],
+      startDate: data.startDate,
+      icon: "💰",
+      color: "#3b82f6",
     };
-    
-    if (editingLoan) {
-      updateLoanMutation.mutate({ id: editingLoan.id, data: loanData });
-    } else {
-      createLoanMutation.mutate(loanData);
-    }
+
+    mutation.mutate(submitData);
   };
 
-  const openEditDialog = (loan: any) => {
+  const handleEdit = (loan: any) => {
     setEditingLoan(loan);
-    const nextPaymentDate = new Date(loan.nextPaymentDate);
-    const formattedDate = nextPaymentDate.toISOString().split('T')[0];
-    const startDate = new Date(loan.startDate);
-    const formattedStartDate = startDate.toISOString().split('T')[0];
     
+    // Convert total months back to years and months for display
+    const totalMonths = loan.loanTermMonths || 0;
+    const years = Math.floor(totalMonths / 12);
+    const months = totalMonths % 12;
+
     form.reset({
       name: loan.name,
-      principalAmount: loan.principalAmount || "",
+      principalAmount: loan.principalAmount,
       balance: loan.balance,
       interestRate: loan.interestRate,
-      interestType: loan.interestType || "simple",
-      interestPeriod: loan.interestPeriod || "monthly",
-      repaymentFrequency: loan.repaymentFrequency || "monthly",
-      minPayment: loan.minPayment,
-      dueDate: formattedDate,
-      startDate: formattedStartDate,
+      interestType: loan.interestType,
+      interestPeriod: loan.interestPeriod,
+      isAmortized: loan.isAmortized || false,
+      repaymentFrequency: loan.repaymentFrequency,
+      loanTermYears: years > 0 ? years.toString() : "",
+      loanTermMonths: months > 0 ? months.toString() : "",
+      dueDate: loan.nextPaymentDate ? new Date(loan.nextPaymentDate).toISOString().split('T')[0] : "",
+      startDate: new Date(loan.startDate).toISOString().split('T')[0],
     });
-    setIsDialogOpen(true);
+    
+    setIsModalOpen(true);
   };
 
-  const openCreateDialog = () => {
-    setEditingLoan(null);
-    const today = new Date().toISOString().split('T')[0];
-    form.reset({
-      name: "",
-      principalAmount: "",
-      balance: "",
-      interestRate: "",
-      interestType: "simple",
-      interestPeriod: "monthly",
-      repaymentFrequency: "monthly",
-      minPayment: "",
-      dueDate: "",
-      startDate: today,
-    });
-    setIsDialogOpen(true);
-  };
-
-  // Convert frequency to periods per year
-  const getPeriodsPerYear = (frequency: string) => {
-    switch (frequency) {
-      case "daily": return 365;
-      case "weekly": return 52;
-      case "biweekly": return 26;
-      case "triweekly": return 17.33; // 52/3
-      case "monthly": return 12;
-      case "bimonthly": return 6;
-      case "trimonthly": return 4;
-      case "quarterly": return 4;
-      case "annually": return 1;
-      default: return 12;
+  const handleDelete = (id: number) => {
+    if (confirm("Are you sure you want to delete this loan?")) {
+      deleteMutation.mutate(id);
     }
   };
 
-  const calculatePayoffPeriods = (
-    balance: number, 
-    payment: number, 
-    annualRate: number, 
-    interestType: string = "compound",
-    interestFreq: string = "monthly",
-    paymentFreq: string = "monthly"
-  ) => {
-    if (annualRate === 0) return Math.ceil(balance / payment);
-    
-    const interestPeriodsPerYear = getPeriodsPerYear(interestFreq);
-    const paymentPeriodsPerYear = getPeriodsPerYear(paymentFreq);
-    const periodRate = annualRate / 100 / interestPeriodsPerYear;
-    
-    if (interestType === "simple") {
-      // Simple interest: I = P * r * t
-      const totalInterest = balance * (annualRate / 100);
-      const totalAmount = balance + totalInterest;
-      return Math.ceil(totalAmount / payment);
-    } else {
-      // Compound interest with different frequencies
-      if (interestFreq === paymentFreq) {
-        // Same frequency - standard formula
-        return Math.ceil(Math.log(1 + (balance * periodRate) / payment) / Math.log(1 + periodRate));
-      } else {
-        // Different frequencies - iterative calculation
-        let remainingBalance = balance;
-        let periods = 0;
-        const maxPeriods = 1000; // Safety limit
-        
-        while (remainingBalance > 0.01 && periods < maxPeriods) {
-          // Apply interest for one payment period
-          const interestPeriodsInPaymentPeriod = interestPeriodsPerYear / paymentPeriodsPerYear;
-          const effectiveRate = Math.pow(1 + periodRate, interestPeriodsInPaymentPeriod) - 1;
-          
-          remainingBalance = remainingBalance * (1 + effectiveRate);
-          remainingBalance = Math.max(0, remainingBalance - payment);
-          periods++;
-        }
-        
-        return periods;
-      }
-    }
-  };
-
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-64">Loading...</div>;
+  }
 
   return (
-    <div className="max-w-sm mx-auto bg-white min-h-screen relative">
-      <Header title="Loans" subtitle="Manage your debts" />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Header title="Loans" subtitle="Track your loan repayments" />
       
-      <main className="pb-20 px-4 space-y-6 pt-4">
-        {/* Add Loan Button */}
-        <Button onClick={openCreateDialog} className="w-full bg-primary text-white rounded-xl py-3">
-          <Plus className="h-5 w-5 mr-2" />
-          Add Loan
-        </Button>
+      <div className="px-4 py-6 pb-20">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Your Loans</h2>
+          <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add Loan
+          </Button>
+        </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-sm mx-auto max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingLoan ? "Edit Loan" : "Add New Loan"}</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Loan Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="e.g., Car Loan"
-                          className="px-4 py-3 border border-gray-300 rounded-xl"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="principalAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Principal Amount (MWK)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          step="0.01"
-                          placeholder="Original loan amount"
-                          className="px-4 py-3 border border-gray-300 rounded-xl"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="balance"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Current Balance (MWK) - Optional</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          step="0.01"
-                          placeholder="Leave empty to use principal amount"
-                          className="px-4 py-3 border border-gray-300 rounded-xl"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="interestRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Annual Interest Rate (%) - Optional</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          step="0.01"
-                          placeholder="e.g., 15 (for 15% per year)"
-                          className="px-4 py-3 border border-gray-300 rounded-xl"
-                        />
-                      </FormControl>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Enter the yearly interest rate. Leave empty for interest-free loan.
-                      </p>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="interestType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Interest Type</FormLabel>
-                      <FormControl>
-                        <select
-                          {...field}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white"
-                        >
-                          <option value="">Select interest type</option>
-                          <option value="simple">Simple Interest</option>
-                          <option value="compound">Compound Interest</option>
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {interestType === "compound" && (
-                  <FormField
-                    control={form.control}
-                    name="interestPeriod"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Compounding Frequency</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white"
-                          >
-                            <option value="">Select compounding frequency</option>
-                            {frequencyOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                <FormField
-                  control={form.control}
-                  name="useRecurringPayments"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                      <FormControl>
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={field.onChange}
-                          className="mt-1"
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Use recurring payments to settle this loan</FormLabel>
-                        <p className="text-xs text-gray-600">
-                          Check this if you plan to make regular scheduled payments. Leave unchecked for flexible payment schedules.
-                        </p>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                {useRecurringPayments && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="repaymentFrequency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Repayment Frequency</FormLabel>
-                          <FormControl>
-                            <select
-                              {...field}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white"
-                            >
-                              <option value="">Select repayment frequency</option>
-                              {frequencyOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="minPayment"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Repayment Amount (MWK)</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              className="px-4 py-3 border border-gray-300 rounded-xl"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="payoffTime"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Payoff Time (periods)</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type="number"
-                              step="1"
-                              placeholder="Number of payment periods"
-                              className="px-4 py-3 border border-gray-300 rounded-xl"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="dueDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Next Due Date</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              type="date"
-                              className="px-4 py-3 border border-gray-300 rounded-xl"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
-
-                <FormField
-                  control={form.control}
-                  name="startDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Loan Start Date</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="date"
-                          className="px-4 py-3 border border-gray-300 rounded-xl"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button 
-                  type="submit" 
-                  className="w-full bg-primary text-white rounded-xl"
-                  disabled={createLoanMutation.isPending || updateLoanMutation.isPending}
-                >
-                  {editingLoan
-                    ? (updateLoanMutation.isPending ? "Updating..." : "Edit Loan")
-                    : (createLoanMutation.isPending ? "Adding..." : "Add Loan")
-                  }
-                </Button>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Loans List */}
-        {isLoading ? (
-          <div className="space-y-4">
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="bg-white rounded-xl p-4 border border-gray-100 animate-pulse">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-10 h-10 bg-gray-200 rounded-xl"></div>
-                  <div className="flex-1">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                  <div className="h-4 bg-gray-200 rounded w-16"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : loans.length === 0 ? (
-          <div className="bg-white rounded-xl p-8 border border-gray-100 text-center">
-            <div className="text-4xl mb-4">💳</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No loans yet</h3>
-            <p className="text-gray-500 mb-4">
-              Add your first loan to start tracking your debt payments
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {loans.map((loan) => {
-              const balance = parseFloat(loan.balance || "0");
-              const minPayment = parseFloat(loan.minPayment || "0");
-              const interestRate = parseFloat(loan.interestRate || "0");
-              const interestType = loan.interestType || "compound";
-              const interestPeriod = loan.interestPeriod || "monthly";
-              const repaymentFreq = loan.repaymentFrequency || "monthly";
-              
-              const payoffPeriods = calculatePayoffPeriods(
-                balance,
-                minPayment,
-                interestRate,
-                interestType,
-                interestPeriod,
-                repaymentFreq
-              );
-              
-              const totalInterest = payoffPeriods * minPayment - balance;
-              
-              // Convert periods to a readable format
-              const getTimeDisplay = (periods: number, frequency: string) => {
-                if (frequency === "daily") return `${periods} days`;
-                if (frequency === "weekly") return `${periods} weeks`;
-                if (frequency === "biweekly") return `${Math.round(periods / 26 * 12)} months`;
-                if (frequency === "monthly") return `${periods} months`;
-                if (frequency === "quarterly") return `${periods} quarters`;
-                if (frequency === "annually") return `${periods} years`;
-                return `${periods} payments`;
-              };
-
-              const loanProgress = calculateLoanProgress(loan.id, loan.principalAmount || "0", loan.balance);
-              
-              return (
-                <div key={loan.id} className="bg-white rounded-xl p-4 border border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
-                        <span className="text-sm">💳</span>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{loan.name}</h3>
-                        <p className="text-sm text-gray-500">
-                          {loan.nextPaymentDate ? `Due: ${formatDate(loan.nextPaymentDate as Date)}` : "No due date set"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {loans.map((loan: any) => {
+            const progress = calculateLoanProgress(loan.id, loan.principalAmount, loan.balance);
+            
+            return (
+              <Card key={loan.id} className="relative">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{loan.name}</CardTitle>
+                    <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => openEditDialog(loan)}
-                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => handleEdit(loan)}
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => deleteLoanMutation.mutate(loan.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDelete(loan.id)}
+                        className="text-red-600 hover:text-red-700"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
-
-                  {/* Loan Progress Bar */}
-                  {loan.principalAmount && parseFloat(loan.principalAmount) > 0 && (
-                    <div className="mb-4">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-gray-600">
-                          Repaid: {formatCurrency(loanProgress.totalRepaid)}
-                        </span>
-                        <span className="font-medium text-green-600">
-                          {Math.round(loanProgress.progressPercentage)}%
-                        </span>
-                      </div>
-                      <ProgressBar
-                        percentage={loanProgress.progressPercentage}
-                        color="#10B981"
-                      />
-                      <div className="text-xs text-gray-500 mt-1">
-                        {formatCurrency(loanProgress.remainingBalance)} remaining of {formatCurrency(parseFloat(loan.principalAmount))} original loan
-                      </div>
-                    </div>
-                  )}
-
+                  <CardDescription>
+                    {loan.interestType === "compound" ? "Compound" : "Simple"} Interest • {loan.interestRate}% Annual
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                   <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Balance:</span>
-                      <span className="font-semibold text-red-600">
-                        {formatCurrency(balance)}
-                      </span>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Principal Amount:</span>
+                      <span className="font-medium">{formatCurrency(parseFloat(loan.principalAmount))}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Interest Rate:</span>
-                      <span className="font-medium">{interestRate}%</span>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Current Balance:</span>
+                      <span className="font-medium">{formatCurrency(parseFloat(loan.balance))}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Repayment Amount:</span>
-                      <span className="font-medium">{formatCurrency(minPayment)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Repayments Needed:</span>
-                      <span className="font-medium text-blue-600">
-                        {payoffPeriods} payments
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-t pt-2">
-                      <span className="text-sm text-gray-500">Payoff Time:</span>
-                      <span className="font-medium text-orange-600">
-                        {getTimeDisplay(payoffPeriods, repaymentFreq)}
-                      </span>
-                    </div>
-                    {totalInterest > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Total Interest:</span>
-                        <span className="font-medium text-red-600">
-                          {formatCurrency(totalInterest)}
-                        </span>
-                      </div>
+                    
+                    {loan.isAmortized && (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">Payment Frequency:</span>
+                          <span className="font-medium capitalize">{loan.repaymentFrequency}</span>
+                        </div>
+                        {loan.calculatedPayment && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Payment Amount:</span>
+                            <span className="font-medium">{formatCurrency(parseFloat(loan.calculatedPayment))}</span>
+                          </div>
+                        )}
+                        {loan.loanTermMonths && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Loan Term:</span>
+                            <span className="font-medium">
+                              {Math.floor(loan.loanTermMonths / 12) > 0 && `${Math.floor(loan.loanTermMonths / 12)} years `}
+                              {loan.loanTermMonths % 12 > 0 && `${loan.loanTermMonths % 12} months`}
+                            </span>
+                          </div>
+                        )}
+                        {loan.nextPaymentDate && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">Next Payment:</span>
+                            <span className="font-medium">
+                              {new Date(loan.nextPaymentDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                      </>
                     )}
+                    
+                    <div className="pt-2">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span>Progress</span>
+                        <span>{progress.progressPercentage.toFixed(1)}%</span>
+                      </div>
+                      <Progress value={progress.progressPercentage} className="h-2" />
+                      <div className="flex justify-between text-xs mt-1 text-gray-500">
+                        <span>Paid: {formatCurrency(progress.totalRepaid)}</span>
+                        <span>Remaining: {formatCurrency(progress.remainingBalance)}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Add/Edit Loan Modal */}
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold mb-4">
+                  {editingLoan ? "Edit Loan" : "Add New Loan"}
+                </h3>
+                
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="name">Loan Name</Label>
+                      <Input
+                        id="name"
+                        {...form.register("name")}
+                        placeholder="e.g., Car Loan"
+                      />
+                      {form.formState.errors.name && (
+                        <p className="text-red-500 text-sm mt-1">{form.formState.errors.name.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="principalAmount">Principal Amount (MWK)</Label>
+                      <Input
+                        id="principalAmount"
+                        type="number"
+                        step="0.01"
+                        {...form.register("principalAmount")}
+                        placeholder="e.g., 1000000"
+                      />
+                      {form.formState.errors.principalAmount && (
+                        <p className="text-red-500 text-sm mt-1">{form.formState.errors.principalAmount.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="balance">Current Balance (MWK)</Label>
+                      <Input
+                        id="balance"
+                        type="number"
+                        step="0.01"
+                        {...form.register("balance")}
+                        placeholder="Leave empty to use principal amount"
+                      />
+                      {form.formState.errors.balance && (
+                        <p className="text-red-500 text-sm mt-1">{form.formState.errors.balance.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="interestRate">Annual Interest Rate (%)</Label>
+                      <Input
+                        id="interestRate"
+                        type="number"
+                        step="0.01"
+                        {...form.register("interestRate")}
+                        placeholder="e.g., 15.5 (for 15.5% annual)"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Examples: 10 (for 10%), 15.5 (for 15.5%), 25 (for 25%)
+                      </p>
+                      {form.formState.errors.interestRate && (
+                        <p className="text-red-500 text-sm mt-1">{form.formState.errors.interestRate.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="interestType">Interest Type</Label>
+                      <Select
+                        value={form.watch("interestType")}
+                        onValueChange={(value) => form.setValue("interestType", value as "simple" | "compound")}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select interest type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {loanTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {form.formState.errors.interestType && (
+                        <p className="text-red-500 text-sm mt-1">{form.formState.errors.interestType.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="interestPeriod">Interest Compounding Frequency</Label>
+                      <Select
+                        value={form.watch("interestPeriod")}
+                        onValueChange={(value) => form.setValue("interestPeriod", value as any)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {frequencyOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {form.formState.errors.interestPeriod && (
+                        <p className="text-red-500 text-sm mt-1">{form.formState.errors.interestPeriod.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="startDate">Start Date</Label>
+                      <Input
+                        id="startDate"
+                        type="date"
+                        {...form.register("startDate")}
+                      />
+                      {form.formState.errors.startDate && (
+                        <p className="text-red-500 text-sm mt-1">{form.formState.errors.startDate.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Amortization Checkbox - Only show for compound interest */}
+                  {form.watch("interestType") === "compound" && (
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="isAmortized"
+                        checked={form.watch("isAmortized")}
+                        onCheckedChange={(checked) => form.setValue("isAmortized", !!checked)}
+                      />
+                      <Label htmlFor="isAmortized">Use amortization (fixed payment schedule)</Label>
+                    </div>
+                  )}
+
+                  {/* Amortization Fields - Only show when amortization is enabled */}
+                  {form.watch("isAmortized") && form.watch("interestType") === "compound" && (
+                    <div className="space-y-4 border-t pt-4">
+                      <h4 className="font-medium">Amortization Details</h4>
+                      
+                      <div>
+                        <Label htmlFor="repaymentFrequency">Payment Frequency</Label>
+                        <Select
+                          value={form.watch("repaymentFrequency")}
+                          onValueChange={(value) => form.setValue("repaymentFrequency", value as any)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {frequencyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="loanTermYears">Loan Term (Years)</Label>
+                          <Input
+                            id="loanTermYears"
+                            type="number"
+                            min="0"
+                            {...form.register("loanTermYears")}
+                            placeholder="e.g., 5"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="loanTermMonths">Additional Months</Label>
+                          <Input
+                            id="loanTermMonths"
+                            type="number"
+                            min="0"
+                            max="11"
+                            {...form.register("loanTermMonths")}
+                            placeholder="e.g., 6"
+                          />
+                        </div>
+                      </div>
+
+                      {calculatedPayment && (
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                          <Label className="text-sm font-medium">Calculated Payment Amount</Label>
+                          <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                            {formatCurrency(parseFloat(calculatedPayment))}
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                            Based on loan amount, interest rate, and term
+                          </p>
+                        </div>
+                      )}
+
+                      <div>
+                        <Label htmlFor="dueDate">Next Payment Due Date</Label>
+                        <Input
+                          id="dueDate"
+                          type="date"
+                          {...form.register("dueDate")}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        setEditingLoan(null);
+                        form.reset();
+                        setCalculatedPayment("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={mutation.isPending}>
+                      {mutation.isPending ? "Saving..." : editingLoan ? "Update Loan" : "Add Loan"}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
           </div>
         )}
-      </main>
+      </div>
 
       <BottomNavigation />
     </div>
