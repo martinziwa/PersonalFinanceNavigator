@@ -408,6 +408,14 @@ export default function Loans() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => setTransactionHistoryLoan(loan)}
+                        title="View Payment History"
+                      >
+                        <History className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleEdit(loan)}
                       >
                         <Edit className="w-4 h-4" />
@@ -538,6 +546,85 @@ export default function Loans() {
           })}
         </div>
 
+        {/* Payment Transaction History Modal */}
+        {transactionHistoryLoan && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Payment History - {transactionHistoryLoan.name}</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTransactionHistoryLoan(null)}
+                  >
+                    ×
+                  </Button>
+                </div>
+                
+                {(() => {
+                  const loanPayments = transactions.filter((transaction: Transaction) => 
+                    transaction.loanId === transactionHistoryLoan.id && transaction.type === 'loan_payment'
+                  );
+                  
+                  if (loanPayments.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-gray-500">
+                        No payment transactions found for this loan.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {loanPayments.map((transaction: Transaction) => {
+                        const amount = parseFloat(transaction.amount || "0");
+                        const totalInterest = calculateTotalInterest(transactionHistoryLoan);
+                        const allocation = calculatePaymentAllocation(amount, parseFloat(transactionHistoryLoan.principalAmount), totalInterest);
+                        
+                        return (
+                          <div key={transaction.id} className="border rounded-lg p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <div className="font-medium">{formatCurrency(amount)}</div>
+                                <div className="text-sm text-gray-500">
+                                  {new Date(transaction.date).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {transaction.description && (
+                                  <div className="mb-1">{transaction.description}</div>
+                                )}
+                                <div className="text-xs">
+                                  Category: {transaction.category}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {transactionHistoryLoan.interestType === "simple" && (
+                              <div className="bg-gray-50 dark:bg-gray-700 rounded p-3 text-sm">
+                                <div className="font-medium mb-1">Payment Allocation:</div>
+                                <div className="flex justify-between">
+                                  <span>Principal:</span>
+                                  <span className="text-green-600">{formatCurrency(allocation.principalPortion)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Interest:</span>
+                                  <span className="text-orange-600">{formatCurrency(allocation.interestPortion)}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Add/Edit Loan Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -575,19 +662,25 @@ export default function Loans() {
                       )}
                     </div>
 
-                    <div>
-                      <Label htmlFor="balance">Current Balance (MWK)</Label>
-                      <Input
-                        id="balance"
-                        type="number"
-                        step="0.01"
-                        {...form.register("balance")}
-                        placeholder="Leave empty to use principal amount"
-                      />
-                      {form.formState.errors.balance && (
-                        <p className="text-red-500 text-sm mt-1">{form.formState.errors.balance.message}</p>
-                      )}
-                    </div>
+                    {/* Current Repayment field - only for simple interest */}
+                    {form.watch("interestType") === "simple" && (
+                      <div>
+                        <Label htmlFor="currentRepayment">Current Repayment (MWK)</Label>
+                        <Input
+                          id="currentRepayment"
+                          type="number"
+                          step="0.01"
+                          {...form.register("currentRepayment")}
+                          placeholder="Amount already paid toward this loan"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          This amount will be allocated between principal and interest based on the loan ratio
+                        </p>
+                        {form.formState.errors.currentRepayment && (
+                          <p className="text-red-500 text-sm mt-1">{form.formState.errors.currentRepayment.message}</p>
+                        )}
+                      </div>
+                    )}
 
                     <div>
                       <Label htmlFor="interestRate">Annual Interest Rate (%)</Label>
