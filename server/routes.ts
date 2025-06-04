@@ -241,13 +241,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/loans/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/loans/:id", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
+      console.log("Loan update request:", { userId, id, body: req.body });
       // Validate the update data using the same schema
       const validatedData = insertLoanSchema.parse(req.body);
+      console.log("Validated loan data:", validatedData);
       const updated = await storage.updateLoan(userId, id, validatedData);
+      console.log("Updated loan:", updated);
       res.json(updated);
     } catch (error) {
       console.error("Loan update error:", error);
