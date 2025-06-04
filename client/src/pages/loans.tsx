@@ -283,9 +283,10 @@ export default function Loans() {
       interestRate: data.interestRate || "0", // Default to 0% if not provided
       interestType: data.interestType,
       interestPeriod: data.interestPeriod,
+      useRecurringPayments: data.useRecurringPayments,
       repaymentFrequency: data.repaymentFrequency,
       minPayment: data.minPayment || "0",
-      nextPaymentDate: new Date(data.dueDate),
+      nextPaymentDate: data.dueDate ? new Date(data.dueDate) : new Date(),
       startDate: new Date(data.startDate),
       icon: "💳",
       color: "#DC2626",
@@ -555,8 +556,33 @@ export default function Loans() {
 
                 <FormField
                   control={form.control}
-                  name="repaymentFrequency"
+                  name="useRecurringPayments"
                   render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                          className="mt-1"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Use recurring payments to settle this loan</FormLabel>
+                        <p className="text-xs text-gray-600">
+                          Check this if you plan to make regular scheduled payments. Leave unchecked for flexible payment schedules.
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                {useRecurringPayments && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="repaymentFrequency"
+                      render={({ field }) => (
                     <FormItem>
                       <FormLabel>Repayment Frequency</FormLabel>
                       <FormControl>
@@ -577,45 +603,65 @@ export default function Loans() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="minPayment"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Repayment Amount (MWK)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          className="px-4 py-3 border border-gray-300 rounded-xl"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="minPayment"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Repayment Amount (MWK)</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              className="px-4 py-3 border border-gray-300 rounded-xl"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="payoffTime"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payoff Time (periods)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="number"
-                          step="1"
-                          placeholder="Number of payment periods"
-                          className="px-4 py-3 border border-gray-300 rounded-xl"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="payoffTime"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Payoff Time (periods)</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="number"
+                              step="1"
+                              placeholder="Number of payment periods"
+                              className="px-4 py-3 border border-gray-300 rounded-xl"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="dueDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Next Due Date</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="date"
+                              className="px-4 py-3 border border-gray-300 rounded-xl"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
 
                 <FormField
                   control={form.control}
@@ -623,24 +669,6 @@ export default function Loans() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Loan Start Date</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          type="date"
-                          className="px-4 py-3 border border-gray-300 rounded-xl"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="dueDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Next Due Date</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -695,9 +723,9 @@ export default function Loans() {
         ) : (
           <div className="space-y-4">
             {loans.map((loan) => {
-              const balance = parseFloat(loan.balance);
-              const minPayment = parseFloat(loan.minPayment);
-              const interestRate = parseFloat(loan.interestRate);
+              const balance = parseFloat(loan.balance || "0");
+              const minPayment = parseFloat(loan.minPayment || "0");
+              const interestRate = parseFloat(loan.interestRate || "0");
               const interestType = loan.interestType || "compound";
               const interestPeriod = loan.interestPeriod || "monthly";
               const repaymentFreq = loan.repaymentFrequency || "monthly";
@@ -736,7 +764,7 @@ export default function Loans() {
                       <div>
                         <h3 className="font-semibold text-gray-900">{loan.name}</h3>
                         <p className="text-sm text-gray-500">
-                          Due: {formatDate(loan.nextPaymentDate)}
+                          {loan.nextPaymentDate ? `Due: ${formatDate(loan.nextPaymentDate as Date)}` : "No due date set"}
                         </p>
                       </div>
                     </div>
