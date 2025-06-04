@@ -76,10 +76,85 @@ export default function Budgets() {
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("dateAdded");
+  const [totalBudgetPeriod, setTotalBudgetPeriod] = useState("current-month");
   
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
   const { toast } = useToast();
+
+  // Calculate total budget aggregation
+  const calculateTotalBudgetData = () => {
+    const currentDate = new Date();
+    
+    let relevantBudgets = budgets.filter((budget: any) => {
+      // Apply category filter
+      const matchesCategory = categoryFilter === "all" || budget.category === categoryFilter;
+      if (!matchesCategory) return false;
+
+      // Apply time period filter
+      const startDate = new Date(budget.startDate);
+      const endDate = new Date(budget.endDate);
+      
+      switch (totalBudgetPeriod) {
+        case "current-month":
+          const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+          const currentMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+          return (startDate <= currentMonthEnd && endDate >= currentMonthStart);
+        
+        case "current-week":
+          const currentWeekStart = new Date(currentDate);
+          currentWeekStart.setDate(currentDate.getDate() - currentDate.getDay());
+          const currentWeekEnd = new Date(currentWeekStart);
+          currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
+          return (startDate <= currentWeekEnd && endDate >= currentWeekStart);
+        
+        case "next-30-days":
+          const next30Days = new Date(currentDate);
+          next30Days.setDate(currentDate.getDate() + 30);
+          return (startDate <= next30Days && endDate >= currentDate);
+        
+        case "active":
+          return (startDate <= currentDate && endDate >= currentDate);
+        
+        case "all":
+        default:
+          return true;
+      }
+    });
+
+    const totalBudgetAmount = relevantBudgets.reduce((sum: number, budget: any) => {
+      return sum + parseFloat(budget.amount);
+    }, 0);
+
+    const totalSpent = relevantBudgets.reduce((sum: number, budget: any) => {
+      const categoryTransactions = transactions.filter((transaction: any) => {
+        return transaction.category === budget.category && 
+               transaction.type === "expense" &&
+               new Date(transaction.date) >= new Date(budget.startDate) &&
+               new Date(transaction.date) <= new Date(budget.endDate);
+      });
+      
+      const budgetSpent = categoryTransactions.reduce((total: number, transaction: any) => {
+        return total + parseFloat(transaction.amount);
+      }, 0);
+      
+      return sum + budgetSpent;
+    }, 0);
+
+    const totalPercentage = totalBudgetAmount > 0 ? (totalSpent / totalBudgetAmount) * 100 : 0;
+    const isOverBudget = totalPercentage > 100;
+
+    return {
+      totalBudgetAmount,
+      totalSpent,
+      totalPercentage,
+      isOverBudget,
+      budgetCount: relevantBudgets.length,
+      remaining: totalBudgetAmount - totalSpent
+    };
+  };
+
+  const totalBudgetData = calculateTotalBudgetData();
 
   const form = useForm<BudgetFormData>({
     resolver: zodResolver(budgetSchema),
@@ -484,6 +559,84 @@ export default function Budgets() {
               <Plus className="h-4 w-4 mr-2" />
               Create New Budget
             </Button>
+
+            {/* Total Budget Overview */}
+            {budgets.length > 0 && totalBudgetData.budgetCount > 0 && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Total Budget Overview</h3>
+                    <p className="text-sm text-gray-600">
+                      {totalBudgetData.budgetCount} budget{totalBudgetData.budgetCount > 1 ? 's' : ''} 
+                      {categoryFilter !== "all" && ` in ${categoryFilter}`}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-2xl font-bold ${totalBudgetData.isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
+                      {totalBudgetData.totalPercentage.toFixed(1)}%
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {formatCurrency(totalBudgetData.totalSpent)} of {formatCurrency(totalBudgetData.totalBudgetAmount)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Period Selector */}
+                <div className="mb-4">
+                  <Select value={totalBudgetPeriod} onValueChange={setTotalBudgetPeriod}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select time period..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="current-month">Current Month</SelectItem>
+                      <SelectItem value="current-week">Current Week</SelectItem>
+                      <SelectItem value="next-30-days">Next 30 Days</SelectItem>
+                      <SelectItem value="active">Active Budgets Only</SelectItem>
+                      <SelectItem value="all">All Budgets</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Total Progress Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-700">Total Budget Usage</span>
+                    <span className={`text-sm font-medium ${totalBudgetData.isOverBudget ? 'text-red-600' : 'text-gray-700'}`}>
+                      {totalBudgetData.totalPercentage.toFixed(1)}%
+                    </span>
+                  </div>
+                  <ProgressBar
+                    percentage={totalBudgetData.totalPercentage}
+                    color={
+                      totalBudgetData.isOverBudget ? "bg-red-500" :
+                      totalBudgetData.totalPercentage > 80 ? "bg-yellow-500" :
+                      "bg-blue-500"
+                    }
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Spent: {formatCurrency(totalBudgetData.totalSpent)}</span>
+                    <span>Remaining: {formatCurrency(totalBudgetData.remaining)}</span>
+                  </div>
+                </div>
+
+                {/* Total Budget Analysis */}
+                <div className="mt-4">
+                  {totalBudgetData.isOverBudget ? (
+                    <div className="text-sm text-red-700 bg-red-100 px-3 py-2 rounded-lg">
+                      ⚠️ Total budget exceeded by {formatCurrency(Math.abs(totalBudgetData.remaining))}
+                    </div>
+                  ) : totalBudgetData.totalPercentage > 80 ? (
+                    <div className="text-sm text-yellow-700 bg-yellow-100 px-3 py-2 rounded-lg">
+                      ⚡ Approaching budget limit - {formatCurrency(totalBudgetData.remaining)} remaining
+                    </div>
+                  ) : (
+                    <div className="text-sm text-green-700 bg-green-100 px-3 py-2 rounded-lg">
+                      ✅ On track - {formatCurrency(totalBudgetData.remaining)} remaining in budget
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Filter and Sort Controls */}
             {budgets.length > 0 && (
