@@ -24,168 +24,42 @@ import type { InsertBudget, Transaction } from "@shared/schema";
 
 const budgetSchema = z.object({
   category: z.string().min(1, "Category is required"),
-  amount: z.string().min(1, "Amount is required").refine(
-    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
-    "Amount must be a positive number"
-  ),
-  period: z.string().default("monthly"),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
-  icon: z.string().min(1, "Icon is required"),
+  amount: z.string().min(1, "Amount is required"),
+  period: z.enum(["weekly", "monthly", "yearly"]),
+  startDate: z.string(),
+  endDate: z.string(),
+  icon: z.string(),
   description: z.string().optional(),
 });
 
 type BudgetFormData = z.infer<typeof budgetSchema>;
 
 const categories = [
-  { value: "bills", label: "Bills & Utilities", icon: "📄" },
-  { value: "education", label: "Education", icon: "📚" },
-  { value: "entertainment", label: "Entertainment", icon: "🎬" },
   { value: "food", label: "Food & Dining", icon: "🍽️" },
-  { value: "healthcare", label: "Healthcare", icon: "🏥" },
-  { value: "other", label: "Other", icon: "📝" },
-  { value: "shopping", label: "Shopping", icon: "🛍️" },
   { value: "transportation", label: "Transportation", icon: "🚗" },
+  { value: "shopping", label: "Shopping", icon: "🛍️" },
+  { value: "entertainment", label: "Entertainment", icon: "🎬" },
+  { value: "bills", label: "Bills & Utilities", icon: "📄" },
+  { value: "healthcare", label: "Healthcare", icon: "🏥" },
+  { value: "education", label: "Education", icon: "📚" },
+  { value: "savings", label: "Savings", icon: "💳" },
+  { value: "loan", label: "Loan", icon: "🏛️" },
+  { value: "other", label: "Other", icon: "📝" },
 ];
-
-// Helper function to group budgets by month
-const groupBudgetsByMonth = (budgets: any[]) => {
-  const grouped: { [key: string]: any[] } = {};
-  
-  budgets.forEach((budget) => {
-    const date = new Date(budget.startDate);
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    
-    if (!grouped[monthKey]) {
-      grouped[monthKey] = [];
-    }
-    grouped[monthKey].push(budget);
-  });
-  
-  return grouped;
-};
-
-// Helper function to format month headers
-const formatMonthHeader = (monthKey: string) => {
-  const [year, month] = monthKey.split('-');
-  const date = new Date(parseInt(year), parseInt(month) - 1);
-  const now = new Date();
-  
-  // Check if it's current month
-  if (now.getFullYear() === parseInt(year) && now.getMonth() === parseInt(month) - 1) {
-    return "This Month";
-  }
-  
-  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-};
 
 export default function Budgets() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("list");
-  const [totalBudgetAmount, setTotalBudgetAmount] = useState(10000);
-  const [budgetStartDate, setBudgetStartDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
-  });
-  const [budgetEndDate, setBudgetEndDate] = useState(() => {
-    const date = new Date();
-    date.setMonth(date.getMonth() + 1);
-    return date.toISOString().split('T')[0];
-  });
-  const [budgetAllocations, setBudgetAllocations] = useState<Record<string, number>>({
-    food: 30,
-    transportation: 15,
-    shopping: 10,
-    entertainment: 8,
-    bills: 25,
-    healthcare: 7,
-    education: 3,
-    other: 2
-  });
   const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("dateAdded");
-  const [totalBudgetPeriod, setTotalBudgetPeriod] = useState("current-month");
   
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
   const { toast } = useToast();
-
-  // Calculate total budget aggregation
-  const calculateTotalBudgetData = () => {
-    const currentDate = new Date();
-    
-    let relevantBudgets = budgets.filter((budget: any) => {
-      // Apply category filter
-      const matchesCategory = categoryFilter === "all" || budget.category === categoryFilter;
-      if (!matchesCategory) return false;
-
-      // Apply time period filter
-      const startDate = new Date(budget.startDate);
-      const endDate = new Date(budget.endDate);
-      
-      switch (totalBudgetPeriod) {
-        case "current-month":
-          const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-          const currentMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-          return (startDate <= currentMonthEnd && endDate >= currentMonthStart);
-        
-        case "current-week":
-          const currentWeekStart = new Date(currentDate);
-          currentWeekStart.setDate(currentDate.getDate() - currentDate.getDay());
-          const currentWeekEnd = new Date(currentWeekStart);
-          currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
-          return (startDate <= currentWeekEnd && endDate >= currentWeekStart);
-        
-        case "next-30-days":
-          const next30Days = new Date(currentDate);
-          next30Days.setDate(currentDate.getDate() + 30);
-          return (startDate <= next30Days && endDate >= currentDate);
-        
-        case "active":
-          return (startDate <= currentDate && endDate >= currentDate);
-        
-        case "all":
-        default:
-          return true;
-      }
-    });
-
-    const totalBudgetAmount = relevantBudgets.reduce((sum: number, budget: any) => {
-      return sum + parseFloat(budget.amount);
-    }, 0);
-
-    const totalSpent = relevantBudgets.reduce((sum: number, budget: any) => {
-      const categoryTransactions = transactions.filter((transaction: any) => {
-        return transaction.category === budget.category && 
-               transaction.type === "expense" &&
-               new Date(transaction.date) >= new Date(budget.startDate) &&
-               new Date(transaction.date) <= new Date(budget.endDate);
-      });
-      
-      const budgetSpent = categoryTransactions.reduce((total: number, transaction: any) => {
-        return total + parseFloat(transaction.amount);
-      }, 0);
-      
-      return sum + budgetSpent;
-    }, 0);
-
-    const totalPercentage = totalBudgetAmount > 0 ? (totalSpent / totalBudgetAmount) * 100 : 0;
-    const isOverBudget = totalPercentage > 100;
-
-    return {
-      totalBudgetAmount,
-      totalSpent,
-      totalPercentage,
-      isOverBudget,
-      budgetCount: relevantBudgets.length,
-      remaining: totalBudgetAmount - totalSpent
-    };
-  };
-
-  const totalBudgetData = calculateTotalBudgetData();
 
   const form = useForm<BudgetFormData>({
     resolver: zodResolver(budgetSchema),
@@ -200,67 +74,115 @@ export default function Budgets() {
     },
   });
 
-  // Get unique categories from existing budgets
-  const uniqueCategories = new Set<string>();
-  budgets.forEach(b => uniqueCategories.add(b.category));
-  const existingCategories = Array.from(uniqueCategories);
-  
-  // Combine predefined, existing, and custom categories
-  const allCategories = [
-    ...categories,
-    ...existingCategories
-      .filter(cat => !categories.some(predef => predef.value === cat))
-      .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' '), icon: "📝" })),
-    ...customCategories
-      .filter(cat => !categories.some(predef => predef.value === cat) && !existingCategories.includes(cat))
-      .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' '), icon: "📝" }))
-  ].sort((a, b) => a.label.localeCompare(b.label));
+  const createBudgetMutation = useMutation({
+    mutationFn: async (data: InsertBudget) => {
+      const response = await apiRequest("POST", "/api/budgets", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      toast({
+        title: "Success",
+        description: "Budget created successfully",
+      });
+      form.reset();
+      setIsDialogOpen(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create budget",
+        variant: "destructive",
+      });
+    },
+  });
 
-  // Group budgets by month for better visualization
-  const groupBudgetsByMonth = (budgets: any[]) => {
-    const grouped: { [key: string]: any[] } = {};
-    
-    budgets.forEach(budget => {
-      const startDate = new Date(budget.startDate);
-      const monthKey = `${startDate.getFullYear()}-${startDate.getMonth()}`;
-      
-      if (!grouped[monthKey]) {
-        grouped[monthKey] = [];
-      }
-      grouped[monthKey].push(budget);
-    });
-    
-    return grouped;
+  const updateBudgetMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertBudget> }) => {
+      const response = await apiRequest("PUT", `/api/budgets/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      toast({
+        title: "Success",
+        description: "Budget updated successfully",
+      });
+      form.reset();
+      setIsDialogOpen(false);
+      setEditingBudget(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update budget",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteBudgetMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/budgets/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      toast({
+        title: "Success",
+        description: "Budget deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete budget",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: BudgetFormData) => {
+    const budgetData = {
+      ...data,
+      amount: data.amount,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
+    };
+
+    if (editingBudget) {
+      updateBudgetMutation.mutate({ id: editingBudget.id, data: budgetData });
+    } else {
+      createBudgetMutation.mutate(budgetData);
+    }
   };
 
-  const formatMonthHeader = (monthKey: string) => {
-    const [year, month] = monthKey.split('-');
-    const date = new Date(parseInt(year), parseInt(month));
-    const currentDate = new Date();
-    const currentMonth = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
-    
-    if (monthKey === currentMonth) {
-      return "This Month";
-    } else {
-      return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long' 
-      });
+  const handleCategoryChange = (category: string) => {
+    const categoryData = categories.find(c => c.value === category);
+    if (categoryData) {
+      form.setValue("icon", categoryData.icon);
     }
+  };
+
+  const handleEditBudget = (budget: any) => {
+    setEditingBudget(budget);
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEditingBudget(null);
+  };
+
+  const handleCreateNew = () => {
+    setEditingBudget(null);
+    setIsDialogOpen(true);
   };
 
   const handleAddCustomCategory = () => {
     if (customCategoryInput.trim()) {
-      const categoryValue = customCategoryInput.toLowerCase().replace(/\s+/g, '_');
-      
-      // Add to custom categories state
-      setCustomCategories(prev => [...prev, categoryValue]);
-      
-      // Set the form value
-      form.setValue("category", categoryValue);
-      form.setValue("icon", "📝"); // Default icon for custom categories
-      
-      // Reset state
+      setCustomCategories(prev => [...prev, customCategoryInput.trim()]);
+      form.setValue("category", customCategoryInput.trim());
+      form.setValue("icon", "📝");
       setCustomCategoryInput("");
       setIsAddingCustomCategory(false);
     }
@@ -295,204 +217,27 @@ export default function Budgets() {
     }
   }, [isDialogOpen, editingBudget, form]);
 
-  const createBudgetMutation = useMutation({
-    mutationFn: async (data: InsertBudget) => {
-      const response = await apiRequest("POST", "/api/budgets", data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
-      toast({
-        title: "Success",
-        description: "Budget created successfully",
-      });
-      form.reset();
-      setIsDialogOpen(false);
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to create budget",
-        variant: "destructive",
-      });
-    },
+  const allCategories = [
+    ...categories,
+    ...customCategories
+      .filter(cat => !categories.some(predef => predef.value === cat))
+      .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' '), icon: "📝" }))
+  ];
+
+  const filteredBudgets = budgets.filter(budget => {
+    if (categoryFilter === "all") return true;
+    return budget.category === categoryFilter;
   });
-
-  const deleteBudgetMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/budgets/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
-      toast({
-        title: "Success",
-        description: "Budget deleted successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete budget",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateBudgetMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertBudget> }) => {
-      const response = await apiRequest("PUT", `/api/budgets/${id}`, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
-      toast({
-        title: "Success",
-        description: "Budget updated successfully",
-      });
-      form.reset();
-      setIsDialogOpen(false);
-      setEditingBudget(null);
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update budget",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Budget allocation functions
-  const totalPercentage = useMemo(() => {
-    return Object.values(budgetAllocations).reduce((sum, val) => sum + val, 0);
-  }, [budgetAllocations]);
-
-  const handleAllocationChange = (category: string, percentage: number) => {
-    setBudgetAllocations(prev => ({
-      ...prev,
-      [category]: percentage
-    }));
-  };
-
-  const normalizeAllocations = () => {
-    if (totalPercentage === 0) return;
-    
-    const factor = 100 / totalPercentage;
-    const normalized = Object.fromEntries(
-      Object.entries(budgetAllocations).map(([key, value]) => [key, Math.round(value * factor)])
-    );
-    setBudgetAllocations(normalized);
-  };
-
-  const createBudgetsFromAllocation = async () => {
-    const startDate = new Date(budgetStartDate);
-    const endDate = new Date(budgetEndDate);
-    
-    for (const [category, percentage] of Object.entries(budgetAllocations)) {
-      if (percentage > 0) {
-        const amount = (totalBudgetAmount * percentage / 100).toFixed(0);
-        const categoryData = categories.find(c => c.value === category);
-        
-        const budgetData = {
-          category,
-          amount,
-          period: "monthly",
-          startDate: startDate,
-          endDate: endDate,
-          icon: categoryData?.icon || "📝"
-        };
-        
-        try {
-          await apiRequest("POST", "/api/budgets", budgetData);
-        } catch (error) {
-          console.error(`Failed to create budget for ${category}:`, error);
-        }
-      }
-    }
-    
-    queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
-    toast({
-      title: "Success",
-      description: "Budgets created from allocation",
-    });
-  };
-
-  const onSubmit = (data: BudgetFormData) => {
-    const budgetData = {
-      ...data,
-      amount: data.amount,
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
-    };
-
-    if (editingBudget) {
-      updateBudgetMutation.mutate({
-        id: editingBudget.id,
-        data: budgetData
-      });
-    } else {
-      createBudgetMutation.mutate(budgetData);
-    }
-  };
-
-  const handleCategoryChange = (category: string) => {
-    const categoryData = categories.find(c => c.value === category);
-    if (categoryData) {
-      form.setValue("icon", categoryData.icon);
-    }
-  };
-
-  const handleEditBudget = (budget: any) => {
-    setEditingBudget(budget);
-    setIsDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setIsDialogOpen(false);
-    setEditingBudget(null);
-  };
-
-  const handleCreateNew = () => {
-    setEditingBudget(null);
-    setIsDialogOpen(true);
-  };
-
-  // Pre-populate form when editing
-  React.useEffect(() => {
-    if (editingBudget && isDialogOpen) {
-      const startDate = new Date(editingBudget.startDate);
-      const endDate = new Date(editingBudget.endDate);
-      
-      form.reset({
-        category: editingBudget.category,
-        amount: editingBudget.amount,
-        period: editingBudget.period,
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
-        icon: editingBudget.icon,
-        description: editingBudget.description || "",
-      });
-    } else if (!editingBudget && isDialogOpen) {
-      form.reset({
-        category: "",
-        amount: "",
-        period: "monthly",
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        icon: "",
-        description: "",
-      });
-    }
-  }, [editingBudget, isDialogOpen, form]);
 
   if (isLoading) {
     return (
-      <div className="max-w-sm mx-auto bg-white min-h-screen relative">
-        <Header title="Budgets" subtitle="Manage your spending limits" />
-        <main className="pb-20 px-4 pt-4">
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="text-gray-500 mt-2">Loading budgets...</p>
+      <div className="max-w-sm mx-auto bg-white min-h-screen relative flex flex-col">
+        <Header title="Budgets" subtitle="Manage your spending" />
+        <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4">
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-gray-100 rounded-xl p-4 h-20 animate-pulse"></div>
+            ))}
           </div>
         </main>
         <BottomNavigation />
@@ -505,461 +250,102 @@ export default function Budgets() {
       <Header title="Budgets" subtitle="Manage your spending" />
       
       <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="list" className="flex items-center gap-2">
-              <PieChart className="h-4 w-4" />
-              Budget List
-            </TabsTrigger>
-            <TabsTrigger value="allocator" className="flex items-center gap-2">
-              <Sliders className="h-4 w-4" />
-              Allocator
-            </TabsTrigger>
-          </TabsList>
+        <div className="flex items-center justify-between">
+          <Button
+            onClick={handleCreateNew}
+            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl"
+          >
+            <Plus className="h-4 w-4" />
+            Add Budget
+          </Button>
+        </div>
 
-          <TabsContent value="allocator" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Budget Allocation</CardTitle>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm text-gray-600">Total Budget:</label>
-                    <Input
-                      type="number"
-                      value={totalBudgetAmount}
-                      onChange={(e) => setTotalBudgetAmount(Number(e.target.value))}
-                      className="w-32 text-sm"
-                      placeholder="Enter amount"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-sm text-gray-600 mb-1 block">Start Date</label>
-                      <Input
-                        type="date"
-                        value={budgetStartDate}
-                        onChange={(e) => setBudgetStartDate(e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-gray-600 mb-1 block">End Date</label>
-                      <Input
-                        type="date"
-                        value={budgetEndDate}
-                        onChange={(e) => setBudgetEndDate(e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {categories.map((category) => {
-                  const percentage = budgetAllocations[category.value] || 0;
-                  const amount = (totalBudgetAmount * percentage / 100);
-                  
-                  return (
-                    <div key={category.value} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{category.icon}</span>
-                          <span className="text-sm font-medium">{category.label}</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-semibold">{percentage}%</div>
-                          <div className="text-xs text-gray-500">{formatCurrency(amount)}</div>
-                        </div>
+        {/* Budget List */}
+        <div className="space-y-4">
+          {filteredBudgets.length === 0 ? (
+            <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
+              <div className="text-4xl mb-3">💰</div>
+              <p className="text-gray-500">No budgets yet</p>
+              <p className="text-sm text-gray-400 mt-1">Create your first budget to start tracking your spending</p>
+            </div>
+          ) : (
+            filteredBudgets.map((budget) => {
+              const categoryTransactions = transactions.filter((transaction: Transaction) => {
+                return transaction.category === budget.category && 
+                       transaction.type === "expense" &&
+                       new Date(transaction.date) >= new Date(budget.startDate) &&
+                       new Date(transaction.date) <= new Date(budget.endDate);
+              });
+
+              const totalSpent = categoryTransactions.reduce((total: number, transaction: Transaction) => {
+                return total + parseFloat(transaction.amount);
+              }, 0);
+
+              const budgetAmount = parseFloat(budget.amount);
+              const percentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
+              const isOverBudget = percentage > 100;
+
+              return (
+                <div key={budget.id} className="bg-white rounded-xl p-4 border border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                        <span className="text-lg">{budget.icon}</span>
                       </div>
-                      <Slider
-                        value={[percentage]}
-                        onValueChange={(value) => handleAllocationChange(category.value, value[0])}
-                        max={100}
-                        step={1}
-                        className="w-full"
-                      />
+                      <div>
+                        <h3 className="font-medium text-gray-900 capitalize">
+                          {budget.category.replace('_', ' ')}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {formatCurrency(totalSpent)} of {formatCurrency(budgetAmount)}
+                        </p>
+                      </div>
                     </div>
-                  );
-                })}
-                
-                <div className="border-t pt-4 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Total Allocation:</span>
-                    <span className={`font-bold ${totalPercentage === 100 ? 'text-green-600' : totalPercentage > 100 ? 'text-red-600' : 'text-amber-600'}`}>
-                      {totalPercentage}%
-                    </span>
-                  </div>
-                  
-                  {totalPercentage !== 100 && (
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={normalizeAllocations}
-                        className="flex-1"
+                    
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditBudget(budget)}
+                        className="p-2 text-blue-600 hover:bg-blue-50"
                       >
-                        Normalize to 100%
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteBudgetMutation.mutate(budget.id)}
+                        disabled={deleteBudgetMutation.isPending}
+                        className="p-2 text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  )}
+                  </div>
                   
-                  <Button 
-                    onClick={createBudgetsFromAllocation}
-                    disabled={totalPercentage === 0}
-                    className="w-full"
-                  >
-                    Create Budgets from Allocation
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="list" className="space-y-4">
-            <Button 
-              onClick={handleCreateNew}
-              className="w-full bg-primary text-white py-3"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Budget
-            </Button>
-
-            {/* Total Budget Overview */}
-            {budgets.length > 0 && totalBudgetData.budgetCount > 0 && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Total Budget Overview</h3>
-                    <p className="text-sm text-gray-600">
-                      {totalBudgetData.budgetCount} budget{totalBudgetData.budgetCount > 1 ? 's' : ''} 
-                      {categoryFilter !== "all" && ` in ${categoryFilter}`}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className={`text-2xl font-bold ${totalBudgetData.isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
-                      {totalBudgetData.totalPercentage.toFixed(1)}%
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Progress</span>
+                      <span className={`font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
+                        {percentage.toFixed(1)}%
+                      </span>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      {formatCurrency(totalBudgetData.totalSpent)} of {formatCurrency(totalBudgetData.totalBudgetAmount)}
-                    </div>
+                    <ProgressBar
+                      percentage={percentage}
+                      color={
+                        isOverBudget ? "bg-red-500" :
+                        percentage > 80 ? "bg-yellow-500" :
+                        "bg-green-500"
+                      }
+                    />
                   </div>
                 </div>
+              );
+            })
+          )}
+        </div>
 
-                {/* Period Selector */}
-                <div className="mb-4">
-                  <Select value={totalBudgetPeriod} onValueChange={setTotalBudgetPeriod}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select time period..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="current-month">Current Month</SelectItem>
-                      <SelectItem value="current-week">Current Week</SelectItem>
-                      <SelectItem value="next-30-days">Next 30 Days</SelectItem>
-                      <SelectItem value="active">Active Budgets Only</SelectItem>
-                      <SelectItem value="all">All Budgets</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Total Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-700">Total Budget Usage</span>
-                    <span className={`text-sm font-medium ${totalBudgetData.isOverBudget ? 'text-red-600' : 'text-gray-700'}`}>
-                      {totalBudgetData.totalPercentage.toFixed(1)}%
-                    </span>
-                  </div>
-                  <ProgressBar
-                    percentage={totalBudgetData.totalPercentage}
-                    color={
-                      totalBudgetData.isOverBudget ? "bg-red-500" :
-                      totalBudgetData.totalPercentage > 80 ? "bg-yellow-500" :
-                      "bg-blue-500"
-                    }
-                  />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>Spent: {formatCurrency(totalBudgetData.totalSpent)}</span>
-                    <span>Remaining: {formatCurrency(totalBudgetData.remaining)}</span>
-                  </div>
-                </div>
-
-                {/* Total Budget Analysis */}
-                <div className="mt-4">
-                  {totalBudgetData.isOverBudget ? (
-                    <div className="text-sm text-red-700 bg-red-100 px-3 py-2 rounded-lg">
-                      ⚠️ Total budget exceeded by {formatCurrency(Math.abs(totalBudgetData.remaining))}
-                    </div>
-                  ) : totalBudgetData.totalPercentage > 80 ? (
-                    <div className="text-sm text-yellow-700 bg-yellow-100 px-3 py-2 rounded-lg">
-                      ⚡ Approaching budget limit - {formatCurrency(totalBudgetData.remaining)} remaining
-                    </div>
-                  ) : (
-                    <div className="text-sm text-green-700 bg-green-100 px-3 py-2 rounded-lg">
-                      ✅ On track - {formatCurrency(totalBudgetData.remaining)} remaining in budget
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Filter and Sort Controls */}
-            {budgets.length > 0 && (
-              <div className="space-y-4">
-                {/* Category Filter */}
-                <div className="bg-white rounded-xl p-4 border border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-medium text-gray-700">Filter by Category</h3>
-                    <span className="text-xs text-gray-500">
-                      {(() => {
-                        const filtered = budgets.filter(b => categoryFilter === "all" || b.category === categoryFilter);
-                        return `${filtered.length} of ${budgets.length} budgets`;
-                      })()}
-                    </span>
-                  </div>
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {Array.from(new Set(budgets.map(b => b.category))).sort().map(category => {
-                        const categoryData = categories.find(c => c.value === category);
-                        return (
-                          <SelectItem key={category} value={category}>
-                            <div className="flex items-center gap-2">
-                              <span>{categoryData?.icon || "📝"}</span>
-                              <span className="capitalize">{category}</span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Sort Controls */}
-                <div className="bg-white rounded-xl p-4 border border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-medium text-gray-700">Sort Budgets</h3>
-                  </div>
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sort by..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="dateAdded">Date Added (Newest First)</SelectItem>
-                      <SelectItem value="dateAddedOld">Date Added (Oldest First)</SelectItem>
-                      <SelectItem value="category">Category (A-Z)</SelectItem>
-                      <SelectItem value="categoryDesc">Category (Z-A)</SelectItem>
-                      <SelectItem value="amount">Amount (High to Low)</SelectItem>
-                      <SelectItem value="amountAsc">Amount (Low to High)</SelectItem>
-                      <SelectItem value="startDate">Start Date (Newest)</SelectItem>
-                      <SelectItem value="startDateOld">Start Date (Oldest)</SelectItem>
-                      <SelectItem value="endDate">End Date (Nearest)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-
-            {budgets.length === 0 ? (
-              <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
-                <PieChart className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500">No budgets yet</p>
-                <p className="text-sm text-gray-400 mt-1">Create your first budget to start tracking spending</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {(() => {
-                  let filteredBudgets = budgets.filter((budget: any) => categoryFilter === "all" || budget.category === categoryFilter);
-  
-                  // Apply sorting
-                  filteredBudgets = filteredBudgets.sort((a: any, b: any) => {
-                    switch (sortBy) {
-                      case "dateAdded":
-                        return new Date(b.createdAt || b.id).getTime() - new Date(a.createdAt || a.id).getTime();
-                      case "dateAddedOld":
-                        return new Date(a.createdAt || a.id).getTime() - new Date(b.createdAt || b.id).getTime();
-                      case "category":
-                        return a.category.localeCompare(b.category);
-                      case "categoryDesc":
-                        return b.category.localeCompare(a.category);
-                      case "amount":
-                        return parseFloat(b.amount) - parseFloat(a.amount);
-                      case "amountAsc":
-                        return parseFloat(a.amount) - parseFloat(b.amount);
-                      case "startDate":
-                        return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
-                      case "startDateOld":
-                        return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-                      case "endDate":
-                        return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
-                      default:
-                        return new Date(b.createdAt || b.id).getTime() - new Date(a.createdAt || a.id).getTime();
-                    }
-                  });
-
-                  if (filteredBudgets.length === 0 && categoryFilter !== "all") {
-                    return (
-                      <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
-                        <div className="text-4xl mb-3">🔍</div>
-                        <p className="text-gray-500">No budgets found for this category</p>
-                        <p className="text-sm text-gray-400 mt-1">Try selecting a different category or create a new budget</p>
-                      </div>
-                    );
-                  }
-
-                  // Group budgets by month for better visualization
-                  const groupedBudgets = groupBudgetsByMonth(filteredBudgets);
-                  const sortedMonthKeys = Object.keys(groupedBudgets).sort((a, b) => {
-                    const [yearA, monthA] = a.split('-').map(Number);
-                    const [yearB, monthB] = b.split('-').map(Number);
-                    return yearB - yearA || monthB - monthA; // Sort newest first
-                  });
-                  
-                  return sortedMonthKeys.map((monthKey) => (
-                    <div key={monthKey} className="space-y-3 mb-6">
-                      {/* Month Header */}
-                      <div className="sticky top-0 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 z-10">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-sm font-semibold text-blue-700">
-                            {formatMonthHeader(monthKey)}
-                          </h3>
-                          <div className="text-xs text-blue-600">
-                            {groupedBudgets[monthKey].length} budget{groupedBudgets[monthKey].length !== 1 ? 's' : ''}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Budgets for this month */}
-                      <div className="space-y-3">
-                        {groupedBudgets[monthKey].map((budget: any) => {
-                          const categoryTransactions = transactions.filter((transaction: Transaction) => {
-                            return transaction.category === budget.category && 
-                                   transaction.type === "expense" &&
-                                   new Date(transaction.date) >= new Date(budget.startDate) &&
-                                   new Date(transaction.date) <= new Date(budget.endDate);
-                          });
-
-                          const totalSpent = categoryTransactions.reduce((total: number, transaction: Transaction) => {
-                            return total + parseFloat(transaction.amount);
-                          }, 0);
-
-                          const budgetAmount = parseFloat(budget.amount);
-                          const percentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
-                          const isOverBudget = percentage > 100;
-
-                          // Calculate time-based progress
-                          const startDate = new Date(budget.startDate);
-                          const endDate = new Date(budget.endDate);
-                          const currentDate = new Date();
-                          const totalDuration = endDate.getTime() - startDate.getTime();
-                          const elapsedTime = Math.max(0, currentDate.getTime() - startDate.getTime());
-                          const timePercentage = totalDuration > 0 ? Math.min(100, (elapsedTime / totalDuration) * 100) : 0;
-
-                          return (
-                            <div key={budget.id} className="bg-white rounded-xl p-4 border border-gray-100">
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center space-x-3">
-                                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-                                    <span className="text-lg">{budget.icon}</span>
-                                  </div>
-                                  <div>
-                                    <h3 className="font-medium text-gray-900 capitalize">
-                                      {budget.category.replace('_', ' ')}
-                                    </h3>
-                                    <p className="text-sm text-gray-500">
-                                      {formatCurrency(totalSpent)} of {formatCurrency(budgetAmount)}
-                                    </p>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex space-x-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditBudget(budget)}
-                                    className="p-2 text-blue-600 hover:bg-blue-50"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => deleteBudgetMutation.mutate(budget.id)}
-                                    disabled={deleteBudgetMutation.isPending}
-                                    className="p-2 text-red-600 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                              
-                              {/* Spending Progress Bar */}
-                              <div className="space-y-2 mb-3">
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-gray-600">Spending Progress</span>
-                                  <span className={`font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
-                                    {percentage.toFixed(1)}%
-                                  </span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                  <div 
-                                    className={`h-2 rounded-full transition-all duration-300 ${
-                                      isOverBudget ? 'bg-red-500' : percentage > 80 ? 'bg-yellow-500' : 'bg-green-500'
-                                    }`}
-                                    style={{ width: `${Math.min(percentage, 100)}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-
-                              {/* Time Progress Bar */}
-                              <div className="space-y-2 mb-3">
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-gray-600">Time Elapsed</span>
-                                  <span className="font-medium text-gray-900">
-                                    {timePercentage.toFixed(1)}%
-                                  </span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                  <div 
-                                    className="h-2 rounded-full bg-blue-500 transition-all duration-300"
-                                    style={{ width: `${timePercentage}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-
-                              {/* Analysis */}
-                              <div className="mt-3">
-                                {isOverBudget ? (
-                                  <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
-                                    Budget exceeded! Consider reviewing your spending.
-                                  </div>
-                                ) : percentage > timePercentage + 10 ? (
-                                  <div className="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
-                                    Spending ahead of schedule - {(percentage - timePercentage).toFixed(1)}% faster than time
-                                  </div>
-                                ) : timePercentage > percentage + 10 ? (
-                                  <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                                    Good pace - spending {(timePercentage - percentage).toFixed(1)}% behind schedule
-                                  </div>
-                                ) : (
-                                  <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                    On track - spending aligns with time elapsed
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ));
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-
+        {/* Scrollable Budget Form Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
           <DialogContent className="max-w-sm mx-auto max-h-[90vh] flex flex-col">
             <DialogHeader className="flex-shrink-0">
@@ -968,172 +354,169 @@ export default function Budgets() {
             
             <div className="flex-1 overflow-y-auto px-1">
               <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      {isAddingCustomCategory ? (
-                        <div className="space-y-2">
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="Enter custom category"
-                              value={customCategoryInput}
-                              onChange={(e) => setCustomCategoryInput(e.target.value)}
-                              className="flex-1"
-                              onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleAddCustomCategory();
-                                }
-                              }}
-                            />
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        {isAddingCustomCategory ? (
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Enter custom category"
+                                value={customCategoryInput}
+                                onChange={(e) => setCustomCategoryInput(e.target.value)}
+                                className="flex-1"
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddCustomCategory();
+                                  }
+                                }}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleAddCustomCategory}
+                                className="px-3"
+                              >
+                                Add
+                              </Button>
+                            </div>
                             <Button
                               type="button"
-                              onClick={handleAddCustomCategory}
-                              className="px-4 bg-primary text-white"
+                              variant="ghost"
+                              onClick={() => setIsAddingCustomCategory(false)}
+                              className="text-sm text-gray-500"
                             >
-                              Add
+                              Cancel
                             </Button>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => {
-                              setIsAddingCustomCategory(false);
-                              setCustomCategoryInput("");
-                            }}
-                            className="text-sm text-gray-500"
+                        ) : (
+                          <Select 
+                            onValueChange={(value) => {
+                              if (value === "__add_custom__") {
+                                setIsAddingCustomCategory(true);
+                              } else {
+                                field.onChange(value);
+                                handleCategoryChange(value);
+                              }
+                            }} 
+                            defaultValue={field.value}
                           >
-                            Cancel
-                          </Button>
-                        </div>
-                      ) : (
-                        <Select
-                          onValueChange={(value) => {
-                            if (value === "__add_custom__") {
-                              setIsAddingCustomCategory(true);
-                              field.onChange("");
-                            } else {
-                              field.onChange(value);
-                              handleCategoryChange(value);
-                            }
-                          }}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {allCategories.map((category) => (
-                              <SelectItem key={category.value} value={category.value}>
-                                <span className="flex items-center">
-                                  {category.icon} {category.label}
-                                </span>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {allCategories.map((category) => (
+                                <SelectItem key={category.value} value={category.value}>
+                                  <span className="flex items-center">
+                                    {category.icon} {category.label}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                              <SelectItem value="__add_custom__" className="text-primary font-medium">
+                                <div className="flex items-center gap-2">
+                                  <Plus className="h-4 w-4" />
+                                  Add Custom Category
+                                </div>
                               </SelectItem>
-                            ))}
-                            <SelectItem value="__add_custom__" className="text-primary font-medium">
-                              <div className="flex items-center gap-2">
-                                <Plus className="h-4 w-4" />
-                                Add Custom Category
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Budget Amount</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Enter amount"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="startDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Start Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Budget Amount</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="Enter amount"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="endDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>End Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="startDate"
+                    name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Start Date</FormLabel>
+                        <FormLabel>Description (Optional)</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input
+                            placeholder="Add a description to help identify this budget"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="endDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>End Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description (Optional)</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Add a description to help identify this budget"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleCloseDialog}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createBudgetMutation.isPending || updateBudgetMutation.isPending}
-                    className="flex-1"
-                  >
-                    {editingBudget ? "Update Budget" : "Create Budget"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCloseDialog}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={createBudgetMutation.isPending || updateBudgetMutation.isPending}
+                      className="flex-1"
+                    >
+                      {editingBudget ? "Update Budget" : "Create Budget"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
             </div>
           </DialogContent>
         </Dialog>
