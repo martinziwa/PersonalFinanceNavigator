@@ -34,6 +34,7 @@ export const savingsGoals = pgTable("savings_goals", {
   targetAmount: decimal("target_amount", { precision: 10, scale: 2 }).notNull(),
   currentAmount: decimal("current_amount", { precision: 10, scale: 2 }).default("0").notNull(),
   startingSavings: decimal("starting_savings", { precision: 10, scale: 2 }).default("0").notNull(),
+  startDate: timestamp("start_date").defaultNow().notNull(),
   deadline: timestamp("deadline"),
   icon: text("icon").notNull(),
   color: text("color").notNull(),
@@ -97,6 +98,7 @@ export const insertSavingsGoalSchema = createInsertSchema(savingsGoals).omit({
   id: true,
   currentAmount: true,
 }).extend({
+  startDate: z.string().transform((val) => new Date(val)),
   deadline: z.string().nullable().optional().transform((val) => val ? new Date(val) : null),
   startingSavings: z.string().optional().transform((val) => val ? val : "0"),
 });

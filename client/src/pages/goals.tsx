@@ -29,6 +29,7 @@ const goalSchema = z.object({
     (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= 0),
     "Starting savings must be a non-negative number"
   ),
+  startDate: z.string().min(1, "Start date is required"),
   deadline: z.string().optional(),
   icon: z.string().min(1, "Icon is required"),
   color: z.string().min(1, "Color is required"),
@@ -85,6 +86,7 @@ export default function Goals() {
       name: "",
       targetAmount: "",
       startingSavings: "",
+      startDate: new Date().toISOString().split('T')[0],
       deadline: "",
       icon: "",
       color: "",
@@ -166,6 +168,7 @@ export default function Goals() {
       name: data.name,
       targetAmount: data.targetAmount,
       startingSavings: data.startingSavings || "0",
+      startDate: new Date(data.startDate),
       deadline: data.deadline ? new Date(data.deadline) : null,
       icon: data.icon,
       color: data.color,
