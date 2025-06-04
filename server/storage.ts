@@ -204,7 +204,12 @@ export class DatabaseStorage implements IStorage {
   async createLoan(userId: string, insertLoan: InsertLoan): Promise<Loan> {
     const [loan] = await db
       .insert(loans)
-      .values({...insertLoan, userId})
+      .values({
+        ...insertLoan,
+        userId,
+        nextPaymentDate: new Date(insertLoan.nextPaymentDate),
+        startDate: new Date(insertLoan.startDate),
+      })
       .returning();
     return loan;
   }
