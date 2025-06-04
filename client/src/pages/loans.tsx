@@ -721,27 +721,30 @@ export default function Loans() {
                       )}
                     </div>
 
-                    <div>
-                      <Label htmlFor="interestPeriod">Interest Compounding Frequency</Label>
-                      <Select
-                        value={form.watch("interestPeriod")}
-                        onValueChange={(value) => form.setValue("interestPeriod", value as any)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select frequency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {frequencyOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {form.formState.errors.interestPeriod && (
-                        <p className="text-red-500 text-sm mt-1">{form.formState.errors.interestPeriod.message}</p>
-                      )}
-                    </div>
+                    {/* Interest Compounding Frequency - only for compound interest */}
+                    {form.watch("interestType") === "compound" && (
+                      <div>
+                        <Label htmlFor="interestPeriod">Interest Compounding Frequency</Label>
+                        <Select
+                          value={form.watch("interestPeriod")}
+                          onValueChange={(value) => form.setValue("interestPeriod", value as any)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {frequencyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {form.formState.errors.interestPeriod && (
+                          <p className="text-red-500 text-sm mt-1">{form.formState.errors.interestPeriod.message}</p>
+                        )}
+                      </div>
+                    )}
 
                     <div>
                       <Label htmlFor="startDate">Start Date</Label>
