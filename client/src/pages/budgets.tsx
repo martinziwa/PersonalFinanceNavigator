@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -71,6 +71,9 @@ export default function Budgets() {
     education: 3,
     other: 2
   });
+  const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
   
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
@@ -88,6 +91,68 @@ export default function Budgets() {
       description: "",
     },
   });
+
+  // Get unique categories from existing budgets
+  const uniqueCategories = new Set<string>();
+  budgets.forEach(b => uniqueCategories.add(b.category));
+  const existingCategories = Array.from(uniqueCategories);
+  
+  // Combine predefined, existing, and custom categories
+  const allCategories = [
+    ...categories,
+    ...existingCategories
+      .filter(cat => !categories.some(predef => predef.value === cat))
+      .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' '), icon: "📝" })),
+    ...customCategories
+      .filter(cat => !categories.some(predef => predef.value === cat) && !existingCategories.includes(cat))
+      .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' '), icon: "📝" }))
+  ].sort((a, b) => a.label.localeCompare(b.label));
+
+  const handleAddCustomCategory = () => {
+    if (customCategoryInput.trim()) {
+      const categoryValue = customCategoryInput.toLowerCase().replace(/\s+/g, '_');
+      
+      // Add to custom categories state
+      setCustomCategories(prev => [...prev, categoryValue]);
+      
+      // Set the form value
+      form.setValue("category", categoryValue);
+      form.setValue("icon", "📝"); // Default icon for custom categories
+      
+      // Reset state
+      setCustomCategoryInput("");
+      setIsAddingCustomCategory(false);
+    }
+  };
+
+  // Reset form when dialog opens/closes or when editing
+  useEffect(() => {
+    if (isDialogOpen) {
+      if (editingBudget) {
+        form.reset({
+          category: editingBudget.category,
+          amount: editingBudget.amount,
+          period: editingBudget.period,
+          startDate: new Date(editingBudget.startDate).toISOString().split('T')[0],
+          endDate: new Date(editingBudget.endDate).toISOString().split('T')[0],
+          icon: editingBudget.icon,
+          description: editingBudget.description || "",
+        });
+      } else {
+        form.reset({
+          category: "",
+          amount: "",
+          period: "monthly",
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          icon: "",
+          description: "",
+        });
+      }
+      setIsAddingCustomCategory(false);
+      setCustomCategoryInput("");
+    }
+  }, [isDialogOpen, editingBudget, form]);
 
   const createBudgetMutation = useMutation({
     mutationFn: async (data: InsertBudget) => {
@@ -528,28 +593,76 @@ export default function Budgets() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Category</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          handleCategoryChange(value);
-                        }}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category.value} value={category.value}>
-                              <span className="flex items-center">
-                                {category.icon} {category.label}
-                              </span>
+                      {isAddingCustomCategory ? (
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Enter custom category"
+                              value={customCategoryInput}
+                              onChange={(e) => setCustomCategoryInput(e.target.value)}
+                              className="flex-1"
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddCustomCategory();
+                                }
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              onClick={handleAddCustomCategory}
+                              className="px-4 bg-primary text-white"
+                            >
+                              Add
+                            </Button>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                              setIsAddingCustomCategory(false);
+                              setCustomCategoryInput("");
+                            }}
+                            className="text-sm text-gray-500"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <Select
+                          onValueChange={(value) => {
+                            if (value === "__add_custom__") {
+                              setIsAddingCustomCategory(true);
+                              field.onChange("");
+                            } else {
+                              field.onChange(value);
+                              handleCategoryChange(value);
+                            }
+                          }}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {allCategories.map((category) => (
+                              <SelectItem key={category.value} value={category.value}>
+                                <span className="flex items-center">
+                                  {category.icon} {category.label}
+                                </span>
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="__add_custom__" className="text-primary font-medium">
+                              <div className="flex items-center gap-2">
+                                <Plus className="h-4 w-4" />
+                                Add Custom Category
+                              </div>
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          </SelectContent>
+                        </Select>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
