@@ -487,16 +487,19 @@ export default function Loans() {
                   name="interestRate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Interest Rate (%) - Optional</FormLabel>
+                      <FormLabel>Annual Interest Rate (%) - Optional</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="number"
                           step="0.01"
-                          placeholder="Leave empty for 0% (interest-free loan)"
+                          placeholder="e.g., 15 (for 15% per year)"
                           className="px-4 py-3 border border-gray-300 rounded-xl"
                         />
                       </FormControl>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Enter the yearly interest rate. Leave empty for interest-free loan.
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
