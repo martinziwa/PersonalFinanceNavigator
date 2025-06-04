@@ -185,6 +185,39 @@ export default function Budgets() {
       .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' '), icon: "📝" }))
   ].sort((a, b) => a.label.localeCompare(b.label));
 
+  // Group budgets by month for better visualization
+  const groupBudgetsByMonth = (budgets: any[]) => {
+    const grouped: { [key: string]: any[] } = {};
+    
+    budgets.forEach(budget => {
+      const startDate = new Date(budget.startDate);
+      const monthKey = `${startDate.getFullYear()}-${startDate.getMonth()}`;
+      
+      if (!grouped[monthKey]) {
+        grouped[monthKey] = [];
+      }
+      grouped[monthKey].push(budget);
+    });
+    
+    return grouped;
+  };
+
+  const formatMonthHeader = (monthKey: string) => {
+    const [year, month] = monthKey.split('-');
+    const date = new Date(parseInt(year), parseInt(month));
+    const currentDate = new Date();
+    const currentMonth = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+    
+    if (monthKey === currentMonth) {
+      return "This Month";
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long' 
+      });
+    }
+  };
+
   const handleAddCustomCategory = () => {
     if (customCategoryInput.trim()) {
       const categoryValue = customCategoryInput.toLowerCase().replace(/\s+/g, '_');
@@ -744,8 +777,32 @@ export default function Budgets() {
                       </div>
                     );
                   }
+
+                  // Group budgets by month
+                  const groupedBudgets = groupBudgetsByMonth(filteredBudgets);
+                  const sortedMonthKeys = Object.keys(groupedBudgets).sort((a, b) => {
+                    const [yearA, monthA] = a.split('-').map(Number);
+                    const [yearB, monthB] = b.split('-').map(Number);
+                    return yearB - yearA || monthB - monthA; // Sort newest first
+                  });
                   
-                  return filteredBudgets.map((budget: any) => {
+                  return sortedMonthKeys.map((monthKey) => (
+                    <div key={monthKey} className="space-y-3 mb-6">
+                      {/* Month Header */}
+                      <div className="sticky top-0 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 z-10">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-blue-700">
+                            {formatMonthHeader(monthKey)}
+                          </h3>
+                          <div className="text-xs text-blue-600">
+                            {groupedBudgets[monthKey].length} budget{groupedBudgets[monthKey].length !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Budgets for this month */}
+                      <div className="space-y-3">
+                        {groupedBudgets[monthKey].map((budget: any) => {
                     const categoryTransactions = transactions.filter((transaction: Transaction) => {
                     return transaction.category === budget.category && 
                            transaction.type === "expense" &&
@@ -885,8 +942,10 @@ export default function Budgets() {
                         )}
                       </div>
                     </div>
-                  );
-                  });
+                  ))}
+                      </div>
+                    </div>
+                  ));
                 })()}
               </div>
             )}
