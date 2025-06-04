@@ -329,10 +329,10 @@ export default function Loans() {
       balance: data.interestType === "simple" ? 
         (parseFloat(data.principalAmount) - parseFloat(data.currentRepayment || "0")).toString() : 
         data.principalAmount,
-      currentRepayment: data.interestType === "simple" ? data.currentRepayment : undefined,
+      currentRepayment: data.interestType === "simple" ? (data.currentRepayment || "0") : null,
       interestRate: data.interestRate || "0",
       interestType: data.interestType,
-      interestPeriod: data.interestPeriod,
+      interestPeriod: data.interestType === "compound" ? data.interestPeriod : null,
       isAmortized: data.isAmortized,
       repaymentFrequency: data.repaymentFrequency,
       loanTermMonths: data.isAmortized ? totalMonths : undefined,
