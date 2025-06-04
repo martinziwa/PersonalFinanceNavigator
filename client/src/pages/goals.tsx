@@ -198,11 +198,14 @@ export default function Goals() {
     if (editingGoal && isDialogOpen) {
       const deadlineValue = editingGoal.deadline ? 
         new Date(editingGoal.deadline).toISOString().split('T')[0] : "";
+      const startDateValue = editingGoal.startDate ? 
+        new Date(editingGoal.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
       
       form.reset({
         name: editingGoal.name,
         targetAmount: editingGoal.targetAmount,
         startingSavings: editingGoal.startingSavings || "0",
+        startDate: startDateValue,
         deadline: deadlineValue,
         icon: editingGoal.icon,
         color: editingGoal.color,
@@ -212,6 +215,7 @@ export default function Goals() {
         name: "",
         targetAmount: "",
         startingSavings: "",
+        startDate: new Date().toISOString().split('T')[0],
         deadline: "",
         icon: "",
         color: "",
@@ -307,6 +311,23 @@ export default function Goals() {
                           type="number"
                           step="0.01"
                           placeholder="0.00"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start Date</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
                           {...field}
                         />
                       </FormControl>
