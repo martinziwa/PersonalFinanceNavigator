@@ -525,7 +525,7 @@ export default function Budgets() {
               <div className="space-y-4">
                 {(() => {
                   const filteredBudgets = budgets.filter((budget: any) => categoryFilter === "all" || budget.category === categoryFilter);
-                  
+  
                   if (filteredBudgets.length === 0 && categoryFilter !== "all") {
                     return (
                       <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
@@ -537,7 +537,7 @@ export default function Budgets() {
                   }
                   
                   return filteredBudgets.map((budget: any) => {
-                  const categoryTransactions = transactions.filter((transaction: Transaction) => {
+                    const categoryTransactions = transactions.filter((transaction: Transaction) => {
                     return transaction.category === budget.category && 
                            transaction.type === "expense" &&
                            new Date(transaction.date) >= new Date(budget.startDate) &&
