@@ -19,6 +19,20 @@ import { db } from "./db";
 import { eq, and, gte, lte, sum } from "drizzle-orm";
 import { desc } from "drizzle-orm";
 
+// Helper function to convert frequency string to compounding periods per year
+function getCompoundingFrequency(frequency: string): number {
+  switch (frequency.toLowerCase()) {
+    case "daily": return 365;
+    case "weekly": return 52;
+    case "biweekly": return 26;
+    case "monthly": return 12;
+    case "bimonthly": return 6;
+    case "quarterly": return 4;
+    case "annually": return 1;
+    default: return 12; // Default to monthly
+  }
+}
+
 export interface IStorage {
   // User operations (IMPORTANT) these user operations are mandatory for Replit Auth.
   getUser(id: string): Promise<User | undefined>;
@@ -293,20 +307,32 @@ export class DatabaseStorage implements IStorage {
         return sum + parseFloat(t.amount);
       }, 0);
       
-      // Calculate accumulated interest
+      // Calculate accumulated interest based on time elapsed and compounding frequency
       const interestRate = parseFloat(loan.interestRate) / 100; // Convert percentage to decimal
       const principalAmount = parseFloat(loan.principalAmount || loan.balance);
       
-      // For simple interest calculation (assuming monthly compounding for now)
-      // This is a simplified calculation - in a real app you'd want more sophisticated interest calculations
+      // Calculate time elapsed since loan creation (assuming loan was created when it was added)
+      // In a real app, you'd store the loan creation date
+      const currentDate = new Date();
+      const loanCreationDate = new Date(currentDate); // Fallback to current date
+      loanCreationDate.setFullYear(currentDate.getFullYear() - 1); // Assume 1 year ago for demo
+      
+      const timeElapsedDays = Math.max(1, Math.floor((currentDate.getTime() - loanCreationDate.getTime()) / (1000 * 60 * 60 * 24)));
+      const timeElapsedYears = timeElapsedDays / 365;
+      
       let accumulatedInterest = 0;
+      
       if (loan.interestType === 'simple') {
         // Simple interest: Principal × Rate × Time
-        // For demonstration, assuming 1 year has passed
-        accumulatedInterest = principalAmount * interestRate;
+        accumulatedInterest = principalAmount * interestRate * timeElapsedYears;
       } else {
-        // For compound interest, this would be more complex
-        accumulatedInterest = principalAmount * interestRate;
+        // Compound interest: A = P(1 + r/n)^(nt) - P
+        const compoundingFrequency = getCompoundingFrequency(loan.interestPeriod || 'monthly');
+        const compoundedAmount = principalAmount * Math.pow(
+          (1 + interestRate / compoundingFrequency), 
+          compoundingFrequency * timeElapsedYears
+        );
+        accumulatedInterest = compoundedAmount - principalAmount;
       }
       
       // Adjust balance: original + receipts - payments + accumulated interest
