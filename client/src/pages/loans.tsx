@@ -583,25 +583,25 @@ export default function Loans() {
                       control={form.control}
                       name="repaymentFrequency"
                       render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Repayment Frequency</FormLabel>
-                      <FormControl>
-                        <select
-                          {...field}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white"
-                        >
-                          <option value="">Select repayment frequency</option>
-                          {frequencyOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormItem>
+                          <FormLabel>Repayment Frequency</FormLabel>
+                          <FormControl>
+                            <select
+                              {...field}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white"
+                            >
+                              <option value="">Select repayment frequency</option>
+                              {frequencyOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                     <FormField
                       control={form.control}
