@@ -247,9 +247,11 @@ export class DatabaseStorage implements IStorage {
     
     console.log('=== SAVINGS CALCULATION ===');
     for (const goal of userSavingsGoals) {
-      // Start with initial current amount
+      // Start with initial current amount AND starting savings
       let goalProgress = parseFloat(goal.currentAmount);
-      console.log(`Goal ${goal.id} (${goal.name}): Starting amount = ${goalProgress}`);
+      const startingSavings = parseFloat(goal.startingSavings || '0');
+      goalProgress += startingSavings;
+      console.log(`Goal ${goal.id} (${goal.name}): Current amount = ${goal.currentAmount}, Starting savings = ${startingSavings}, Total base = ${goalProgress}`);
       
       // Add savings deposits and subtract withdrawals for this goal
       const goalTransactions = allUserTransactions.filter((t: any) => t.savingsGoalId === goal.id);
@@ -267,7 +269,7 @@ export class DatabaseStorage implements IStorage {
       }, 0);
       
       goalProgress += transactionTotal;
-      console.log(`Goal ${goal.id}: Final progress = ${goalProgress} (starting: ${goal.currentAmount} + transactions: ${transactionTotal})`);
+      console.log(`Goal ${goal.id}: Final progress = ${goalProgress} (current: ${goal.currentAmount} + starting: ${startingSavings} + transactions: ${transactionTotal})`);
       totalSavings += goalProgress;
     }
     console.log(`Total Savings: ${totalSavings}`);
