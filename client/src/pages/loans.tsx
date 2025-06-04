@@ -531,13 +531,13 @@ export default function Loans() {
                   name="interestPeriod"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Interest Period</FormLabel>
+                      <FormLabel>Compounding Frequency</FormLabel>
                       <FormControl>
                         <select
                           {...field}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white"
                         >
-                          <option value="">Select interest period</option>
+                          <option value="">Select compounding frequency</option>
                           {frequencyOptions.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
