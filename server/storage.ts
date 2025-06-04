@@ -245,53 +245,42 @@ export class DatabaseStorage implements IStorage {
     const userSavingsGoals = await db.select().from(savingsGoals).where(eq(savingsGoals.userId, userId));
     let totalSavings = 0;
     
-    console.log('=== SAVINGS CALCULATION ===');
     for (const goal of userSavingsGoals) {
       // Start with initial current amount AND starting savings
       let goalProgress = parseFloat(goal.currentAmount);
       const startingSavings = parseFloat(goal.startingSavings || '0');
       goalProgress += startingSavings;
-      console.log(`Goal ${goal.id} (${goal.name}): Current amount = ${goal.currentAmount}, Starting savings = ${startingSavings}, Total base = ${goalProgress}`);
       
       // Add savings deposits and subtract withdrawals for this goal
       const goalTransactions = allUserTransactions.filter((t: any) => t.savingsGoalId === goal.id);
-      console.log(`Goal ${goal.id}: Found ${goalTransactions.length} transactions`);
       
       const transactionTotal = goalTransactions.reduce((sum: number, t: any) => {
         if (t.type === 'savings_deposit') {
-          console.log(`  Deposit: +${t.amount}`);
           return sum + parseFloat(t.amount);
         } else if (t.type === 'savings_withdrawal') {
-          console.log(`  Withdrawal: -${t.amount}`);
           return sum - parseFloat(t.amount);
         }
         return sum;
       }, 0);
       
       goalProgress += transactionTotal;
-      console.log(`Goal ${goal.id}: Final progress = ${goalProgress} (current: ${goal.currentAmount} + starting: ${startingSavings} + transactions: ${transactionTotal})`);
       totalSavings += goalProgress;
     }
-    console.log(`Total Savings: ${totalSavings}`);
 
     // Get total debt from loans and adjust for loan payments
     const userLoans = await db.select().from(loans).where(eq(loans.userId, userId));
     let totalDebt = 0;
     
-    console.log('=== LOAN CALCULATION ===');
     for (const loan of userLoans) {
       // Start with original loan balance
       let remainingBalance = parseFloat(loan.balance);
-      console.log(`Loan ${loan.id} (${loan.name}): Original balance = ${remainingBalance}`);
       
       // Subtract loan payments made for this loan
       const loanPayments = allUserTransactions.filter((t: any) => 
         t.loanId === loan.id && t.type === 'loan_payment'
       );
-      console.log(`Loan ${loan.id}: Found ${loanPayments.length} payments`);
       
       const totalPayments = loanPayments.reduce((sum: number, t: any) => {
-        console.log(`  Payment: -${t.amount}`);
         return sum + parseFloat(t.amount);
       }, 0);
       
@@ -299,10 +288,8 @@ export class DatabaseStorage implements IStorage {
       const loanReceipts = allUserTransactions.filter((t: any) => 
         t.loanId === loan.id && t.type === 'loan_received'
       );
-      console.log(`Loan ${loan.id}: Found ${loanReceipts.length} receipts`);
       
       const totalReceipts = loanReceipts.reduce((sum: number, t: any) => {
-        console.log(`  Receipt: +${t.amount}`);
         return sum + parseFloat(t.amount);
       }, 0);
       
@@ -322,18 +309,13 @@ export class DatabaseStorage implements IStorage {
         accumulatedInterest = principalAmount * interestRate;
       }
       
-      console.log(`Loan ${loan.id}: Interest calculation - Principal: ${principalAmount}, Rate: ${interestRate * 100}%, Accumulated Interest: ${accumulatedInterest}`);
-      
       // Adjust balance: original + receipts - payments + accumulated interest
       remainingBalance = remainingBalance + totalReceipts - totalPayments + accumulatedInterest;
-      console.log(`Loan ${loan.id}: Total debt = ${remainingBalance} (principal: ${parseFloat(loan.balance)} + receipts: ${totalReceipts} - payments: ${totalPayments} + interest: ${accumulatedInterest})`);
       totalDebt += Math.max(0, remainingBalance); // Don't allow negative debt
     }
-    console.log(`Total Debt: ${totalDebt}`);
 
     // Calculate net worth only from savings and loans (excluding income/expenses)
     const netWorth = totalSavings - totalDebt;
-    console.log(`Net Worth: ${totalSavings} - ${totalDebt} = ${netWorth}`);
 
     return {
       netWorth,
