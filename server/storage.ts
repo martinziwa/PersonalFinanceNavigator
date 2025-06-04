@@ -238,6 +238,9 @@ export class DatabaseStorage implements IStorage {
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
+    // Get all transactions for calculations
+    const allUserTransactions = await db.select().from(transactions).where(eq(transactions.userId, userId));
+
     // Get savings goals total - calculate actual progress from transactions
     const userSavingsGoals = await db.select().from(savingsGoals).where(eq(savingsGoals.userId, userId));
     let totalSavings = 0;
@@ -247,8 +250,8 @@ export class DatabaseStorage implements IStorage {
       let goalProgress = parseFloat(goal.currentAmount);
       
       // Add savings deposits and subtract withdrawals for this goal
-      const goalTransactions = allTransactions.filter(t => t.savingsGoalId === goal.id);
-      goalProgress += goalTransactions.reduce((sum, t) => {
+      const goalTransactions = allUserTransactions.filter((t: any) => t.savingsGoalId === goal.id);
+      goalProgress += goalTransactions.reduce((sum: number, t: any) => {
         if (t.type === 'savings_deposit') {
           return sum + parseFloat(t.amount);
         } else if (t.type === 'savings_withdrawal') {
@@ -265,13 +268,13 @@ export class DatabaseStorage implements IStorage {
     const totalDebt = userLoans.reduce((sum, loan) => sum + parseFloat(loan.balance), 0);
 
     // Calculate net worth including all income and subtracting all expenses
-    const totalIncome = allTransactions
-      .filter(t => t.type === 'income' || t.type === 'loan_received')
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const totalIncome = allUserTransactions
+      .filter((t: any) => t.type === 'income' || t.type === 'loan_received')
+      .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
     
-    const totalExpenses = allTransactions
-      .filter(t => t.type === 'expense' || t.type === 'loan_payment')
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const totalExpenses = allUserTransactions
+      .filter((t: any) => t.type === 'expense' || t.type === 'loan_payment')
+      .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
 
     const netWorth = totalSavings + totalIncome - totalExpenses - totalDebt;
 

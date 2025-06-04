@@ -955,132 +955,19 @@ export default function Budgets() {
                       </div>
                     </div>
                   ));
-
-                  return (
-                    <div key={budget.id} className="bg-white rounded-xl p-4 border border-gray-100">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">{budget.icon}</span>
-                          </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900 capitalize">
-                              {budget.category.replace('_', ' ')}
-                            </h3>
-                            {budget.description && (
-                              <p className="text-xs text-gray-600 mb-1">
-                                {budget.description}
-                              </p>
-                            )}
-                            <p className="text-sm text-gray-500">
-                              {formatCurrency(totalSpent)} of {formatCurrency(budgetAmount)}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {daysElapsed} of {daysTotal} days elapsed
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="text-right">
-                            <div className={`text-sm font-semibold ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
-                              {percentage.toFixed(1)}%
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {formatCurrency(budgetAmount - totalSpent)} left
-                            </div>
-                            <div className="text-xs text-gray-400 mt-1">
-                              {daysRemaining} days left
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditBudget(budget)}
-                            className="p-2 text-blue-600 hover:bg-blue-50"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteBudgetMutation.mutate(budget.id)}
-                            disabled={deleteBudgetMutation.isPending}
-                            className="p-2 text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {/* Spending Progress Bar */}
-                        <div>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs text-gray-600">Budget Used</span>
-                            <span className={`text-xs font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-700'}`}>
-                              {percentage.toFixed(1)}%
-                            </span>
-                          </div>
-                          <ProgressBar
-                            percentage={percentage}
-                            color={
-                              isOverBudget ? "bg-red-500" :
-                              percentage > 80 ? "bg-yellow-500" :
-                              "bg-green-500"
-                            }
-                          />
-                        </div>
-
-                        {/* Time Progress Bar */}
-                        <div>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs text-gray-600">Time Elapsed</span>
-                            <span className="text-xs font-medium text-gray-700">
-                              {timePercentage.toFixed(1)}%
-                            </span>
-                          </div>
-                          <ProgressBar
-                            percentage={timePercentage}
-                            color="bg-blue-500"
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Budget Analysis */}
-                      <div className="mt-3">
-                        {isOverBudget ? (
-                          <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
-                            ⚠️ Budget exceeded! Consider reviewing your spending.
-                          </div>
-                        ) : percentage > timePercentage + 10 ? (
-                          <div className="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
-                            ⚡ Spending ahead of schedule - {(percentage - timePercentage).toFixed(1)}% faster than time
-                          </div>
-                        ) : timePercentage > percentage + 10 ? (
-                          <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                            ✅ Good pace - spending {(timePercentage - percentage).toFixed(1)}% behind schedule
-                          </div>
-                        ) : (
-                          <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                            📊 On track - spending aligns with time elapsed
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
             )}
           </TabsContent>
         </Tabs>
 
         <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
-          <DialogContent className="max-w-sm mx-auto">
-            <DialogHeader>
+          <DialogContent className="max-w-sm mx-auto max-h-[90vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>{editingBudget ? "Edit Budget" : "Create Budget"}</DialogTitle>
             </DialogHeader>
             
-            <Form {...form}>
+            <div className="flex-1 overflow-y-auto px-1">
+              <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
@@ -1247,6 +1134,7 @@ export default function Budgets() {
                 </div>
               </form>
             </Form>
+            </div>
           </DialogContent>
         </Dialog>
       </main>
