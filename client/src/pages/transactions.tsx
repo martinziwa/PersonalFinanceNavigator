@@ -185,6 +185,50 @@ export default function Transactions() {
     ...allAvailableCategories
   ];
 
+  // Group transactions by date for better visualization
+  const groupTransactionsByDate = (transactions: any[]) => {
+    const grouped: { [key: string]: any[] } = {};
+    
+    transactions.forEach(transaction => {
+      const date = new Date(transaction.date);
+      const dateKey = date.toDateString();
+      
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey].push(transaction);
+    });
+    
+    return grouped;
+  };
+
+  const formatDateHeader = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    }
+  };
+
+  const groupedTransactions = groupTransactionsByDate(filteredAndSortedTransactions);
+  const sortedDateKeys = Object.keys(groupedTransactions).sort((a, b) => {
+    return sortOrder === 'desc' 
+      ? new Date(b).getTime() - new Date(a).getTime()
+      : new Date(a).getTime() - new Date(b).getTime();
+  });
+
   return (
     <div className="max-w-sm mx-auto bg-white min-h-screen relative flex flex-col">
       <Header title="Transactions" subtitle="Track your finances" />
@@ -322,53 +366,76 @@ export default function Transactions() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredAndSortedTransactions.map((transaction) => (
-              <div key={transaction.id} className="bg-white rounded-xl p-4 border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3 flex-1">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received"
-                        ? "bg-green-100" : "bg-red-100"
-                    }`}>
-                      <span className="text-sm">{getCategoryIcon(transaction.category, transaction.type)}</span>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{transaction.description}</h3>
-                      <p className="text-sm text-gray-500 capitalize">
-                        {transaction.category.replace('_', ' ')} • {formatDate(transaction.date)}
-                      </p>
+          <div className="space-y-4">
+            {sortedDateKeys.map((dateKey) => (
+              <div key={dateKey} className="space-y-3">
+                {/* Date Header */}
+                <div className="sticky top-0 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 z-10">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-700">
+                      {formatDateHeader(dateKey)}
+                    </h3>
+                    <div className="text-xs text-gray-500">
+                      {groupedTransactions[dateKey].length} transaction{groupedTransactions[dateKey].length !== 1 ? 's' : ''}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <div className={`font-semibold ${
-                      transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received"
-                        ? "text-green-600" : "text-red-600"
-                    }`}>
-                      {(transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received") ? "+" : "-"}
-                      {formatCurrency(parseFloat(transaction.amount))}
+                </div>
+
+                {/* Transactions for this date */}
+                <div className="space-y-3">
+                  {groupedTransactions[dateKey].map((transaction) => (
+                    <div key={transaction.id} className="bg-white rounded-xl p-4 border border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3 flex-1">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                            transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received"
+                              ? "bg-green-100" : "bg-red-100"
+                          }`}>
+                            <span className="text-sm">{getCategoryIcon(transaction.category, transaction.type)}</span>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-900">{transaction.description}</h3>
+                            <p className="text-sm text-gray-500 capitalize">
+                              {transaction.category.replace('_', ' ')} • {new Date(transaction.date).toLocaleTimeString('en-US', { 
+                                hour: 'numeric', 
+                                minute: '2-digit',
+                                hour12: true 
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-3">
+                          <div className={`font-semibold ${
+                            transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received"
+                              ? "text-green-600" : "text-red-600"
+                          }`}>
+                            {(transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received") ? "+" : "-"}
+                            {formatCurrency(parseFloat(transaction.amount))}
+                          </div>
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(transaction)}
+                            className="p-2 text-blue-600 hover:bg-blue-50"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteTransactionMutation.mutate(transaction.id)}
+                            disabled={deleteTransactionMutation.isPending}
+                            className="p-2 text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                    
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openEditDialog(transaction)}
-                      className="p-2 text-blue-600 hover:bg-blue-50"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteTransactionMutation.mutate(transaction.id)}
-                      disabled={deleteTransactionMutation.isPending}
-                      className="p-2 text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  ))}
                 </div>
               </div>
             ))}
