@@ -778,7 +778,7 @@ export default function Budgets() {
                     );
                   }
 
-                  // Group budgets by month
+                  // Group budgets by month for better visualization
                   const groupedBudgets = groupBudgetsByMonth(filteredBudgets);
                   const sortedMonthKeys = Object.keys(groupedBudgets).sort((a, b) => {
                     const [yearA, monthA] = a.split('-').map(Number);
@@ -786,148 +786,144 @@ export default function Budgets() {
                     return yearB - yearA || monthB - monthA; // Sort newest first
                   });
                   
-                  return (
-                    <div className="space-y-6">
-                      {sortedMonthKeys.map((monthKey) => (
-                        <div key={monthKey} className="space-y-3">
-                          {/* Month Header */}
-                          <div className="sticky top-0 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 z-10">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-sm font-semibold text-blue-700">
-                                {formatMonthHeader(monthKey)}
-                              </h3>
-                              <div className="text-xs text-blue-600">
-                                {groupedBudgets[monthKey].length} budget{groupedBudgets[monthKey].length !== 1 ? 's' : ''}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Budgets for this month */}
-                          <div className="space-y-3">
-                            {groupedBudgets[monthKey].map((budget: any) => {
-                              const categoryTransactions = transactions.filter((transaction: Transaction) => {
-                                return transaction.category === budget.category && 
-                                       transaction.type === "expense" &&
-                                       new Date(transaction.date) >= new Date(budget.startDate) &&
-                                       new Date(transaction.date) <= new Date(budget.endDate);
-                              });
-
-                              const totalSpent = categoryTransactions.reduce((total: number, transaction: Transaction) => {
-                                return total + parseFloat(transaction.amount);
-                              }, 0);
-
-                              const budgetAmount = parseFloat(budget.amount);
-                              const percentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
-                              const isOverBudget = percentage > 100;
-
-                              // Calculate time-based progress
-                              const startDate = new Date(budget.startDate);
-                              const endDate = new Date(budget.endDate);
-                              const currentDate = new Date();
-                              const totalDuration = endDate.getTime() - startDate.getTime();
-                              const elapsedTime = Math.max(0, currentDate.getTime() - startDate.getTime());
-                              const timePercentage = totalDuration > 0 ? Math.min(100, (elapsedTime / totalDuration) * 100) : 0;
-
-                              return (
-                                <div key={budget.id} className="bg-white rounded-xl p-4 border border-gray-100">
-                                  <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center space-x-3">
-                                      <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-                                        <span className="text-lg">{budget.icon}</span>
-                                      </div>
-                                      <div>
-                                        <h3 className="font-medium text-gray-900 capitalize">
-                                          {budget.category.replace('_', ' ')}
-                                        </h3>
-                                        <p className="text-sm text-gray-500">
-                                          {formatCurrency(totalSpent)} of {formatCurrency(budgetAmount)}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    
-                                    <div className="flex space-x-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleEditBudget(budget)}
-                                        className="p-2 text-blue-600 hover:bg-blue-50"
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => deleteBudgetMutation.mutate(budget.id)}
-                                        disabled={deleteBudgetMutation.isPending}
-                                        className="p-2 text-red-600 hover:bg-red-50"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                  
-                                  {/* Spending Progress Bar */}
-                                  <div className="space-y-2 mb-3">
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-600">Spending Progress</span>
-                                      <span className={`font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
-                                        {percentage.toFixed(1)}%
-                                      </span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                      <div 
-                                        className={`h-2 rounded-full transition-all duration-300 ${
-                                          isOverBudget ? 'bg-red-500' : percentage > 80 ? 'bg-yellow-500' : 'bg-green-500'
-                                        }`}
-                                        style={{ width: `${Math.min(percentage, 100)}%` }}
-                                      ></div>
-                                    </div>
-                                  </div>
-
-                                  {/* Time Progress Bar */}
-                                  <div className="space-y-2 mb-3">
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-600">Time Elapsed</span>
-                                      <span className="font-medium text-gray-900">
-                                        {timePercentage.toFixed(1)}%
-                                      </span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                      <div 
-                                        className="h-2 rounded-full bg-blue-500 transition-all duration-300"
-                                        style={{ width: `${timePercentage}%` }}
-                                      ></div>
-                                    </div>
-                                  </div>
-
-                                  {/* Analysis */}
-                                  <div className="mt-3">
-                                    {isOverBudget ? (
-                                      <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
-                                        ⚠️ Budget exceeded! Consider reviewing your spending.
-                                      </div>
-                                    ) : percentage > timePercentage + 10 ? (
-                                      <div className="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
-                                        ⚡ Spending ahead of schedule - {(percentage - timePercentage).toFixed(1)}% faster than time
-                                      </div>
-                                    ) : timePercentage > percentage + 10 ? (
-                                      <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                                        ✅ Good pace - spending {(timePercentage - percentage).toFixed(1)}% behind schedule
-                                      </div>
-                                    ) : (
-                                      <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                        📊 On track - spending aligns with time elapsed
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                  return sortedMonthKeys.map((monthKey) => (
+                    <div key={monthKey} className="space-y-3 mb-6">
+                      {/* Month Header */}
+                      <div className="sticky top-0 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 z-10">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-semibold text-blue-700">
+                            {formatMonthHeader(monthKey)}
+                          </h3>
+                          <div className="text-xs text-blue-600">
+                            {groupedBudgets[monthKey].length} budget{groupedBudgets[monthKey].length !== 1 ? 's' : ''}
                           </div>
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Budgets for this month */}
+                      <div className="space-y-3">
+                        {groupedBudgets[monthKey].map((budget: any) => {
+                          const categoryTransactions = transactions.filter((transaction: Transaction) => {
+                            return transaction.category === budget.category && 
+                                   transaction.type === "expense" &&
+                                   new Date(transaction.date) >= new Date(budget.startDate) &&
+                                   new Date(transaction.date) <= new Date(budget.endDate);
+                          });
+
+                          const totalSpent = categoryTransactions.reduce((total: number, transaction: Transaction) => {
+                            return total + parseFloat(transaction.amount);
+                          }, 0);
+
+                          const budgetAmount = parseFloat(budget.amount);
+                          const percentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
+                          const isOverBudget = percentage > 100;
+
+                          // Calculate time-based progress
+                          const startDate = new Date(budget.startDate);
+                          const endDate = new Date(budget.endDate);
+                          const currentDate = new Date();
+                          const totalDuration = endDate.getTime() - startDate.getTime();
+                          const elapsedTime = Math.max(0, currentDate.getTime() - startDate.getTime());
+                          const timePercentage = totalDuration > 0 ? Math.min(100, (elapsedTime / totalDuration) * 100) : 0;
+
+                          return (
+                            <div key={budget.id} className="bg-white rounded-xl p-4 border border-gray-100">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                                    <span className="text-lg">{budget.icon}</span>
+                                  </div>
+                                  <div>
+                                    <h3 className="font-medium text-gray-900 capitalize">
+                                      {budget.category.replace('_', ' ')}
+                                    </h3>
+                                    <p className="text-sm text-gray-500">
+                                      {formatCurrency(totalSpent)} of {formatCurrency(budgetAmount)}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex space-x-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditBudget(budget)}
+                                    className="p-2 text-blue-600 hover:bg-blue-50"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteBudgetMutation.mutate(budget.id)}
+                                    disabled={deleteBudgetMutation.isPending}
+                                    className="p-2 text-red-600 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              {/* Spending Progress Bar */}
+                              <div className="space-y-2 mb-3">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Spending Progress</span>
+                                  <span className={`font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
+                                    {percentage.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className={`h-2 rounded-full transition-all duration-300 ${
+                                      isOverBudget ? 'bg-red-500' : percentage > 80 ? 'bg-yellow-500' : 'bg-green-500'
+                                    }`}
+                                    style={{ width: `${Math.min(percentage, 100)}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+
+                              {/* Time Progress Bar */}
+                              <div className="space-y-2 mb-3">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Time Elapsed</span>
+                                  <span className="font-medium text-gray-900">
+                                    {timePercentage.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className="h-2 rounded-full bg-blue-500 transition-all duration-300"
+                                    style={{ width: `${timePercentage}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+
+                              {/* Analysis */}
+                              <div className="mt-3">
+                                {isOverBudget ? (
+                                  <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                                    Budget exceeded! Consider reviewing your spending.
+                                  </div>
+                                ) : percentage > timePercentage + 10 ? (
+                                  <div className="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
+                                    Spending ahead of schedule - {(percentage - timePercentage).toFixed(1)}% faster than time
+                                  </div>
+                                ) : timePercentage > percentage + 10 ? (
+                                  <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                                    Good pace - spending {(timePercentage - percentage).toFixed(1)}% behind schedule
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                    On track - spending aligns with time elapsed
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  );
+                  ));
 
                   return (
                     <div key={budget.id} className="bg-white rounded-xl p-4 border border-gray-100">
