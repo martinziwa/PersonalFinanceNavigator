@@ -48,6 +48,37 @@ const categories = [
   { value: "transportation", label: "Transportation", icon: "🚗" },
 ];
 
+// Helper function to group budgets by month
+const groupBudgetsByMonth = (budgets: any[]) => {
+  const grouped: { [key: string]: any[] } = {};
+  
+  budgets.forEach((budget) => {
+    const date = new Date(budget.startDate);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    
+    if (!grouped[monthKey]) {
+      grouped[monthKey] = [];
+    }
+    grouped[monthKey].push(budget);
+  });
+  
+  return grouped;
+};
+
+// Helper function to format month headers
+const formatMonthHeader = (monthKey: string) => {
+  const [year, month] = monthKey.split('-');
+  const date = new Date(parseInt(year), parseInt(month) - 1);
+  const now = new Date();
+  
+  // Check if it's current month
+  if (now.getFullYear() === parseInt(year) && now.getMonth() === parseInt(month) - 1) {
+    return "This Month";
+  }
+  
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
+
 export default function Budgets() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);

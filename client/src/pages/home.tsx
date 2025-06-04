@@ -37,6 +37,24 @@ export default function Home() {
 
   const recentTransactions = transactions.slice(0, 4);
 
+  // Calculate actual savings for a goal based on starting savings plus transactions
+  const calculateGoalProgress = (goalId: number, startingSavings: string = "0") => {
+    const goalTransactions = transactions.filter((transaction: Transaction) => 
+      transaction.savingsGoalId === goalId
+    );
+    
+    const transactionTotal = goalTransactions.reduce((total: number, transaction: Transaction) => {
+      if (transaction.type === 'savings_deposit') {
+        return total + parseFloat(transaction.amount);
+      } else if (transaction.type === 'savings_withdrawal') {
+        return total - parseFloat(transaction.amount);
+      }
+      return total;
+    }, 0);
+    
+    return parseFloat(startingSavings) + transactionTotal;
+  };
+
   // Generate spending alerts
   const spendingAlerts = useMemo(() => {
     const alerts: Array<{
@@ -145,24 +163,6 @@ export default function Home() {
       return severityOrder[b.severity] - severityOrder[a.severity];
     }).slice(0, 3); // Show max 3 alerts
   }, [budgets, loans, goals, transactions]);
-
-  // Calculate actual savings for a goal based on starting savings plus transactions
-  const calculateGoalProgress = (goalId: number, startingSavings: string = "0") => {
-    const goalTransactions = transactions.filter((transaction: Transaction) => 
-      transaction.savingsGoalId === goalId
-    );
-    
-    const transactionTotal = goalTransactions.reduce((total: number, transaction: Transaction) => {
-      if (transaction.type === 'savings_deposit') {
-        return total + parseFloat(transaction.amount);
-      } else if (transaction.type === 'savings_withdrawal') {
-        return total - parseFloat(transaction.amount);
-      }
-      return total;
-    }, 0);
-    
-    return parseFloat(startingSavings) + transactionTotal;
-  };
 
   // Calculate aggregate amounts
   const totalIncome = transactions
