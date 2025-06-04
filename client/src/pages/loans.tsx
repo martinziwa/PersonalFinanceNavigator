@@ -77,32 +77,102 @@ export default function Loans() {
   const { data: transactions = [] } = useTransactions();
   const { toast } = useToast();
 
-  // Calculate loan progress based on principal amount, current balance, and payments
-  const calculateLoanProgress = (loanId: number, principalAmount: string, currentBalance: string) => {
-    const principal = parseFloat(principalAmount || "0");
-    const balance = parseFloat(currentBalance || "0");
+  // Calculate total interest based on loan type and terms
+  const calculateTotalInterest = (loan: any) => {
+    const principal = parseFloat(loan?.principalAmount || "0");
+    const rate = parseFloat(loan?.interestRate || "0") / 100;
+    const termMonths = loan?.loanTermMonths || 12;
+    
+    if (!loan || principal <= 0 || rate < 0) return 0;
+    
+    if (loan.interestType === "simple") {
+      // Simple Interest: I = P * R * T (T in years)
+      return principal * rate * (termMonths / 12);
+    } else {
+      // Compound Interest: Calculate based on payment schedule
+      if (loan.isAmortized && loan.calculatedPayment) {
+        const monthlyPayment = parseFloat(loan.calculatedPayment || "0");
+        const totalPaid = monthlyPayment * termMonths;
+        return Math.max(0, totalPaid - principal);
+      } else {
+        // Compound interest without amortization
+        const monthlyRate = rate / 12;
+        const compoundAmount = principal * Math.pow(1 + monthlyRate, termMonths);
+        return compoundAmount - principal;
+      }
+    }
+  };
+
+  // Calculate comprehensive loan progress with interest tracking
+  const calculateLoanProgress = (loan: any) => {
+    if (!loan) {
+      return {
+        totalAmountDue: 0,
+        totalInterest: 0,
+        totalPaymentsMade: 0,
+        totalRemaining: 0,
+        principalAmount: 0,
+        principalPaid: 0,
+        principalRemaining: 0,
+        principalProgressPercentage: 0,
+        interestPaid: 0,
+        interestRemaining: 0,
+        interestProgressPercentage: 0,
+        totalProgressPercentage: 0
+      };
+    }
+
+    const principal = parseFloat(loan.principalAmount || "0");
+    const currentBalance = parseFloat(loan.balance || "0");
+    const totalInterest = calculateTotalInterest(loan);
+    const totalAmountDue = principal + totalInterest;
     
     // Find all loan payment transactions for this specific loan
     const loanPayments = transactions.filter((transaction: Transaction) => 
-      transaction.loanId === loanId && transaction.type === 'loan_payment'
+      transaction.loanId === loan.id && transaction.type === 'loan_payment'
     );
     
     // Calculate total payments made through transactions
-    const totalPayments = loanPayments.reduce((total: number, transaction: Transaction) => {
-      return total + parseFloat(transaction.amount);
+    const totalPaymentsMade = loanPayments.reduce((total: number, transaction: Transaction) => {
+      return total + parseFloat(transaction.amount || "0");
     }, 0);
     
-    // Calculate amount repaid: original principal - current balance + additional payments
-    const baseRepaid = Math.max(0, principal - balance);
-    const totalRepaid = baseRepaid + totalPayments;
+    // Calculate how much of the principal has been paid
+    const principalPaid = Math.max(0, principal - currentBalance);
     
-    // Progress percentage
-    const progressPercentage = principal > 0 ? (totalRepaid / principal) * 100 : 0;
+    // Calculate how much has gone to interest
+    const interestPaid = Math.max(0, totalPaymentsMade - principalPaid);
+    
+    // Remaining amounts
+    const principalRemaining = currentBalance;
+    const interestRemaining = Math.max(0, totalInterest - interestPaid);
+    const totalRemaining = principalRemaining + interestRemaining;
+    
+    // Progress percentages
+    const totalProgressPercentage = totalAmountDue > 0 ? ((totalPaymentsMade) / totalAmountDue) * 100 : 0;
+    const principalProgressPercentage = principal > 0 ? (principalPaid / principal) * 100 : 0;
+    const interestProgressPercentage = totalInterest > 0 ? (interestPaid / totalInterest) * 100 : 0;
     
     return {
-      totalRepaid,
-      progressPercentage: Math.min(progressPercentage, 100), // Cap at 100%
-      remainingBalance: Math.max(0, principal - totalRepaid)
+      // Total amounts
+      totalAmountDue,
+      totalInterest,
+      totalPaymentsMade,
+      totalRemaining,
+      
+      // Principal breakdown
+      principalAmount: principal,
+      principalPaid,
+      principalRemaining,
+      principalProgressPercentage: Math.min(principalProgressPercentage, 100),
+      
+      // Interest breakdown
+      interestPaid,
+      interestRemaining,
+      interestProgressPercentage: Math.min(interestProgressPercentage, 100),
+      
+      // Overall progress
+      totalProgressPercentage: Math.min(totalProgressPercentage, 100)
     };
   };
 
@@ -288,9 +358,9 @@ export default function Loans() {
           </Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
           {loans.map((loan: any) => {
-            const progress = calculateLoanProgress(loan.id, loan.principalAmount, loan.balance);
+            const progress = calculateLoanProgress(loan);
             
             return (
               <Card key={loan.id} className="relative">
@@ -320,59 +390,110 @@ export default function Loans() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">Principal Amount:</span>
-                      <span className="font-medium">{formatCurrency(parseFloat(loan.principalAmount))}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">Current Balance:</span>
-                      <span className="font-medium">{formatCurrency(parseFloat(loan.balance))}</span>
-                    </div>
-                    
-                    {loan.isAmortized && (
-                      <>
+                  <div className="space-y-4">
+                    {/* Loan Overview */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">Payment Frequency:</span>
-                          <span className="font-medium capitalize">{loan.repaymentFrequency}</span>
+                          <span className="text-gray-600 dark:text-gray-400">Principal Amount:</span>
+                          <span className="font-medium">{formatCurrency(progress.principalAmount)}</span>
                         </div>
-                        {loan.calculatedPayment && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600 dark:text-gray-400">Payment Amount:</span>
-                            <span className="font-medium">{formatCurrency(parseFloat(loan.calculatedPayment))}</span>
-                          </div>
-                        )}
-                        {loan.loanTermMonths && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600 dark:text-gray-400">Loan Term:</span>
-                            <span className="font-medium">
-                              {Math.floor(loan.loanTermMonths / 12) > 0 && `${Math.floor(loan.loanTermMonths / 12)} years `}
-                              {loan.loanTermMonths % 12 > 0 && `${loan.loanTermMonths % 12} months`}
-                            </span>
-                          </div>
-                        )}
-                        {loan.nextPaymentDate && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600 dark:text-gray-400">Next Payment:</span>
-                            <span className="font-medium">
-                              {new Date(loan.nextPaymentDate).toLocaleDateString()}
-                            </span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    
-                    <div className="pt-2">
-                      <div className="flex justify-between text-xs mb-1">
-                        <span>Progress</span>
-                        <span>{progress.progressPercentage.toFixed(1)}%</span>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">Total Interest:</span>
+                          <span className="font-medium">{formatCurrency(progress.totalInterest)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-semibold border-t pt-2">
+                          <span className="text-gray-900 dark:text-gray-100">Total Amount Due:</span>
+                          <span className="text-blue-600 dark:text-blue-400">{formatCurrency(progress.totalAmountDue)}</span>
+                        </div>
                       </div>
-                      <Progress value={progress.progressPercentage} className="h-2" />
-                      <div className="flex justify-between text-xs mt-1 text-gray-500">
-                        <span>Paid: {formatCurrency(progress.totalRepaid)}</span>
-                        <span>Remaining: {formatCurrency(progress.remainingBalance)}</span>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">Total Paid:</span>
+                          <span className="font-medium text-green-600">{formatCurrency(progress.totalPaymentsMade)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">Remaining:</span>
+                          <span className="font-medium text-orange-600">{formatCurrency(progress.totalRemaining)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-semibold border-t pt-2">
+                          <span className="text-gray-900 dark:text-gray-100">Overall Progress:</span>
+                          <span className="text-blue-600 dark:text-blue-400">{progress.totalProgressPercentage.toFixed(1)}%</span>
+                        </div>
                       </div>
                     </div>
+
+                    {/* Payment Breakdown */}
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                      <h4 className="text-sm font-medium mb-3 text-gray-900 dark:text-gray-100">Payment Breakdown</h4>
+                      
+                      <div className="space-y-3">
+                        {/* Principal Progress */}
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-gray-600 dark:text-gray-400">Principal</span>
+                            <span className="font-medium">{progress.principalProgressPercentage.toFixed(1)}%</span>
+                          </div>
+                          <Progress value={progress.principalProgressPercentage} className="h-2" />
+                          <div className="flex justify-between text-xs mt-1">
+                            <span className="text-green-600">Paid: {formatCurrency(progress.principalPaid)}</span>
+                            <span className="text-orange-600">Remaining: {formatCurrency(progress.principalRemaining)}</span>
+                          </div>
+                        </div>
+
+                        {/* Interest Progress */}
+                        <div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-gray-600 dark:text-gray-400">Interest</span>
+                            <span className="font-medium">{progress.interestProgressPercentage.toFixed(1)}%</span>
+                          </div>
+                          <Progress value={progress.interestProgressPercentage} className="h-2 [&>div]:bg-orange-500" />
+                          <div className="flex justify-between text-xs mt-1">
+                            <span className="text-green-600">Paid: {formatCurrency(progress.interestPaid)}</span>
+                            <span className="text-orange-600">Remaining: {formatCurrency(progress.interestRemaining)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Loan Details */}
+                    {loan.isAmortized && (
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600 dark:text-gray-400">Payment Frequency:</span>
+                            <span className="font-medium capitalize">{loan.repaymentFrequency}</span>
+                          </div>
+                          {loan.calculatedPayment && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Payment Amount:</span>
+                              <span className="font-medium">{formatCurrency(parseFloat(loan.calculatedPayment))}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-1">
+                          {loan.loanTermMonths && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Loan Term:</span>
+                              <span className="font-medium">
+                                {Math.floor(loan.loanTermMonths / 12) > 0 && `${Math.floor(loan.loanTermMonths / 12)}y `}
+                                {loan.loanTermMonths % 12 > 0 && `${loan.loanTermMonths % 12}m`}
+                              </span>
+                            </div>
+                          )}
+                          {loan.nextPaymentDate && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Next Payment:</span>
+                              <span className="font-medium">
+                                {new Date(loan.nextPaymentDate).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
