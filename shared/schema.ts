@@ -111,8 +111,8 @@ export const insertSavingsGoalSchema = createInsertSchema(savingsGoals).omit({
 export const insertLoanSchema = createInsertSchema(loans).omit({
   id: true,
 }).extend({
-  nextPaymentDate: z.string(),
-  startDate: z.string(),
+  nextPaymentDate: z.string().transform((val) => new Date(val)),
+  startDate: z.string().transform((val) => new Date(val)),
   loanTermMonths: z.number().optional(),
   calculatedPayment: z.string().optional(),
 });

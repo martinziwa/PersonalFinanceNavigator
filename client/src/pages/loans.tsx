@@ -318,6 +318,9 @@ export default function Loans() {
   });
 
   const onSubmit = (data: LoanFormData) => {
+    console.log("Form submission data:", data);
+    console.log("Form errors:", form.formState.errors);
+    
     // Convert loan term to total months for database storage
     const yearsNum = parseInt(data.loanTermYears || "0");
     const monthsNum = parseInt(data.loanTermMonths || "0");
@@ -335,7 +338,7 @@ export default function Loans() {
       interestPeriod: data.interestType === "compound" ? data.interestPeriod : null,
       isAmortized: data.isAmortized,
       repaymentFrequency: data.repaymentFrequency,
-      loanTermMonths: data.isAmortized ? totalMonths : undefined,
+      loanTermMonths: totalMonths > 0 ? totalMonths : undefined,
       calculatedPayment: data.isAmortized && calculatedPayment ? calculatedPayment : undefined,
       nextPaymentDate: data.dueDate || new Date().toISOString().split('T')[0],
       startDate: data.startDate,
@@ -343,6 +346,7 @@ export default function Loans() {
       color: "#3b82f6",
     };
 
+    console.log("Submit data:", submitData);
     mutation.mutate(submitData);
   };
 
