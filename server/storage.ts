@@ -267,16 +267,8 @@ export class DatabaseStorage implements IStorage {
     const userLoans = await db.select().from(loans).where(eq(loans.userId, userId));
     const totalDebt = userLoans.reduce((sum, loan) => sum + parseFloat(loan.balance), 0);
 
-    // Calculate net worth including all income and subtracting all expenses
-    const totalIncome = allUserTransactions
-      .filter((t: any) => t.type === 'income' || t.type === 'loan_received')
-      .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
-    
-    const totalExpenses = allUserTransactions
-      .filter((t: any) => t.type === 'expense' || t.type === 'loan_payment')
-      .reduce((sum: number, t: any) => sum + parseFloat(t.amount), 0);
-
-    const netWorth = totalSavings + totalIncome - totalExpenses - totalDebt;
+    // Calculate net worth only from savings and loans (excluding income/expenses)
+    const netWorth = totalSavings - totalDebt;
 
     return {
       netWorth,
