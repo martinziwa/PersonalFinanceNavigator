@@ -507,6 +507,19 @@ export default function Budgets() {
                   const percentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
                   const isOverBudget = percentage > 100;
 
+                  // Calculate time progress
+                  const startDate = new Date(budget.startDate);
+                  const endDate = new Date(budget.endDate);
+                  const currentDate = new Date();
+                  
+                  const totalDuration = endDate.getTime() - startDate.getTime();
+                  const elapsedTime = currentDate.getTime() - startDate.getTime();
+                  const timePercentage = totalDuration > 0 ? Math.max(0, Math.min(100, (elapsedTime / totalDuration) * 100)) : 0;
+                  
+                  const daysTotal = Math.ceil(totalDuration / (1000 * 60 * 60 * 24));
+                  const daysElapsed = Math.max(0, Math.ceil(elapsedTime / (1000 * 60 * 60 * 24)));
+                  const daysRemaining = Math.max(0, daysTotal - daysElapsed);
+
                   return (
                     <div key={budget.id} className="bg-white rounded-xl p-4 border border-gray-100">
                       <div className="flex items-center justify-between mb-3">
@@ -526,6 +539,9 @@ export default function Budgets() {
                             <p className="text-sm text-gray-500">
                               {formatCurrency(totalSpent)} of {formatCurrency(budgetAmount)}
                             </p>
+                            <p className="text-xs text-gray-400">
+                              {daysElapsed} of {daysTotal} days elapsed
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -535,6 +551,9 @@ export default function Budgets() {
                             </div>
                             <div className="text-xs text-gray-500">
                               {formatCurrency(budgetAmount - totalSpent)} left
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              {daysRemaining} days left
                             </div>
                           </div>
                           <Button
@@ -557,20 +576,60 @@ export default function Budgets() {
                         </div>
                       </div>
                       
-                      <ProgressBar
-                        percentage={percentage}
-                        color={
-                          isOverBudget ? "bg-red-500" :
-                          percentage > 80 ? "bg-yellow-500" :
-                          "bg-green-500"
-                        }
-                      />
-                      
-                      {isOverBudget && (
-                        <div className="mt-2 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
-                          ⚠️ Budget exceeded! Consider reviewing your spending.
+                      <div className="space-y-2">
+                        {/* Spending Progress Bar */}
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs text-gray-600">Budget Used</span>
+                            <span className={`text-xs font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-700'}`}>
+                              {percentage.toFixed(1)}%
+                            </span>
+                          </div>
+                          <ProgressBar
+                            percentage={percentage}
+                            color={
+                              isOverBudget ? "bg-red-500" :
+                              percentage > 80 ? "bg-yellow-500" :
+                              "bg-green-500"
+                            }
+                          />
                         </div>
-                      )}
+
+                        {/* Time Progress Bar */}
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs text-gray-600">Time Elapsed</span>
+                            <span className="text-xs font-medium text-gray-700">
+                              {timePercentage.toFixed(1)}%
+                            </span>
+                          </div>
+                          <ProgressBar
+                            percentage={timePercentage}
+                            color="bg-blue-500"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Budget Analysis */}
+                      <div className="mt-3">
+                        {isOverBudget ? (
+                          <div className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                            ⚠️ Budget exceeded! Consider reviewing your spending.
+                          </div>
+                        ) : percentage > timePercentage + 10 ? (
+                          <div className="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
+                            ⚡ Spending ahead of schedule - {(percentage - timePercentage).toFixed(1)}% faster than time
+                          </div>
+                        ) : timePercentage > percentage + 10 ? (
+                          <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                            ✅ Good pace - spending {(timePercentage - percentage).toFixed(1)}% behind schedule
+                          </div>
+                        ) : (
+                          <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                            📊 On track - spending aligns with time elapsed
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
