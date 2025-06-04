@@ -396,7 +396,7 @@ export default function Transactions() {
                           <div className="flex-1">
                             <h3 className="font-medium text-gray-900">{transaction.description}</h3>
                             <p className="text-sm text-gray-500 capitalize">
-                              {transaction.category.replace('_', ' ')} • {new Date(transaction.date).toLocaleTimeString('en-US', { 
+                              {transaction.category.replace('_', ' ')} • {transaction.time || new Date(transaction.date).toLocaleTimeString('en-US', { 
                                 hour: 'numeric', 
                                 minute: '2-digit',
                                 hour12: true 

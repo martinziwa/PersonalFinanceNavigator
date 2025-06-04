@@ -494,7 +494,7 @@ export default function Home() {
                     <div>
                       <h3 className="font-medium text-gray-900">{transaction.description}</h3>
                       <p className="text-xs text-gray-500 capitalize">
-                        {transaction.category.replace('_', ' ')} • {formatDate(transaction.date)}
+                        {transaction.category.replace('_', ' ')} • {transaction.time || formatDate(transaction.date)}
                       </p>
                     </div>
                   </div>
