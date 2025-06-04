@@ -74,6 +74,7 @@ export default function Budgets() {
   const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState("all");
   
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
@@ -483,6 +484,37 @@ export default function Budgets() {
               Create New Budget
             </Button>
 
+            {/* Category Filter */}
+            {budgets.length > 0 && (
+              <div className="bg-white rounded-xl p-4 border border-gray-100">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-gray-700">Filter by Category</h3>
+                  <span className="text-xs text-gray-500">
+                    {categoryFilter === "all" ? budgets.length : budgets.filter(b => b.category === categoryFilter).length} budgets
+                  </span>
+                </div>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {Array.from(new Set(budgets.map(b => b.category))).sort().map(category => {
+                      const categoryData = categories.find(c => c.value === category);
+                      return (
+                        <SelectItem key={category} value={category}>
+                          <div className="flex items-center gap-2">
+                            <span>{categoryData?.icon || "📝"}</span>
+                            <span className="capitalize">{category}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {budgets.length === 0 ? (
               <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
                 <PieChart className="h-12 w-12 text-gray-400 mx-auto mb-3" />
@@ -491,7 +523,20 @@ export default function Budgets() {
               </div>
             ) : (
               <div className="space-y-4">
-                {budgets.map((budget: any) => {
+                {(() => {
+                  const filteredBudgets = budgets.filter((budget: any) => categoryFilter === "all" || budget.category === categoryFilter);
+                  
+                  if (filteredBudgets.length === 0 && categoryFilter !== "all") {
+                    return (
+                      <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
+                        <div className="text-4xl mb-3">🔍</div>
+                        <p className="text-gray-500">No budgets found for this category</p>
+                        <p className="text-sm text-gray-400 mt-1">Try selecting a different category or create a new budget</p>
+                      </div>
+                    );
+                  }
+                  
+                  return filteredBudgets.map((budget: any) => {
                   const categoryTransactions = transactions.filter((transaction: Transaction) => {
                     return transaction.category === budget.category && 
                            transaction.type === "expense" &&
@@ -632,7 +677,8 @@ export default function Budgets() {
                       </div>
                     </div>
                   );
-                })}
+                  });
+                })()}
               </div>
             )}
           </TabsContent>
