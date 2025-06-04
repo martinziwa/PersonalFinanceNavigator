@@ -50,10 +50,10 @@ const loanSchema = z.object({
   interestPeriod: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"], {
     required_error: "Please select interest period"
   }),
-  useRecurringPayments: z.boolean().default(false),
+  isAmortized: z.boolean().default(false),
   repaymentFrequency: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"]).optional(),
-  minPayment: z.string().optional(),
-  payoffTime: z.string().optional(),
+  loanTermYears: z.string().optional(),
+  loanTermMonths: z.string().optional(),
   dueDate: z.string().optional(),
   startDate: z.string().min(1, "Start date is required"),
 });
@@ -111,14 +111,17 @@ export default function Loans() {
     resolver: zodResolver(loanSchema),
     defaultValues: {
       name: "",
+      principalAmount: "",
       balance: "",
       interestRate: "",
       interestType: "simple",
       interestPeriod: "monthly",
+      isAmortized: false,
       repaymentFrequency: "monthly",
-      minPayment: "",
+      loanTermYears: "",
+      loanTermMonths: "",
       dueDate: "",
-      startDate: "",
+      startDate: new Date().toISOString().split('T')[0],
     },
   });
 
