@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1400" height="1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .process-box {
+        fill: #dbeafe;
+        stroke: #2563eb;
+        stroke-width: 2;
+        rx: 10;
+      }
+      .data-store {
+        fill: #ecfdf5;
+        stroke: #10b981;
+        stroke-width: 2;
+        rx: 5;
+      }
+      .external-entity {
+        fill: #fef3c7;
+        stroke: #f59e0b;
+        stroke-width: 2;
+        rx: 8;
+      }
+      .title-text {
+        font-family: Arial, sans-serif;
+        font-size: 24px;
+        font-weight: bold;
+        fill: #1e293b;
+        text-anchor: middle;
+      }
+      .entity-title {
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        font-weight: bold;
+        fill: #1e293b;
+        text-anchor: middle;
+      }
+      .process-text {
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        fill: #1e40af;
+        text-anchor: middle;
+        font-weight: bold;
+      }
+      .data-text {
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        fill: #059669;
+        text-anchor: middle;
+        font-weight: bold;
+      }
+      .external-text {
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        fill: #d97706;
+        text-anchor: middle;
+        font-weight: bold;
+      }
+      .flow-line {
+        stroke: #4b5563;
+        stroke-width: 2;
+        fill: none;
+        marker-end: url(#arrowhead);
+      }
+      .flow-text {
+        font-family: Arial, sans-serif;
+        font-size: 10px;
+        fill: #374151;
+        text-anchor: middle;
+      }
+      .section-title {
+        font-family: Arial, sans-serif;
+        font-size: 18px;
+        font-weight: bold;
+        fill: #1e293b;
+        text-anchor: start;
+      }
+      .component-text {
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        fill: #4b5563;
+        text-anchor: middle;
+      }
+    </style>
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+              refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#4b5563" />
+      </marker>
+    </defs>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="30" class="title-text">Personal Finance Navigator - Data Flow Diagram</text>
+
+  <!-- Level 0: Context Diagram -->
+  <text x="50" y="70" class="section-title">Level 0: Context Diagram</text>
+  
+  <!-- User (External Entity) -->
+  <rect x="100" y="90" width="120" height="60" class="external-entity"/>
+  <text x="160" y="125" class="external-text">User</text>
+  
+  <!-- System (Process) -->
+  <ellipse cx="400" cy="120" rx="150" ry="40" class="process-box"/>
+  <text x="400" y="115" class="process-text">Personal Finance</text>
+  <text x="400" y="130" class="process-text">Navigator System</text>
+  
+  <!-- Database (Data Store) -->
+  <rect x="650" y="90" width="140" height="60" class="data-store"/>
+  <text x="720" y="125" class="data-text">PostgreSQL Database</text>
+  
+  <!-- Flow arrows for Level 0 -->
+  <line x1="220" y1="120" x2="250" y2="120" class="flow-line"/>
+  <text x="235" y="115" class="flow-text">User Input/Requests</text>
+  
+  <line x1="250" y1="135" x2="220" y2="135" class="flow-line"/>
+  <text x="235" y="150" class="flow-text">UI Updates</text>
+  
+  <line x1="550" y1="120" x2="650" y2="120" class="flow-line"/>
+  <text x="600" y="115" class="flow-text">Database Queries</text>
+  
+  <line x1="650" y1="135" x2="550" y2="135" class="flow-line"/>
+  <text x="600" y="150" class="flow-text">Data Response</text>
+
+  <!-- Level 1: High-Level Data Flow -->
+  <text x="50" y="220" class="section-title">Level 1: High-Level Data Flow</text>
+  
+  <!-- User -->
+  <rect x="50" y="240" width="100" height="50" class="external-entity"/>
+  <text x="100" y="270" class="external-text">User</text>
+  
+  <!-- Frontend -->
+  <ellipse cx="250" cy="265" rx="80" ry="30" class="process-box"/>
+  <text x="250" y="260" class="process-text">Frontend</text>
+  <text x="250" y="275" class="process-text">(React.js)</text>
+  
+  <!-- Backend -->
+  <ellipse cx="450" cy="265" rx="80" ry="30" class="process-box"/>
+  <text x="450" y="260" class="process-text">Backend</text>
+  <text x="450" y="275" class="process-text">(Express.js)</text>
+  
+  <!-- Database -->
+  <rect x="600" y="240" width="120" height="50" class="data-store"/>
+  <text x="660" y="270" class="data-text">PostgreSQL Database</text>
+  
+  <!-- Flow arrows for Level 1 -->
+  <line x1="150" y1="265" x2="170" y2="265" class="flow-line"/>
+  <text x="160" y="255" class="flow-text">Input</text>
+  
+  <line x1="330" y1="265" x2="370" y2="265" class="flow-line"/>
+  <text x="350" y="255" class="flow-text">API Calls</text>
+  
+  <line x1="530" y1="265" x2="600" y2="265" class="flow-line"/>
+  <text x="565" y="255" class="flow-text">Queries</text>
+  
+  <line x1="170" y1="280" x2="150" y2="280" class="flow-line"/>
+  <text x="160" y="295" class="flow-text">Response</text>
+  
+  <line x1="370" y1="280" x2="330" y2="280" class="flow-line"/>
+  <text x="350" y="295" class="flow-text">Data</text>
+  
+  <line x1="600" y1="280" x2="530" y2="280" class="flow-line"/>
+  <text x="565" y="295" class="flow-text">Results</text>
+
+  <!-- Level 2: Detailed System Components -->
+  <text x="50" y="360" class="section-title">Level 2: Detailed System Components</text>
+  
+  <!-- Transaction Management Flow -->
+  <text x="50" y="390" class="entity-title">Transaction Management Flow</text>
+  
+  <rect x="50" y="410" width="100" height="40" class="external-entity"/>
+  <text x="100" y="435" class="external-text">User Input</text>
+  
+  <ellipse cx="220" cy="430" rx="60" ry="20" class="process-box"/>
+  <text x="220" y="435" class="process-text">Form Validation</text>
+  
+  <ellipse cx="350" cy="430" rx="60" ry="20" class="process-box"/>
+  <text x="350" y="435" class="process-text">API Controller</text>
+  
+  <rect x="460" y="410" width="100" height="40" class="data-store"/>
+  <text x="510" y="435" class="data-text">Database Storage</text>
+  
+  <ellipse cx="650" cy="430" rx="70" ry="20" class="process-box"/>
+  <text x="650" y="435" class="process-text">Net Worth Calculator</text>
+  
+  <!-- Transaction flow arrows -->
+  <line x1="150" y1="430" x2="160" y2="430" class="flow-line"/>
+  <line x1="280" y1="430" x2="290" y2="430" class="flow-line"/>
+  <line x1="410" y1="430" x2="460" y2="430" class="flow-line"/>
+  <line x1="560" y1="430" x2="580" y2="430" class="flow-line"/>
+
+  <!-- Budget Management Flow -->
+  <text x="50" y="490" class="entity-title">Budget Management Flow</text>
+  
+  <ellipse cx="100" cy="520" rx="50" ry="20" class="process-box"/>
+  <text x="100" y="525" class="process-text">Budget Creation</text>
+  
+  <ellipse cx="220" cy="520" rx="60" ry="20" class="process-box"/>
+  <text x="220" y="525" class="process-text">Spending Tracking</text>
+  
+  <ellipse cx="350" cy="520" rx="60" ry="20" class="process-box"/>
+  <text x="350" y="525" class="process-text">Progress Calculation</text>
+  
+  <ellipse cx="480" cy="520" rx="50" ry="20" class="process-box"/>
+  <text x="480" y="525" class="process-text">Budget Alerts</text>
+  
+  <!-- Budget flow arrows -->
+  <line x1="150" y1="520" x2="160" y2="520" class="flow-line"/>
+  <line x1="280" y1="520" x2="290" y2="520" class="flow-line"/>
+  <line x1="410" y1="520" x2="430" y2="520" class="flow-line"/>
+
+  <!-- Loan Management Flow -->
+  <text x="50" y="580" class="entity-title">Loan Management Flow</text>
+  
+  <ellipse cx="100" cy="610" rx="50" ry="20" class="process-box"/>
+  <text x="100" y="615" class="process-text">Loan Data Input</text>
+  
+  <ellipse cx="220" cy="610" rx="60" ry="20" class="process-box"/>
+  <text x="220" y="615" class="process-text">Interest Calculator</text>
+  
+  <ellipse cx="350" cy="610" rx="60" ry="20" class="process-box"/>
+  <text x="350" y="615" class="process-text">Payment Tracking</text>
+  
+  <ellipse cx="480" cy="610" rx="60" ry="20" class="process-box"/>
+  <text x="480" y="615" class="process-text">Balance Updates</text>
+  
+  <!-- Loan flow arrows -->
+  <line x1="150" y1="610" x2="160" y2="610" class="flow-line"/>
+  <line x1="280" y1="610" x2="290" y2="610" class="flow-line"/>
+  <line x1="410" y1="610" x2="420" y2="610" class="flow-line"/>
+
+  <!-- Authentication Flow -->
+  <text x="800" y="390" class="entity-title">Authentication Flow</text>
+  
+  <ellipse cx="850" cy="420" rx="60" ry="20" class="process-box"/>
+  <text x="850" y="425" class="process-text">Login Request</text>
+  
+  <ellipse cx="980" cy="420" rx="60" ry="20" class="process-box"/>
+  <text x="980" y="425" class="process-text">Session Validation</text>
+  
+  <ellipse cx="1120" cy="420" rx="60" ry="20" class="process-box"/>
+  <text x="1120" y="425" class="process-text">User Context</text>
+  
+  <!-- Auth flow arrows -->
+  <line x1="910" y1="420" x2="920" y2="420" class="flow-line"/>
+  <line x1="1040" y1="420" x2="1060" y2="420" class="flow-line"/>
+
+  <!-- Financial Calculation Engine -->
+  <text x="800" y="480" class="entity-title">Financial Calculation Engine</text>
+  
+  <rect x="800" y="500" width="100" height="40" class="data-store"/>
+  <text x="850" y="525" class="data-text">Transaction Data</text>
+  
+  <ellipse cx="980" cy="520" rx="70" ry="20" class="process-box"/>
+  <text x="980" y="525" class="process-text">Calculation Processor</text>
+  
+  <ellipse cx="1150" cy="520" rx="60" ry="20" class="process-box"/>
+  <text x="1150" y="525" class="process-text">Real-time Updates</text>
+  
+  <!-- Calculation flow arrows -->
+  <line x1="900" y1="520" x2="910" y2="520" class="flow-line"/>
+  <line x1="1050" y1="520" x2="1090" y2="520" class="flow-line"/>
+
+  <!-- Data Processing Pipeline -->
+  <text x="50" y="700" class="section-title">Data Processing Pipeline</text>
+  
+  <ellipse cx="120" cy="730" rx="60" ry="20" class="process-box"/>
+  <text x="120" y="735" class="process-text">Input Validation</text>
+  
+  <ellipse cx="250" cy="730" rx="70" ry="20" class="process-box"/>
+  <text x="250" y="735" class="process-text">Business Logic</text>
+  
+  <ellipse cx="390" cy="730" rx="70" ry="20" class="process-box"/>
+  <text x="390" y="735" class="process-text">Database Transaction</text>
+  
+  <ellipse cx="550" cy="730" rx="70" ry="20" class="process-box"/>
+  <text x="550" y="735" class="process-text">Calculation Engine</text>
+  
+  <ellipse cx="710" cy="730" rx="60" ry="20" class="process-box"/>
+  <text x="710" y="735" class="process-text">Response Format</text>
+  
+  <ellipse cx="850" cy="730" rx="60" ry="20" class="process-box"/>
+  <text x="850" y="735" class="process-text">UI Rendering</text>
+  
+  <!-- Pipeline flow arrows -->
+  <line x1="180" y1="730" x2="180" y2="730" class="flow-line"/>
+  <line x1="320" y1="730" x2="320" y2="730" class="flow-line"/>
+  <line x1="460" y1="730" x2="480" y2="730" class="flow-line"/>
+  <line x1="620" y1="730" x2="650" y2="730" class="flow-line"/>
+  <line x1="770" y1="730" x2="790" y2="730" class="flow-line"/>
+
+  <!-- Real-time Data Updates -->
+  <text x="50" y="800" class="section-title">Real-time Data Updates</text>
+  
+  <rect x="50" y="820" width="120" height="40" class="data-store"/>
+  <text x="110" y="845" class="data-text">Database Change</text>
+  
+  <ellipse cx="250" cy="840" rx="70" ry="20" class="process-box"/>
+  <text x="250" y="845" class="process-text">Query Invalidation</text>
+  
+  <ellipse cx="400" cy="840" rx="60" ry="20" class="process-box"/>
+  <text x="400" y="845" class="process-text">Cache Refresh</text>
+  
+  <ellipse cx="550" cy="840" rx="70" ry="20" class="process-box"/>
+  <text x="550" y="845" class="process-text">Component Re-render</text>
+  
+  <!-- Real-time flow arrows -->
+  <line x1="170" y1="840" x2="180" y2="840" class="flow-line"/>
+  <line x1="320" y1="840" x2="340" y2="840" class="flow-line"/>
+  <line x1="460" y1="840" x2="480" y2="840" class="flow-line"/>
+
+  <!-- Legend -->
+  <rect x="50" y="900" width="400" height="80" fill="#f9fafb" stroke="#d1d5db" stroke-width="1" rx="5"/>
+  <text x="250" y="920" class="entity-title">Legend</text>
+  
+  <ellipse cx="100" cy="940" rx="30" ry="15" class="process-box"/>
+  <text x="140" y="945" class="component-text">Process</text>
+  
+  <rect x="200" y="930" width="60" height="20" class="data-store"/>
+  <text x="270" y="945" class="component-text">Data Store</text>
+  
+  <rect x="330" y="930" width="60" height="20" class="external-entity"/>
+  <text x="400" y="945" class="component-text">External Entity</text>
+  
+  <line x1="80" y1="960" x2="130" y2="960" class="flow-line"/>
+  <text x="160" y="965" class="component-text">Data Flow</text>
+
+</svg>
