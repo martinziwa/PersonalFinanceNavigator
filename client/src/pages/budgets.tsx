@@ -234,11 +234,7 @@ export default function Budgets() {
 
     try {
       for (const budget of budgetsToCreate) {
-        await apiRequest("/api/budgets", {
-          method: "POST",
-          body: JSON.stringify(budget),
-          headers: { "Content-Type": "application/json" }
-        });
+        await apiRequest("POST", "/api/budgets", budget);
       }
       
       await queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
