@@ -775,8 +775,8 @@ export default function Budgets() {
 
         {/* Transaction History Modal */}
         <Dialog open={isHistoryModalOpen} onOpenChange={handleCloseHistoryModal}>
-          <DialogContent className="max-w-sm mx-auto max-h-[90vh] flex flex-col">
-            <DialogHeader className="flex-shrink-0">
+          <DialogContent className="max-w-sm mx-auto max-h-[85vh] flex flex-col p-0">
+            <DialogHeader className="flex-shrink-0 p-6 pb-4 border-b border-gray-200">
               <DialogTitle className="flex items-center justify-between">
                 <span>Transaction History</span>
                 <Button
@@ -805,7 +805,7 @@ export default function Budgets() {
               )}
             </DialogHeader>
             
-            <div className="flex-1 overflow-y-auto px-1">
+            <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4">
               {selectedBudgetForHistory && (() => {
                 const budgetTransactions = getBudgetTransactions(selectedBudgetForHistory);
                 const totalSpent = budgetTransactions.reduce((total, transaction) => total + parseFloat(transaction.amount), 0);
@@ -838,45 +838,74 @@ export default function Budgets() {
                       </div>
                     </div>
 
-                    <div>
-                      <h5 className="font-medium text-gray-900 mb-3">Transactions ({budgetTransactions.length})</h5>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between sticky top-0 bg-white z-10 py-2">
+                        <h5 className="font-medium text-gray-900">
+                          Transactions ({budgetTransactions.length})
+                        </h5>
+                        {budgetTransactions.length > 0 && (
+                          <span className="text-xs text-gray-500">
+                            Latest first
+                          </span>
+                        )}
+                      </div>
                       
                       {budgetTransactions.length === 0 ? (
-                        <div className="text-center py-8">
-                          <div className="text-4xl mb-2">📊</div>
-                          <p className="text-gray-500">No transactions yet</p>
+                        <div className="text-center py-12">
+                          <div className="text-4xl mb-3">📊</div>
+                          <p className="text-gray-500 font-medium">No transactions yet</p>
                           <p className="text-sm text-gray-400 mt-1">
                             Transactions in this category will appear here
                           </p>
                         </div>
                       ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-3 pb-4">
                           {budgetTransactions
                             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                            .map((transaction) => (
-                            <div key={transaction.id} className="bg-white border border-gray-200 rounded-lg p-3">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <h6 className="font-medium text-gray-900 text-sm">
+                            .map((transaction, index) => (
+                            <div 
+                              key={transaction.id} 
+                              className="bg-gray-50 border border-gray-200 rounded-lg p-3 hover:bg-gray-100 transition-colors"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between mb-2">
+                                    <h6 className="font-medium text-gray-900 text-sm leading-tight truncate pr-2">
                                       {transaction.description || 'No description'}
                                     </h6>
-                                    <span className="font-semibold text-red-600">
+                                    <span className="font-semibold text-red-600 text-sm whitespace-nowrap">
                                       -{formatCurrency(parseFloat(transaction.amount))}
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-between text-xs text-gray-500">
                                     <span>
-                                      {new Date(transaction.date).toLocaleDateString()}
+                                      {new Date(transaction.date).toLocaleDateString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: new Date(transaction.date).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                                      })}
                                     </span>
                                     {transaction.time && (
-                                      <span>{transaction.time}</span>
+                                      <span className="font-mono">{transaction.time}</span>
                                     )}
                                   </div>
+                                  {index === 0 && budgetTransactions.length > 1 && (
+                                    <div className="mt-1 text-xs text-blue-600 font-medium">
+                                      Most recent
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
                           ))}
+                          
+                          {budgetTransactions.length > 10 && (
+                            <div className="text-center pt-4 border-t border-gray-200">
+                              <p className="text-xs text-gray-500">
+                                Showing all {budgetTransactions.length} transactions
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
