@@ -12,7 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useTransactions } from "@/hooks/use-transactions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -48,6 +50,7 @@ const categories = [
 export default function Budgets() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("list");
   const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
   const [customCategories, setCustomCategories] = useState<string[]>([]);
@@ -82,16 +85,17 @@ export default function Budgets() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
-      handleCloseDialog();
       toast({
-        title: "Budget created",
-        description: "Your budget has been created successfully.",
+        title: "Success",
+        description: "Budget created successfully",
       });
+      form.reset();
+      setIsDialogOpen(false);
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: "Error",
-        description: "Failed to create budget. Please try again.",
+        description: "Failed to create budget",
         variant: "destructive",
       });
     },
@@ -104,16 +108,18 @@ export default function Budgets() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
-      handleCloseDialog();
       toast({
-        title: "Budget updated",
-        description: "Your budget has been updated successfully.",
+        title: "Success",
+        description: "Budget updated successfully",
       });
+      form.reset();
+      setIsDialogOpen(false);
+      setEditingBudget(null);
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: "Error",
-        description: "Failed to update budget. Please try again.",
+        description: "Failed to update budget",
         variant: "destructive",
       });
     },
@@ -126,22 +132,39 @@ export default function Budgets() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
       toast({
-        title: "Budget deleted",
-        description: "Your budget has been deleted successfully.",
+        title: "Success",
+        description: "Budget deleted successfully",
       });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: "Error",
-        description: "Failed to delete budget. Please try again.",
+        description: "Failed to delete budget",
         variant: "destructive",
       });
     },
   });
 
-  const handleCreateNew = () => {
-    setEditingBudget(null);
-    setIsDialogOpen(true);
+  const onSubmit = (data: BudgetFormData) => {
+    const budgetData = {
+      ...data,
+      amount: data.amount,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
+    };
+
+    if (editingBudget) {
+      updateBudgetMutation.mutate({ id: editingBudget.id, data: budgetData });
+    } else {
+      createBudgetMutation.mutate(budgetData);
+    }
+  };
+
+  const handleCategoryChange = (category: string) => {
+    const categoryData = categories.find(c => c.value === category);
+    if (categoryData) {
+      form.setValue("icon", categoryData.icon);
+    }
   };
 
   const handleEditBudget = (budget: any) => {
@@ -152,36 +175,24 @@ export default function Budgets() {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingBudget(null);
-    form.reset();
   };
 
-  const onSubmit = (data: BudgetFormData) => {
-    const submitData: InsertBudget = {
-      category: data.category,
-      amount: data.amount,
-      period: data.period,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      icon: data.icon,
-      description: data.description || null,
-    };
-
-    if (editingBudget) {
-      updateBudgetMutation.mutate({ id: editingBudget.id, data: submitData });
-    } else {
-      createBudgetMutation.mutate(submitData);
-    }
+  const handleCreateNew = () => {
+    setEditingBudget(null);
+    setIsDialogOpen(true);
   };
 
   const handleAddCustomCategory = () => {
     if (customCategoryInput.trim()) {
-      setCustomCategories(prev => [...prev, customCategoryInput.trim().toLowerCase()]);
-      form.setValue("category", customCategoryInput.trim().toLowerCase());
+      setCustomCategories(prev => [...prev, customCategoryInput.trim()]);
+      form.setValue("category", customCategoryInput.trim());
       form.setValue("icon", "📝");
       setCustomCategoryInput("");
       setIsAddingCustomCategory(false);
     }
   };
+
+
 
   const handleShowTransactionHistory = (budget: any) => {
     setSelectedBudgetForHistory(budget);
@@ -201,6 +212,8 @@ export default function Budgets() {
              new Date(transaction.date) <= new Date(budget.endDate);
     });
   };
+
+
 
   // Reset form when dialog opens/closes or when editing
   useEffect(() => {
@@ -273,9 +286,8 @@ export default function Budgets() {
             Add Budget
           </Button>
         </div>
-
-        {/* Budget List */}
-        <div className="space-y-4">
+            {/* Budget List */}
+            <div className="space-y-4">
           {filteredBudgets.length === 0 ? (
             <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
               <div className="text-4xl mb-3">💰</div>
@@ -403,7 +415,7 @@ export default function Budgets() {
               );
             })
           )}
-        </div>
+            </div>
 
         {/* Scrollable Budget Form Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
@@ -421,68 +433,74 @@ export default function Budgets() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Category</FormLabel>
-                        <FormControl>
-                          <Select value={field.value} onValueChange={(value) => {
-                            field.onChange(value);
-                            const selectedCategory = allCategories.find(cat => cat.value === value);
-                            if (selectedCategory) {
-                              form.setValue("icon", selectedCategory.icon);
-                            }
-                          }}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
+                        {isAddingCustomCategory ? (
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Enter custom category"
+                                value={customCategoryInput}
+                                onChange={(e) => setCustomCategoryInput(e.target.value)}
+                                className="flex-1"
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddCustomCategory();
+                                  }
+                                }}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleAddCustomCategory}
+                                className="px-3"
+                              >
+                                Add
+                              </Button>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => setIsAddingCustomCategory(false)}
+                              className="text-sm text-gray-500"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <Select 
+                            onValueChange={(value) => {
+                              if (value === "__add_custom__") {
+                                setIsAddingCustomCategory(true);
+                              } else {
+                                field.onChange(value);
+                                handleCategoryChange(value);
+                              }
+                            }} 
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                            </FormControl>
                             <SelectContent>
                               {allCategories.map((category) => (
                                 <SelectItem key={category.value} value={category.value}>
-                                  <div className="flex items-center space-x-2">
-                                    <span>{category.icon}</span>
-                                    <span>{category.label}</span>
-                                  </div>
+                                  <span className="flex items-center">
+                                    {category.icon} {category.label}
+                                  </span>
                                 </SelectItem>
                               ))}
-                              <SelectItem value="add_custom">
-                                <div className="flex items-center space-x-2">
+                              <SelectItem value="__add_custom__" className="text-primary font-medium">
+                                <div className="flex items-center gap-2">
                                   <Plus className="h-4 w-4" />
-                                  <span>Add custom category</span>
+                                  Add Custom Category
                                 </div>
                               </SelectItem>
                             </SelectContent>
                           </Select>
-                        </FormControl>
-                        <FormMessage />
-                        
-                        {form.watch("category") === "add_custom" && (
-                          <div className="mt-2 space-y-2">
-                            <Input
-                              placeholder="Enter custom category name"
-                              value={customCategoryInput}
-                              onChange={(e) => setCustomCategoryInput(e.target.value)}
-                            />
-                            <div className="flex gap-2">
-                              <Button
-                                type="button"
-                                onClick={handleAddCustomCategory}
-                                size="sm"
-                                className="flex-1"
-                              >
-                                Add Category
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => {
-                                  form.setValue("category", "");
-                                  setCustomCategoryInput("");
-                                }}
-                                size="sm"
-                                className="flex-1"
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
                         )}
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -542,7 +560,10 @@ export default function Budgets() {
                       <FormItem>
                         <FormLabel>Description (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter description" {...field} />
+                          <Input
+                            placeholder="Add a description to help identify this budget"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
