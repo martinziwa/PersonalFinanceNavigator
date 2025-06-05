@@ -57,6 +57,12 @@ export default function Budgets() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("dateAdded");
   
+  // Budget Allocator States
+  const [monthlyIncome, setMonthlyIncome] = useState("");
+  const [allocationType, setAllocationType] = useState("recommended");
+  const [allocations, setAllocations] = useState<Record<string, number>>({});
+  const [showAllocatorResults, setShowAllocatorResults] = useState(false);
+  
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
   const { toast } = useToast();
@@ -188,6 +194,73 @@ export default function Budgets() {
     }
   };
 
+  // Recommended budget allocation percentages (50/30/20 rule + adjustments)
+  const recommendedAllocations = {
+    food: 15,
+    transportation: 10,
+    bills: 25,
+    healthcare: 5,
+    shopping: 10,
+    entertainment: 10,
+    education: 5,
+    savings: 20
+  };
+
+  const handleCreateBudgetsFromAllocator = async () => {
+    if (!monthlyIncome || Object.keys(allocations).length === 0) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter your monthly income and set allocations",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const income = parseFloat(monthlyIncome);
+    const budgetsToCreate = Object.entries(allocations).map(([category, percentage]) => {
+      const amount = (income * percentage / 100).toFixed(2);
+      const categoryData = categories.find(cat => cat.value === category);
+      
+      return {
+        category,
+        amount,
+        period: "monthly" as const,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        icon: categoryData?.icon || "📝",
+        description: `Auto-generated from ${percentage}% allocation`
+      };
+    });
+
+    try {
+      for (const budget of budgetsToCreate) {
+        await apiRequest("/api/budgets", {
+          method: "POST",
+          body: JSON.stringify(budget),
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      
+      await queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      
+      toast({
+        title: "Budgets Created",
+        description: `Successfully created ${budgetsToCreate.length} budgets from your allocation`,
+      });
+      
+      setActiveTab("list");
+      setShowAllocatorResults(false);
+      setMonthlyIncome("");
+      setAllocations({});
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create budgets. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Reset form when dialog opens/closes or when editing
   useEffect(() => {
     if (isDialogOpen) {
@@ -258,10 +331,25 @@ export default function Budgets() {
             <Plus className="h-4 w-4" />
             Add Budget
           </Button>
+          <Button
+            onClick={() => setActiveTab("allocator")}
+            variant="outline"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl"
+          >
+            <Sliders className="h-4 w-4" />
+            Allocator
+          </Button>
         </div>
 
-        {/* Budget List */}
-        <div className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="list">Budget List</TabsTrigger>
+            <TabsTrigger value="allocator">Budget Allocator</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="list" className="mt-4">
+            {/* Budget List */}
+            <div className="space-y-4">
           {filteredBudgets.length === 0 ? (
             <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
               <div className="text-4xl mb-3">💰</div>
@@ -343,7 +431,143 @@ export default function Budgets() {
               );
             })
           )}
-        </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="allocator" className="mt-4">
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl p-6 border border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Budget Allocator</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Enter your monthly income to automatically allocate budgets across categories using recommended percentages.
+                </p>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Monthly Income (MWK)
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="Enter your monthly income"
+                      value={monthlyIncome}
+                      onChange={(e) => setMonthlyIncome(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Allocation Method
+                    </label>
+                    <Select value={allocationType} onValueChange={setAllocationType}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Choose allocation method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="recommended">Recommended (50/30/20 Rule)</SelectItem>
+                        <SelectItem value="custom">Custom Allocation</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {monthlyIncome && (
+                    <Button 
+                      onClick={() => {
+                        if (allocationType === "recommended") {
+                          setAllocations(recommendedAllocations);
+                        } else {
+                          const equalAllocation = Math.floor(100 / categories.length);
+                          const customAllocations: Record<string, number> = {};
+                          categories.forEach(cat => {
+                            customAllocations[cat.value] = equalAllocation;
+                          });
+                          setAllocations(customAllocations);
+                        }
+                        setShowAllocatorResults(true);
+                      }}
+                      className="w-full"
+                    >
+                      Generate Allocation
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              {showAllocatorResults && monthlyIncome && Object.keys(allocations).length > 0 && (
+                <div className="bg-white rounded-xl p-6 border border-gray-100">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Budget Allocation</h4>
+                  
+                  <div className="space-y-4 mb-6">
+                    {Object.entries(allocations).map(([category, percentage]) => {
+                      const categoryData = categories.find(cat => cat.value === category);
+                      const amount = (parseFloat(monthlyIncome) * percentage / 100);
+                      
+                      return (
+                        <div key={category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                              <span className="text-sm">{categoryData?.icon}</span>
+                            </div>
+                            <div>
+                              <h5 className="font-medium text-gray-900 capitalize">
+                                {category.replace('_', ' ')}
+                              </h5>
+                              <p className="text-sm text-gray-500">{percentage}%</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium text-gray-900">
+                              {formatCurrency(amount)}
+                            </div>
+                            {allocationType === "custom" && (
+                              <div className="mt-1">
+                                <Slider
+                                  value={[percentage]}
+                                  onValueChange={(value) => {
+                                    setAllocations(prev => ({
+                                      ...prev,
+                                      [category]: value[0]
+                                    }));
+                                  }}
+                                  max={50}
+                                  step={1}
+                                  className="w-20"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg mb-4">
+                    <span className="font-medium text-blue-900">Total Allocated</span>
+                    <span className="font-semibold text-blue-900">
+                      {Object.values(allocations).reduce((sum, val) => sum + val, 0)}%
+                    </span>
+                  </div>
+                  
+                  <Button 
+                    onClick={handleCreateBudgetsFromAllocator}
+                    className="w-full"
+                    disabled={Object.values(allocations).reduce((sum, val) => sum + val, 0) !== 100}
+                  >
+                    Create Budgets from Allocation
+                  </Button>
+                  
+                  {Object.values(allocations).reduce((sum, val) => sum + val, 0) !== 100 && (
+                    <p className="text-sm text-amber-600 text-center mt-2">
+                      Total allocation must equal 100%
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+        </Tabs>
 
         {/* Scrollable Budget Form Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
