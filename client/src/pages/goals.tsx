@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Plus, Trash2, Edit } from "lucide-react";
+import { Plus, Trash2, Edit, History, X } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import ProgressBar from "@/components/ui/progress-bar";
@@ -50,6 +50,10 @@ const goalTypes = [
 export default function Goals() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<any>(null);
+  
+  // Transaction History States
+  const [selectedGoalForHistory, setSelectedGoalForHistory] = useState<any>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   
   const { data: goals = [], isLoading } = useGoals();
   const { data: transactions = [] } = useTransactions();
@@ -191,6 +195,22 @@ export default function Goals() {
       form.setValue("icon", goalType.icon);
       form.setValue("color", goalType.color);
     }
+  };
+
+  const handleShowTransactionHistory = (goal: any) => {
+    setSelectedGoalForHistory(goal);
+    setIsHistoryModalOpen(true);
+  };
+
+  const handleCloseHistoryModal = () => {
+    setIsHistoryModalOpen(false);
+    setSelectedGoalForHistory(null);
+  };
+
+  const getGoalTransactions = (goal: any) => {
+    return transactions.filter((transaction: Transaction) => 
+      transaction.savingsGoalId === goal.id
+    );
   };
 
   // Pre-populate form when editing
@@ -452,6 +472,15 @@ export default function Goals() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => handleShowTransactionHistory(goal)}
+                        className="p-2 text-purple-600 hover:bg-purple-50"
+                        title="View transaction history"
+                      >
+                        <History className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           setEditingGoal(goal);
                           setIsDialogOpen(true);
@@ -527,6 +556,171 @@ export default function Goals() {
             })}
           </div>
         )}
+
+        {/* Transaction History Modal */}
+        <Dialog open={isHistoryModalOpen} onOpenChange={handleCloseHistoryModal}>
+          <DialogContent className="max-w-sm mx-auto max-h-[85vh] flex flex-col p-0">
+            <DialogHeader className="flex-shrink-0 p-6 pb-4 border-b border-gray-200">
+              <DialogTitle className="flex items-center justify-between">
+                <span>Transaction History</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCloseHistoryModal}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogTitle>
+              {selectedGoalForHistory && (
+                <div className="text-sm text-gray-600">
+                  <div className="flex items-center space-x-2 mt-2">
+                    <span className="text-lg">{selectedGoalForHistory.icon}</span>
+                    <div>
+                      <h4 className="font-medium">{selectedGoalForHistory.name}</h4>
+                      <p className="text-xs text-gray-500">
+                        Target: {formatCurrency(parseFloat(selectedGoalForHistory.targetAmount))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </DialogHeader>
+            
+            <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4">
+              {selectedGoalForHistory && (() => {
+                const goalTransactions = getGoalTransactions(selectedGoalForHistory);
+                const savingsData = calculateGoalProgress(selectedGoalForHistory.id, selectedGoalForHistory.startingSavings);
+                const targetAmount = parseFloat(selectedGoalForHistory.targetAmount);
+                const percentage = (savingsData.total / targetAmount) * 100;
+                
+                return (
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-700">Goal Summary</span>
+                        <span className={`text-sm font-semibold ${percentage >= 100 ? 'text-green-600' : 'text-blue-600'}`}>
+                          {percentage.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        <div className="flex justify-between">
+                          <span>Current Savings:</span>
+                          <span className="font-medium">{formatCurrency(savingsData.total)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Target:</span>
+                          <span className="font-medium">{formatCurrency(targetAmount)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Remaining:</span>
+                          <span className={`font-medium ${targetAmount - savingsData.total <= 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                            {formatCurrency(Math.max(0, targetAmount - savingsData.total))}
+                          </span>
+                        </div>
+                        {savingsData.startingAmount > 0 && (
+                          <div className="flex justify-between border-t border-gray-200 pt-2 mt-2">
+                            <span>Starting Amount:</span>
+                            <span className="font-medium">{formatCurrency(savingsData.startingAmount)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span>From Transactions:</span>
+                          <span className={`font-medium ${savingsData.transactionAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {savingsData.transactionAmount >= 0 ? '+' : ''}{formatCurrency(savingsData.transactionAmount)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between sticky top-0 bg-white z-10 py-2">
+                        <h5 className="font-medium text-gray-900">
+                          Transactions ({goalTransactions.length})
+                        </h5>
+                        {goalTransactions.length > 0 && (
+                          <span className="text-xs text-gray-500">
+                            Latest first
+                          </span>
+                        )}
+                      </div>
+                      
+                      {goalTransactions.length === 0 ? (
+                        <div className="text-center py-12">
+                          <div className="text-4xl mb-3">💰</div>
+                          <p className="text-gray-500 font-medium">No transactions yet</p>
+                          <p className="text-sm text-gray-400 mt-1">
+                            Savings deposits and withdrawals will appear here
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 pb-4">
+                          {goalTransactions
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .map((transaction, index) => (
+                            <div 
+                              key={transaction.id} 
+                              className="bg-gray-50 border border-gray-200 rounded-lg p-3 hover:bg-gray-100 transition-colors"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between mb-2">
+                                    <h6 className="font-medium text-gray-900 text-sm leading-tight truncate pr-2">
+                                      {transaction.description || 'No description'}
+                                    </h6>
+                                    <span className={`font-semibold text-sm whitespace-nowrap ${
+                                      transaction.type === 'savings_deposit' ? 'text-green-600' : 'text-red-600'
+                                    }`}>
+                                      {transaction.type === 'savings_deposit' ? '+' : '-'}{formatCurrency(parseFloat(transaction.amount))}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs text-gray-500">
+                                    <div className="flex items-center space-x-2">
+                                      <span>
+                                        {new Date(transaction.date).toLocaleDateString('en-US', {
+                                          month: 'short',
+                                          day: 'numeric',
+                                          year: new Date(transaction.date).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                                        })}
+                                      </span>
+                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        transaction.type === 'savings_deposit' 
+                                          ? 'bg-green-100 text-green-700' 
+                                          : 'bg-red-100 text-red-700'
+                                      }`}>
+                                        {transaction.type === 'savings_deposit' ? 'Deposit' : 'Withdrawal'}
+                                      </span>
+                                    </div>
+                                    {transaction.time && (
+                                      <span className="font-mono">{transaction.time}</span>
+                                    )}
+                                  </div>
+                                  {index === 0 && goalTransactions.length > 1 && (
+                                    <div className="mt-1 text-xs text-blue-600 font-medium">
+                                      Most recent
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          
+                          {goalTransactions.length > 10 && (
+                            <div className="text-center pt-4 border-t border-gray-200">
+                              <p className="text-xs text-gray-500">
+                                Showing all {goalTransactions.length} transactions
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
 
       <BottomNavigation />
