@@ -51,9 +51,7 @@ const loanSchema = z.object({
     (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= 0),
     "Current repayment must be a positive number if provided"
   ),
-  interestPeriod: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"], {
-    required_error: "Please select interest period"
-  }),
+  interestPeriod: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"]).optional(),
   isAmortized: z.boolean().default(false),
   repaymentFrequency: z.enum(["daily", "weekly", "biweekly", "triweekly", "monthly", "bimonthly", "trimonthly", "quarterly", "annually"]).optional(),
   loanTermYears: z.string().optional(),
@@ -218,9 +216,9 @@ export default function Loans() {
       interestRate: "",
       interestType: "simple",
       currentRepayment: "",
-      interestPeriod: "monthly",
+      interestPeriod: undefined,
       isAmortized: false,
-      repaymentFrequency: "monthly",
+      repaymentFrequency: undefined,
       loanTermYears: "",
       loanTermMonths: "",
       dueDate: "",
@@ -711,9 +709,9 @@ export default function Loans() {
                           form.setValue("interestType", value as "simple" | "compound");
                           // Clear fields that don't apply to the selected interest type
                           if (value === "simple") {
-                            form.setValue("interestPeriod", "");
+                            form.setValue("interestPeriod", undefined);
                             form.setValue("isAmortized", false);
-                            form.setValue("repaymentFrequency", "");
+                            form.setValue("repaymentFrequency", undefined);
                             form.setValue("loanTermYears", "");
                             form.setValue("loanTermMonths", "");
                           } else if (value === "compound") {
