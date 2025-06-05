@@ -254,19 +254,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       console.log("Loan update request:", { userId, id, body: req.body });
       
-      // Convert date strings to Date objects before validation
-      const bodyWithDates = {
+      // Clean up null values and convert dates
+      const cleanedData = {
         ...req.body,
         startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
         nextPaymentDate: req.body.nextPaymentDate ? new Date(req.body.nextPaymentDate) : undefined,
+        currentRepayment: req.body.currentRepayment === null ? null : req.body.currentRepayment,
+        interestPeriod: req.body.interestPeriod === null ? null : req.body.interestPeriod,
+        repaymentFrequency: req.body.repaymentFrequency === null ? null : req.body.repaymentFrequency,
+        loanTermMonths: req.body.loanTermMonths === null ? null : req.body.loanTermMonths,
+        calculatedPayment: req.body.calculatedPayment === null ? null : req.body.calculatedPayment,
       };
       
-      console.log("Body with converted dates:", bodyWithDates);
-      const updated = await storage.updateLoan(userId, id, bodyWithDates);
+      console.log("Cleaned data for update:", cleanedData);
+      const updated = await storage.updateLoan(userId, id, cleanedData);
       console.log("Updated loan:", updated);
       res.json(updated);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Loan update error:", error);
+      console.error("Error stack:", error.stack);
       res.status(400).json({ message: "Failed to update loan", error: error.message });
     }
   });

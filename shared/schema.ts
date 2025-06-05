@@ -69,7 +69,7 @@ export const loans = pgTable("loans", {
   name: text("name").notNull(),
   principalAmount: decimal("principal_amount", { precision: 10, scale: 2 }),
   balance: decimal("balance", { precision: 10, scale: 2 }).notNull(),
-  currentRepayment: decimal("current_repayment", { precision: 10, scale: 2 }), // for simple interest loans
+  currentRepayment: decimal("current_repayment", { precision: 10, scale: 2 }).default("0"), // for simple interest loans
   interestRate: decimal("interest_rate", { precision: 5, scale: 2 }).notNull(),
   interestType: text("interest_type"), // "simple" or "compound"
   interestPeriod: text("interest_period"), // frequency of interest calculation
