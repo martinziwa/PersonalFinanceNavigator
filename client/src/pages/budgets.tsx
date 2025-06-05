@@ -243,6 +243,34 @@ export default function Budgets() {
     return budget.category === categoryFilter;
   });
 
+  // Group budgets by start month
+  const budgetsByMonth = useMemo(() => {
+    const grouped = filteredBudgets.reduce((acc, budget) => {
+      const startDate = new Date(budget.startDate);
+      const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = startDate.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long' 
+      });
+      
+      if (!acc[monthKey]) {
+        acc[monthKey] = {
+          label: monthLabel,
+          budgets: [],
+          sortDate: startDate
+        };
+      }
+      
+      acc[monthKey].budgets.push(budget);
+      return acc;
+    }, {} as Record<string, { label: string; budgets: any[]; sortDate: Date }>);
+
+    // Sort months chronologically (most recent first)
+    return Object.entries(grouped)
+      .sort(([, a], [, b]) => b.sortDate.getTime() - a.sortDate.getTime())
+      .map(([key, value]) => ({ key, ...value }));
+  }, [filteredBudgets]);
+
   if (isLoading) {
     return (
       <div className="max-w-sm mx-auto bg-white min-h-screen relative flex flex-col">
@@ -275,7 +303,7 @@ export default function Budgets() {
         </div>
 
         {/* Budget List */}
-        <div className="space-y-4">
+        <div className="space-y-6">
           {filteredBudgets.length === 0 ? (
             <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
               <div className="text-4xl mb-3">💰</div>
@@ -283,184 +311,202 @@ export default function Budgets() {
               <p className="text-sm text-gray-400 mt-1">Create your first budget to start tracking your spending</p>
             </div>
           ) : (
-            filteredBudgets.map((budget) => {
-              const categoryTransactions = transactions.filter((transaction: Transaction) => {
-                return transaction.category === budget.category && 
-                       transaction.type === "expense" &&
-                       new Date(transaction.date) >= new Date(budget.startDate) &&
-                       new Date(transaction.date) <= new Date(budget.endDate);
-              });
-
-              const totalSpent = categoryTransactions.reduce((total: number, transaction: Transaction) => {
-                return total + parseFloat(transaction.amount);
-              }, 0);
-
-              const budgetAmount = parseFloat(budget.amount);
-              const percentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
-              const isOverBudget = percentage > 100;
-
-              return (
-                <div key={budget.id} className="bg-white rounded-xl p-4 border border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-                        <span className="text-lg">{budget.icon}</span>
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900 capitalize">
-                          {budget.category.replace('_', ' ')}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          {formatCurrency(totalSpent)} of {formatCurrency(budgetAmount)}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleShowTransactionHistory(budget)}
-                        className="p-2 text-purple-600 hover:bg-purple-50"
-                        title="View transaction history"
-                      >
-                        <History className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditBudget(budget)}
-                        className="p-2 text-blue-600 hover:bg-blue-50"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteBudgetMutation.mutate(budget.id)}
-                        disabled={deleteBudgetMutation.isPending}
-                        className="p-2 text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+            budgetsByMonth.map((monthGroup) => (
+              <div key={monthGroup.key} className="space-y-4">
+                {/* Month Header */}
+                <div className="flex items-center space-x-3">
+                  <div className="h-px bg-gray-200 flex-1"></div>
+                  <div className="bg-gray-50 px-4 py-2 rounded-full border border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-700">
+                      {monthGroup.label}
+                    </h3>
                   </div>
-                  
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Spending Progress</span>
-                        <span className={`font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
-                          {percentage.toFixed(1)}%
-                        </span>
-                      </div>
-                      <ProgressBar
-                        percentage={percentage}
-                        color={
-                          isOverBudget ? "bg-red-500" :
-                          percentage > 80 ? "bg-yellow-500" :
-                          "bg-green-500"
-                        }
-                      />
-                    </div>
-                    
-                    {(() => {
-                      const now = new Date();
-                      const startDate = new Date(budget.startDate);
-                      const endDate = new Date(budget.endDate);
-                      
-                      const totalDuration = endDate.getTime() - startDate.getTime();
-                      const elapsedTime = Math.max(0, now.getTime() - startDate.getTime());
-                      const timePercentage = Math.min(100, (elapsedTime / totalDuration) * 100);
-                      
-                      const daysTotal = Math.ceil(totalDuration / (1000 * 60 * 60 * 24));
-                      const daysElapsed = Math.floor(elapsedTime / (1000 * 60 * 60 * 24));
-                      const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-                      
-                      return (
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Time Progress</span>
-                            <span className="font-medium text-gray-900">
-                              {timePercentage.toFixed(1)}%
-                            </span>
-                          </div>
-                          <ProgressBar
-                            percentage={timePercentage}
-                            color="bg-blue-500"
-                          />
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>{daysElapsed} of {daysTotal} days</span>
-                            <span>
-                              {daysRemaining > 0 ? `${daysRemaining} days left` : 'Budget period ended'}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    
-                    {/* Budget Tracking Comment */}
-                    {(() => {
-                      const now = new Date();
-                      const startDate = new Date(budget.startDate);
-                      const endDate = new Date(budget.endDate);
-                      
-                      const totalDuration = endDate.getTime() - startDate.getTime();
-                      const elapsedTime = Math.max(0, now.getTime() - startDate.getTime());
-                      const timePercentage = Math.min(100, (elapsedTime / totalDuration) * 100);
-                      
-                      const spendingPercentage = percentage;
-                      const difference = spendingPercentage - timePercentage;
-                      
-                      // Don't show tracking for ended budgets
-                      if (now > endDate) {
-                        return null;
-                      }
-                      
-                      let trackingMessage = "";
-                      let trackingColor = "";
-                      let trackingIcon = "";
-                      
-                      if (Math.abs(difference) <= 5) {
-                        // On track (within 5% difference)
-                        trackingMessage = "You're on track with your spending";
-                        trackingColor = "text-green-600";
-                        trackingIcon = "✓";
-                      } else if (difference > 5) {
-                        // Overspending
-                        if (difference > 20) {
-                          trackingMessage = "You're spending much faster than planned";
-                          trackingColor = "text-red-600";
-                          trackingIcon = "⚠️";
-                        } else {
-                          trackingMessage = "You're spending faster than planned";
-                          trackingColor = "text-orange-500";
-                          trackingIcon = "⚡";
-                        }
-                      } else {
-                        // Underspending
-                        if (Math.abs(difference) > 20) {
-                          trackingMessage = "You have plenty of budget remaining";
-                          trackingColor = "text-blue-600";
-                          trackingIcon = "💰";
-                        } else {
-                          trackingMessage = "You're doing well with your budget";
-                          trackingColor = "text-green-600";
-                          trackingIcon = "👍";
-                        }
-                      }
-                      
-                      return (
-                        <div className={`text-xs ${trackingColor} font-medium mt-2 flex items-center space-x-1`}>
-                          <span>{trackingIcon}</span>
-                          <span>{trackingMessage}</span>
-                        </div>
-                      );
-                    })()}
-                  </div>
+                  <div className="h-px bg-gray-200 flex-1"></div>
                 </div>
-              );
-            })
+                
+                {/* Budgets for this month */}
+                <div className="space-y-3">
+                  {monthGroup.budgets.map((budget) => {
+                    const categoryTransactions = transactions.filter((transaction: Transaction) => {
+                      return transaction.category === budget.category && 
+                             transaction.type === "expense" &&
+                             new Date(transaction.date) >= new Date(budget.startDate) &&
+                             new Date(transaction.date) <= new Date(budget.endDate);
+                    });
+
+                    const totalSpent = categoryTransactions.reduce((total: number, transaction: Transaction) => {
+                      return total + parseFloat(transaction.amount);
+                    }, 0);
+
+                    const budgetAmount = parseFloat(budget.amount);
+                    const percentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
+                    const isOverBudget = percentage > 100;
+
+                    return (
+                      <div key={budget.id} className="bg-white rounded-xl p-4 border border-gray-100">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                              <span className="text-lg">{budget.icon}</span>
+                            </div>
+                            <div>
+                              <h3 className="font-medium text-gray-900 capitalize">
+                                {budget.category.replace('_', ' ')}
+                              </h3>
+                              <p className="text-sm text-gray-500">
+                                {formatCurrency(totalSpent)} of {formatCurrency(budgetAmount)}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleShowTransactionHistory(budget)}
+                              className="p-2 text-purple-600 hover:bg-purple-50"
+                              title="View transaction history"
+                            >
+                              <History className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditBudget(budget)}
+                              className="p-2 text-blue-600 hover:bg-blue-50"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteBudgetMutation.mutate(budget.id)}
+                              disabled={deleteBudgetMutation.isPending}
+                              className="p-2 text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">Spending Progress</span>
+                              <span className={`font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
+                                {percentage.toFixed(1)}%
+                              </span>
+                            </div>
+                            <ProgressBar
+                              percentage={percentage}
+                              color={
+                                isOverBudget ? "bg-red-500" :
+                                percentage > 80 ? "bg-yellow-500" :
+                                "bg-green-500"
+                              }
+                            />
+                          </div>
+                          
+                          {(() => {
+                            const now = new Date();
+                            const startDate = new Date(budget.startDate);
+                            const endDate = new Date(budget.endDate);
+                            
+                            const totalDuration = endDate.getTime() - startDate.getTime();
+                            const elapsedTime = Math.max(0, now.getTime() - startDate.getTime());
+                            const timePercentage = Math.min(100, (elapsedTime / totalDuration) * 100);
+                            
+                            const daysTotal = Math.ceil(totalDuration / (1000 * 60 * 60 * 24));
+                            const daysElapsed = Math.floor(elapsedTime / (1000 * 60 * 60 * 24));
+                            const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+                            
+                            return (
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Time Progress</span>
+                                  <span className="font-medium text-gray-900">
+                                    {timePercentage.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <ProgressBar
+                                  percentage={timePercentage}
+                                  color="bg-blue-500"
+                                />
+                                <div className="flex justify-between text-xs text-gray-500">
+                                  <span>{daysElapsed} of {daysTotal} days</span>
+                                  <span>
+                                    {daysRemaining > 0 ? `${daysRemaining} days left` : 'Budget period ended'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                          
+                          {/* Budget Tracking Comment */}
+                          {(() => {
+                            const now = new Date();
+                            const startDate = new Date(budget.startDate);
+                            const endDate = new Date(budget.endDate);
+                            
+                            const totalDuration = endDate.getTime() - startDate.getTime();
+                            const elapsedTime = Math.max(0, now.getTime() - startDate.getTime());
+                            const timePercentage = Math.min(100, (elapsedTime / totalDuration) * 100);
+                            
+                            const spendingPercentage = percentage;
+                            const difference = spendingPercentage - timePercentage;
+                            
+                            // Don't show tracking for ended budgets
+                            if (now > endDate) {
+                              return null;
+                            }
+                            
+                            let trackingMessage = "";
+                            let trackingColor = "";
+                            let trackingIcon = "";
+                            
+                            if (Math.abs(difference) <= 5) {
+                              // On track (within 5% difference)
+                              trackingMessage = "You're on track with your spending";
+                              trackingColor = "text-green-600";
+                              trackingIcon = "✓";
+                            } else if (difference > 5) {
+                              // Overspending
+                              if (difference > 20) {
+                                trackingMessage = "You're spending much faster than planned";
+                                trackingColor = "text-red-600";
+                                trackingIcon = "⚠️";
+                              } else {
+                                trackingMessage = "You're spending faster than planned";
+                                trackingColor = "text-orange-500";
+                                trackingIcon = "⚡";
+                              }
+                            } else {
+                              // Underspending
+                              if (Math.abs(difference) > 20) {
+                                trackingMessage = "You have plenty of budget remaining";
+                                trackingColor = "text-blue-600";
+                                trackingIcon = "💰";
+                              } else {
+                                trackingMessage = "You're doing well with your budget";
+                                trackingColor = "text-green-600";
+                                trackingIcon = "👍";
+                              }
+                            }
+                            
+                            return (
+                              <div className={`text-xs ${trackingColor} font-medium mt-2 flex items-center space-x-1`}>
+                                <span>{trackingIcon}</span>
+                                <span>{trackingMessage}</span>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
           )}
         </div>
 
