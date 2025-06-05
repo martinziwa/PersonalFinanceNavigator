@@ -240,13 +240,13 @@ export default function Transactions() {
             <h3 className="font-semibold text-gray-900 mb-3">Transaction Summary</h3>
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center">
-                <div className="text-sm text-gray-500">Income</div>
+                <div className="text-sm text-gray-500">Total Revenue</div>
                 <div className="font-semibold text-green-600">
                   {formatCurrency(totalIncome)}
                 </div>
               </div>
               <div className="text-center">
-                <div className="text-sm text-gray-500">Expenses</div>
+                <div className="text-sm text-gray-500">Total Expenditure</div>
                 <div className="font-semibold text-red-600">
                   {formatCurrency(totalExpenses)}
                 </div>
