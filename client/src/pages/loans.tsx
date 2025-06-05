@@ -707,7 +707,19 @@ export default function Loans() {
                       <Label htmlFor="interestType">Interest Type</Label>
                       <Select
                         value={form.watch("interestType")}
-                        onValueChange={(value) => form.setValue("interestType", value as "simple" | "compound")}
+                        onValueChange={(value) => {
+                          form.setValue("interestType", value as "simple" | "compound");
+                          // Clear fields that don't apply to the selected interest type
+                          if (value === "simple") {
+                            form.setValue("interestPeriod", "");
+                            form.setValue("isAmortized", false);
+                            form.setValue("repaymentFrequency", "");
+                            form.setValue("loanTermYears", "");
+                            form.setValue("loanTermMonths", "");
+                          } else if (value === "compound") {
+                            form.setValue("currentRepayment", "");
+                          }
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select interest type" />
