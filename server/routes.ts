@@ -232,8 +232,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/loans", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const loan = insertLoanSchema.parse(req.body);
-      const created = await storage.createLoan(userId, loan);
+      
+      // Convert date strings to Date objects before storage
+      const bodyWithDates = {
+        ...req.body,
+        startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
+        nextPaymentDate: req.body.nextPaymentDate ? new Date(req.body.nextPaymentDate) : undefined,
+      };
+      
+      const created = await storage.createLoan(userId, bodyWithDates);
       res.status(201).json(created);
     } catch (error) {
       console.error("Loan validation error:", error);
@@ -246,10 +253,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
       console.log("Loan update request:", { userId, id, body: req.body });
-      // Validate the update data using the same schema
-      const validatedData = insertLoanSchema.parse(req.body);
-      console.log("Validated loan data:", validatedData);
-      const updated = await storage.updateLoan(userId, id, validatedData);
+      
+      // Convert date strings to Date objects before validation
+      const bodyWithDates = {
+        ...req.body,
+        startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
+        nextPaymentDate: req.body.nextPaymentDate ? new Date(req.body.nextPaymentDate) : undefined,
+      };
+      
+      console.log("Body with converted dates:", bodyWithDates);
+      const updated = await storage.updateLoan(userId, id, bodyWithDates);
       console.log("Updated loan:", updated);
       res.json(updated);
     } catch (error) {
