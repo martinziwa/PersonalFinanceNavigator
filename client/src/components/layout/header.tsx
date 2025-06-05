@@ -13,8 +13,18 @@ interface HeaderProps {
   subtitle?: string;
 }
 
-export default function Header({ title = "Personal Finance Tracker", subtitle = "Good morning" }: HeaderProps) {
+export default function Header({ title = "Personal Finance Tracker", subtitle }: HeaderProps) {
   const { user } = useAuth();
+  
+  // Generate time-based greeting if no subtitle provided
+  const getTimeBasedGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+  
+  const displaySubtitle = subtitle || getTimeBasedGreeting();
 
   const handleLogout = () => {
     window.location.href = '/api/logout';
@@ -28,7 +38,7 @@ export default function Header({ title = "Personal Finance Tracker", subtitle = 
         </div>
         <div>
           <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
-          <p className="text-xs text-gray-500">{subtitle}</p>
+          <p className="text-xs text-gray-500">{displaySubtitle}</p>
         </div>
       </div>
       
