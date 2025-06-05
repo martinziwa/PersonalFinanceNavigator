@@ -398,6 +398,65 @@ export default function Budgets() {
                         </div>
                       );
                     })()}
+                    
+                    {/* Budget Tracking Comment */}
+                    {(() => {
+                      const now = new Date();
+                      const startDate = new Date(budget.startDate);
+                      const endDate = new Date(budget.endDate);
+                      
+                      const totalDuration = endDate.getTime() - startDate.getTime();
+                      const elapsedTime = Math.max(0, now.getTime() - startDate.getTime());
+                      const timePercentage = Math.min(100, (elapsedTime / totalDuration) * 100);
+                      
+                      const spendingPercentage = percentage;
+                      const difference = spendingPercentage - timePercentage;
+                      
+                      // Don't show tracking for ended budgets
+                      if (now > endDate) {
+                        return null;
+                      }
+                      
+                      let trackingMessage = "";
+                      let trackingColor = "";
+                      let trackingIcon = "";
+                      
+                      if (Math.abs(difference) <= 5) {
+                        // On track (within 5% difference)
+                        trackingMessage = "You're on track with your spending";
+                        trackingColor = "text-green-600";
+                        trackingIcon = "✓";
+                      } else if (difference > 5) {
+                        // Overspending
+                        if (difference > 20) {
+                          trackingMessage = "You're spending much faster than planned";
+                          trackingColor = "text-red-600";
+                          trackingIcon = "⚠️";
+                        } else {
+                          trackingMessage = "You're spending faster than planned";
+                          trackingColor = "text-orange-500";
+                          trackingIcon = "⚡";
+                        }
+                      } else {
+                        // Underspending
+                        if (Math.abs(difference) > 20) {
+                          trackingMessage = "You have plenty of budget remaining";
+                          trackingColor = "text-blue-600";
+                          trackingIcon = "💰";
+                        } else {
+                          trackingMessage = "You're doing well with your budget";
+                          trackingColor = "text-green-600";
+                          trackingIcon = "👍";
+                        }
+                      }
+                      
+                      return (
+                        <div className={`text-xs ${trackingColor} font-medium mt-2 flex items-center space-x-1`}>
+                          <span>{trackingIcon}</span>
+                          <span>{trackingMessage}</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );
