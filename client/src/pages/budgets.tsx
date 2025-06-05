@@ -439,21 +439,58 @@ export default function Budgets() {
                     </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Progress</span>
-                      <span className={`font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
-                        {percentage.toFixed(1)}%
-                      </span>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Spending Progress</span>
+                        <span className={`font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
+                          {percentage.toFixed(1)}%
+                        </span>
+                      </div>
+                      <ProgressBar
+                        percentage={percentage}
+                        color={
+                          isOverBudget ? "bg-red-500" :
+                          percentage > 80 ? "bg-yellow-500" :
+                          "bg-green-500"
+                        }
+                      />
                     </div>
-                    <ProgressBar
-                      percentage={percentage}
-                      color={
-                        isOverBudget ? "bg-red-500" :
-                        percentage > 80 ? "bg-yellow-500" :
-                        "bg-green-500"
-                      }
-                    />
+                    
+                    {(() => {
+                      const now = new Date();
+                      const startDate = new Date(budget.startDate);
+                      const endDate = new Date(budget.endDate);
+                      
+                      const totalDuration = endDate.getTime() - startDate.getTime();
+                      const elapsedTime = Math.max(0, now.getTime() - startDate.getTime());
+                      const timePercentage = Math.min(100, (elapsedTime / totalDuration) * 100);
+                      
+                      const daysTotal = Math.ceil(totalDuration / (1000 * 60 * 60 * 24));
+                      const daysElapsed = Math.floor(elapsedTime / (1000 * 60 * 60 * 24));
+                      const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+                      
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Time Progress</span>
+                            <span className="font-medium text-gray-900">
+                              {timePercentage.toFixed(1)}%
+                            </span>
+                          </div>
+                          <ProgressBar
+                            percentage={timePercentage}
+                            color="bg-blue-500"
+                          />
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>{daysElapsed} of {daysTotal} days</span>
+                            <span>
+                              {daysRemaining > 0 ? `${daysRemaining} days left` : 'Budget period ended'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );
