@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Plus, Trash2, Edit, PieChart, Sliders } from "lucide-react";
+import { Plus, Trash2, Edit, PieChart, Sliders, History, X } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import ProgressBar from "@/components/ui/progress-bar";
@@ -62,6 +62,10 @@ export default function Budgets() {
   const [allocationType, setAllocationType] = useState("recommended");
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [showAllocatorResults, setShowAllocatorResults] = useState(false);
+  
+  // Transaction History States
+  const [selectedBudgetForHistory, setSelectedBudgetForHistory] = useState<any>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
@@ -204,6 +208,25 @@ export default function Budgets() {
     entertainment: 10,
     education: 5,
     savings: 20
+  };
+
+  const handleShowTransactionHistory = (budget: any) => {
+    setSelectedBudgetForHistory(budget);
+    setIsHistoryModalOpen(true);
+  };
+
+  const handleCloseHistoryModal = () => {
+    setIsHistoryModalOpen(false);
+    setSelectedBudgetForHistory(null);
+  };
+
+  const getBudgetTransactions = (budget: any) => {
+    return transactions.filter((transaction: Transaction) => {
+      return transaction.category === budget.category && 
+             transaction.type === "expense" &&
+             new Date(transaction.date) >= new Date(budget.startDate) &&
+             new Date(transaction.date) <= new Date(budget.endDate);
+    });
   };
 
   const handleCreateBudgetsFromAllocator = async () => {
@@ -387,6 +410,15 @@ export default function Budgets() {
                     </div>
                     
                     <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleShowTransactionHistory(budget)}
+                        className="p-2 text-purple-600 hover:bg-purple-50"
+                        title="View transaction history"
+                      >
+                        <History className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -737,6 +769,120 @@ export default function Budgets() {
                   </div>
                 </form>
               </Form>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Transaction History Modal */}
+        <Dialog open={isHistoryModalOpen} onOpenChange={handleCloseHistoryModal}>
+          <DialogContent className="max-w-sm mx-auto max-h-[90vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle className="flex items-center justify-between">
+                <span>Transaction History</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCloseHistoryModal}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogTitle>
+              {selectedBudgetForHistory && (
+                <div className="text-sm text-gray-600">
+                  <div className="flex items-center space-x-2 mt-2">
+                    <span className="text-lg">{selectedBudgetForHistory.icon}</span>
+                    <div>
+                      <h4 className="font-medium capitalize">
+                        {selectedBudgetForHistory.category.replace('_', ' ')}
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        {new Date(selectedBudgetForHistory.startDate).toLocaleDateString()} - {new Date(selectedBudgetForHistory.endDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </DialogHeader>
+            
+            <div className="flex-1 overflow-y-auto px-1">
+              {selectedBudgetForHistory && (() => {
+                const budgetTransactions = getBudgetTransactions(selectedBudgetForHistory);
+                const totalSpent = budgetTransactions.reduce((total, transaction) => total + parseFloat(transaction.amount), 0);
+                const budgetAmount = parseFloat(selectedBudgetForHistory.amount);
+                
+                return (
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-700">Budget Summary</span>
+                        <span className={`text-sm font-semibold ${totalSpent > budgetAmount ? 'text-red-600' : 'text-green-600'}`}>
+                          {((totalSpent / budgetAmount) * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        <div className="flex justify-between">
+                          <span>Spent:</span>
+                          <span className="font-medium">{formatCurrency(totalSpent)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Budget:</span>
+                          <span className="font-medium">{formatCurrency(budgetAmount)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Remaining:</span>
+                          <span className={`font-medium ${budgetAmount - totalSpent < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {formatCurrency(budgetAmount - totalSpent)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h5 className="font-medium text-gray-900 mb-3">Transactions ({budgetTransactions.length})</h5>
+                      
+                      {budgetTransactions.length === 0 ? (
+                        <div className="text-center py-8">
+                          <div className="text-4xl mb-2">📊</div>
+                          <p className="text-gray-500">No transactions yet</p>
+                          <p className="text-sm text-gray-400 mt-1">
+                            Transactions in this category will appear here
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {budgetTransactions
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .map((transaction) => (
+                            <div key={transaction.id} className="bg-white border border-gray-200 rounded-lg p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <h6 className="font-medium text-gray-900 text-sm">
+                                      {transaction.description || 'No description'}
+                                    </h6>
+                                    <span className="font-semibold text-red-600">
+                                      -{formatCurrency(parseFloat(transaction.amount))}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs text-gray-500">
+                                    <span>
+                                      {new Date(transaction.date).toLocaleDateString()}
+                                    </span>
+                                    {transaction.time && (
+                                      <span>{transaction.time}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </DialogContent>
         </Dialog>
