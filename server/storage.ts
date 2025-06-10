@@ -2,7 +2,6 @@ import {
   transactions,
   budgets,
   savingsGoals,
-  loans,
   users,
   type Transaction,
   type InsertTransaction,
@@ -10,8 +9,6 @@ import {
   type InsertBudget,
   type SavingsGoal,
   type InsertSavingsGoal,
-  type Loan,
-  type InsertLoan,
   type User,
   type UpsertUser,
 } from "@shared/schema";
@@ -59,12 +56,7 @@ export interface IStorage {
   updateSavingsGoal(userId: string, id: number, goal: Partial<SavingsGoal>): Promise<SavingsGoal>;
   deleteSavingsGoal(userId: string, id: number): Promise<void>;
 
-  // Loans
-  getLoans(userId: string): Promise<Loan[]>;
-  getLoan(userId: string, id: number): Promise<Loan | undefined>;
-  createLoan(userId: string, loan: InsertLoan): Promise<Loan>;
-  updateLoan(userId: string, id: number, loan: Partial<Loan>): Promise<Loan>;
-  deleteLoan(userId: string, id: number): Promise<void>;
+
 
   // Financial Summary
   getFinancialSummary(userId: string): Promise<{

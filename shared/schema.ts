@@ -8,11 +8,11 @@ export const transactions = pgTable("transactions", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description").notNull(),
   category: text("category").notNull(),
-  type: text("type").notNull(), // 'income', 'expense', 'savings_deposit', 'savings_withdrawal', 'loan_received', 'loan_payment'
+  type: text("type").notNull(), // 'income', 'expense', 'savings_deposit', 'savings_withdrawal'
   date: timestamp("date").defaultNow().notNull(),
   time: text("time"), // Optional time field for precise transaction timing
   savingsGoalId: integer("savings_goal_id").references(() => savingsGoals.id),
-  loanId: integer("loan_id").references(() => loans.id),
+
 });
 
 export const budgets = pgTable("budgets", {
@@ -63,32 +63,13 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const loans = pgTable("loans", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id),
-  name: text("name").notNull(),
-  principalAmount: decimal("principal_amount", { precision: 10, scale: 2 }),
-  balance: decimal("balance", { precision: 10, scale: 2 }).notNull(),
-  currentRepayment: decimal("current_repayment", { precision: 10, scale: 2 }).default("0"), // for simple interest loans
-  interestRate: decimal("interest_rate", { precision: 5, scale: 2 }).notNull(),
-  interestType: text("interest_type"), // "simple" or "compound"
-  interestPeriod: text("interest_period"), // frequency of interest calculation
-  isAmortized: boolean("is_amortized").default(false).notNull(),
-  repaymentFrequency: text("repayment_frequency"), // frequency of payments
-  loanTermMonths: integer("loan_term_months"), // total loan term in months
-  calculatedPayment: decimal("calculated_payment", { precision: 10, scale: 2 }), // calculated monthly payment for amortized loans
-  nextPaymentDate: timestamp("next_payment_date"),
-  startDate: timestamp("start_date").defaultNow().notNull(), // When the loan began
-  icon: text("icon").notNull(),
-  color: text("color").notNull(),
-});
+
 
 export const insertTransactionSchema = createInsertSchema(transactions).omit({
   id: true,
 }).extend({
   date: z.string().transform((val) => new Date(val)),
   savingsGoalId: z.number().optional(),
-  loanId: z.number().optional(),
 });
 
 export const insertBudgetSchema = createInsertSchema(budgets).omit({
@@ -108,15 +89,6 @@ export const insertSavingsGoalSchema = createInsertSchema(savingsGoals).omit({
   startingSavings: z.string().optional().transform((val) => val ? val : "0"),
 });
 
-export const insertLoanSchema = createInsertSchema(loans).omit({
-  id: true,
-}).extend({
-  nextPaymentDate: z.string(),
-  startDate: z.string(),
-  loanTermMonths: z.number().optional(),
-  calculatedPayment: z.string().optional(),
-});
-
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 
@@ -125,9 +97,6 @@ export type Budget = typeof budgets.$inferSelect;
 
 export type InsertSavingsGoal = z.infer<typeof insertSavingsGoalSchema>;
 export type SavingsGoal = typeof savingsGoals.$inferSelect;
-
-export type InsertLoan = z.infer<typeof insertLoanSchema>;
-export type Loan = typeof loans.$inferSelect;
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
