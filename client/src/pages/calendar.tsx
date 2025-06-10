@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useGoals } from "@/hooks/use-goals";
-import { useLoans } from "@/hooks/use-loans";
+
 import { useBudgets } from "@/hooks/use-budgets";
 import { formatCurrency } from "@/lib/currency";
-import type { Transaction, SavingsGoal, Loan, Budget } from "@shared/schema";
+import type { Transaction, SavingsGoal, Budget } from "@shared/schema";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",

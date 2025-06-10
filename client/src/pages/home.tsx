@@ -109,27 +109,7 @@ export default function Home() {
       }
     });
 
-    // Check for upcoming loan payments
-    loans.forEach((loan: any) => {
-      if (loan.nextPaymentDate) {
-        const paymentDate = new Date(loan.nextPaymentDate);
-        const today = new Date();
-        const daysUntilPayment = Math.ceil((paymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-        if (daysUntilPayment <= 7 && daysUntilPayment >= 0) {
-          alerts.push({
-            id: `loan-payment-${loan.id}`,
-            type: 'loan_payment',
-            title: 'Upcoming Loan Payment',
-            message: `${loan.name} payment of ${formatCurrency(parseFloat(loan.minPayment || "0"))} is due ${daysUntilPayment === 0 ? 'today' : daysUntilPayment === 1 ? 'tomorrow' : `in ${daysUntilPayment} days`}.`,
-            severity: daysUntilPayment <= 2 ? 'high' : 'medium',
-            icon: <Clock className="h-4 w-4" />,
-            actionText: 'View Loans',
-            actionLink: '/loans'
-          });
-        }
-      }
-    });
 
     // Check for goal deadlines
     goals.forEach((goal: any) => {
@@ -513,61 +493,7 @@ export default function Home() {
           )}
         </section>
 
-        {/* Loans Overview */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Active Loans</h2>
-            <Link href="/loans">
-              <button className="text-primary text-sm font-medium">Manage</button>
-            </Link>
-          </div>
 
-          {loans.length === 0 ? (
-            <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
-              <p className="text-gray-500">No active loans</p>
-              <p className="text-sm text-gray-400 mt-1">Great! You're debt-free</p>
-            </div>
-          ) : (
-            loans.slice(0, 2).map((loan) => {
-              const daysUntilPayment = Math.ceil(
-                (new Date(loan.nextPaymentDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-              );
-              
-              return (
-                <div key={loan.id} className="bg-white rounded-xl p-4 border border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center`} style={{ backgroundColor: loan.color + '20' }}>
-                        <span className="text-lg">{loan.icon}</span>
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900">{loan.name}</h3>
-                        <p className="text-xs text-gray-500">
-                          Repayment amount: {formatCurrency(parseFloat(loan.minPayment))}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold text-red-600">
-                        {formatCurrency(parseFloat(loan.balance))}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {parseFloat(loan.interestRate)}% APR
-                      </div>
-                    </div>
-                  </div>
-                  <div className={`text-xs px-2 py-1 rounded ${
-                    daysUntilPayment <= 7 ? "text-red-600 bg-red-50" : "text-green-600 bg-green-50"
-                  }`}>
-                    {daysUntilPayment <= 0 ? "Payment overdue" : 
-                     daysUntilPayment <= 7 ? `Payment due in ${daysUntilPayment} days` :
-                     `Next payment: ${new Date(loan.nextPaymentDate).toLocaleDateString()}`}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </section>
       </main>
 
       {/* Floating Action Button */}
