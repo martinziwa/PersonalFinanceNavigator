@@ -158,7 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(created);
     } catch (error) {
       console.error("Budget creation error:", error);
-      res.status(400).json({ message: "Invalid budget data", error: error.message });
+      res.status(400).json({ message: "Invalid budget data", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -212,7 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (error) {
       console.error("Budget update error:", error);
-      res.status(400).json({ message: "Failed to update budget", error: error.message });
+      res.status(400).json({ message: "Failed to update budget", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -246,7 +246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(created);
     } catch (error) {
       console.error("Goal creation error:", error);
-      res.status(400).json({ message: "Invalid savings goal data", error: error.message });
+      res.status(400).json({ message: "Invalid savings goal data", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -260,7 +260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (error) {
       console.error("Goal update error:", error);
-      res.status(400).json({ message: "Failed to update savings goal", error: error.message });
+      res.status(400).json({ message: "Failed to update savings goal", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 

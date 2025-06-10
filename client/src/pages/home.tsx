@@ -172,8 +172,7 @@ export default function Home() {
     if (type === "income") return "💰";
     if (type === "savings_deposit") return "🏦";
     if (type === "savings_withdrawal") return "🏧";
-    if (type === "loan_received") return "📈";
-    if (type === "loan_payment") return "📉";
+    // Loan functionality has been removed from the application
     
     const icons: Record<string, string> = {
       food: "🍽️",

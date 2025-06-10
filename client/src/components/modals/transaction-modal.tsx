@@ -43,7 +43,7 @@ interface TransactionModalProps {
 export default function TransactionModal({ isOpen, onClose, editingTransaction }: TransactionModalProps) {
   const { toast } = useToast();
   const { data: goals = [] } = useGoals();
-  const { data: loans = [] } = useLoans();
+
   const { data: transactions = [] } = useTransactions();
   const { transactionCategories, addCustomCategory } = useCategories();
   const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
@@ -457,37 +457,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
               />
             )}
 
-            {/* Loan Selector - only show for loan-related transactions */}
-            {(form.watch("type") === "loan_received" || form.watch("type") === "loan_payment") && (
-              <FormField
-                control={form.control}
-                name="loanId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Loan</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
-                          <SelectValue placeholder="Select a loan" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {loans.length === 0 ? (
-                          <SelectItem value="" disabled>No loans available</SelectItem>
-                        ) : (
-                          loans.map((loan) => (
-                            <SelectItem key={loan.id} value={loan.id.toString()}>
-                              {loan.icon} {loan.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            {/* Loan functionality has been removed from the application */}
 
             <div className="flex space-x-4 pt-4">
               <Button
