@@ -185,7 +185,7 @@ export default function Loans() {
       calculatedPayment: data.monthlyPayment,
       nextPaymentDate: data.nextPaymentDate,
       startDate: new Date().toISOString().split('T')[0],
-      loanType: data.loanType,
+      balance: data.principalAmount, // Initial balance equals principal
       icon: data.icon,
       color: data.color,
     };
@@ -346,13 +346,16 @@ export default function Loans() {
 
       {/* Add/Edit Loan Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-sm mx-auto">
+        <DialogContent className="max-w-sm mx-auto max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingLoan ? "Edit Loan" : "Add New Loan"}</DialogTitle>
           </DialogHeader>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div className="flex-1 overflow-y-auto px-1">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              
+                {/* Form Fields */}
               <FormField
                 control={form.control}
                 name="name"
@@ -482,6 +485,7 @@ export default function Loans() {
               </div>
             </form>
           </Form>
+          </div>
         </DialogContent>
       </Dialog>
 
