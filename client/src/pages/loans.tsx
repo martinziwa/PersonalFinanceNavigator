@@ -7,7 +7,7 @@ import { Plus, Trash2, Edit, DollarSign, Calendar, Percent } from "lucide-react"
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -83,8 +83,13 @@ export default function Loans() {
 
   const createLoanMutation = useMutation({
     mutationFn: async (data: InsertLoan) => {
-      const response = await apiRequest("POST", "/api/loans", data);
-      return response.json();
+      try {
+        const response = await apiRequest("POST", "/api/loans", data);
+        return response.json();
+      } catch (error) {
+        console.error('Create loan API error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
@@ -96,6 +101,7 @@ export default function Loans() {
       });
     },
     onError: (error: any) => {
+      console.error('Create loan mutation error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to add loan. Please try again.",
@@ -106,8 +112,13 @@ export default function Loans() {
 
   const updateLoanMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<InsertLoan> }) => {
-      const response = await apiRequest("PUT", `/api/loans/${id}`, data);
-      return response.json();
+      try {
+        const response = await apiRequest("PUT", `/api/loans/${id}`, data);
+        return response.json();
+      } catch (error) {
+        console.error('Update loan API error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
@@ -119,6 +130,7 @@ export default function Loans() {
       });
     },
     onError: (error: any) => {
+      console.error('Update loan mutation error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update loan. Please try again.",
@@ -129,7 +141,12 @@ export default function Loans() {
 
   const deleteLoanMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/loans/${id}`);
+      try {
+        await apiRequest("DELETE", `/api/loans/${id}`);
+      } catch (error) {
+        console.error('Delete loan API error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
@@ -140,6 +157,7 @@ export default function Loans() {
       });
     },
     onError: (error: any) => {
+      console.error('Delete loan mutation error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete loan. Please try again.",
@@ -176,24 +194,33 @@ export default function Loans() {
     form.reset();
   };
 
-  const onSubmit = (data: LoanFormData) => {
-    const submitData: InsertLoan = {
-      name: data.name,
-      principalAmount: data.principalAmount,
-      interestRate: data.interestRate,
-      loanTermMonths: parseInt(data.loanTermMonths),
-      calculatedPayment: data.monthlyPayment,
-      nextPaymentDate: data.nextPaymentDate,
-      startDate: new Date().toISOString().split('T')[0],
-      balance: data.principalAmount, // Initial balance equals principal
-      icon: data.icon,
-      color: data.color,
-    };
+  const onSubmit = async (data: LoanFormData) => {
+    try {
+      const submitData: InsertLoan = {
+        name: data.name,
+        principalAmount: data.principalAmount,
+        interestRate: data.interestRate,
+        loanTermMonths: parseInt(data.loanTermMonths),
+        calculatedPayment: data.monthlyPayment,
+        nextPaymentDate: data.nextPaymentDate,
+        startDate: new Date().toISOString().split('T')[0],
+        balance: data.principalAmount, // Initial balance equals principal
+        icon: data.icon,
+        color: data.color,
+      };
 
-    if (editingLoan) {
-      updateLoanMutation.mutate({ id: editingLoan.id, data: submitData });
-    } else {
-      createLoanMutation.mutate(submitData);
+      if (editingLoan) {
+        updateLoanMutation.mutate({ id: editingLoan.id, data: submitData });
+      } else {
+        createLoanMutation.mutate(submitData);
+      }
+    } catch (error) {
+      console.error('Form submission error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit loan form. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -349,6 +376,9 @@ export default function Loans() {
         <DialogContent className="max-w-sm mx-auto max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingLoan ? "Edit Loan" : "Add New Loan"}</DialogTitle>
+            <DialogDescription>
+              {editingLoan ? "Update your loan details below" : "Enter your loan information to track payments and balances"}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto px-1">
