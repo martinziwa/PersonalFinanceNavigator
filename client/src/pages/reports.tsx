@@ -100,29 +100,7 @@ export default function Reports() {
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    // Loan payment analysis
-    let currentLoanPayments = 0;
-    let missedLoanPayments = 0;
-    
-    loans.forEach((loan: any) => {
-      if (loan.nextPaymentDate) {
-        const paymentDate = new Date(loan.nextPaymentDate);
-        if (paymentDate >= start && paymentDate <= end) {
-          const loanPayments = transactions.filter(t => 
-            t.type === "loan_payment" && 
-            t.loanId === loan.id &&
-            new Date(t.date) >= start && 
-            new Date(t.date) <= end
-          );
-          
-          if (loanPayments.length > 0) {
-            currentLoanPayments++;
-          } else if (paymentDate < new Date()) {
-            missedLoanPayments++;
-          }
-        }
-      }
-    });
+    // Loan functionality has been removed from the application
 
     // Savings goals analysis
     let achievedGoals = 0;
@@ -192,11 +170,6 @@ export default function Reports() {
     });
 
     return {
-      loanPayments: {
-        current: currentLoanPayments,
-        missed: missedLoanPayments,
-        total: currentLoanPayments + missedLoanPayments
-      },
       goals: {
         achieved: achievedGoals,
         above80Percent: goalsAbove80Percent,
@@ -208,7 +181,7 @@ export default function Reports() {
         total: budgets.length
       }
     };
-  }, [transactions, loans, goals, budgets, startDate, endDate]);
+  }, [transactions, goals, budgets, startDate, endDate]);
 
   // Calculate category spending
   const categorySpending = transactions
@@ -310,7 +283,7 @@ export default function Reports() {
 
     pdf.setFontSize(11);
     pdf.setFont("helvetica", "normal");
-    yPosition = addText(`Loan Payments: ${spendingAlertsSummary.loanPayments.current} current, ${spendingAlertsSummary.loanPayments.missed} missed`, 20, yPosition);
+    // Loan payments section removed as loans functionality is no longer available
     yPosition = addText(`Savings Goals: ${spendingAlertsSummary.goals.achieved} achieved, ${spendingAlertsSummary.goals.above80Percent} above 80%`, 20, yPosition);
     yPosition = addText(`Budget Performance: ${spendingAlertsSummary.budgets.exceeded} exceeded, ${spendingAlertsSummary.budgets.nearLimit} near limit`, 20, yPosition);
     yPosition += 10;
@@ -375,27 +348,7 @@ export default function Reports() {
       yPosition += 10;
     }
 
-    // Loans Summary
-    if (loans.length > 0) {
-      if (yPosition > 250) {
-        pdf.addPage();
-        yPosition = 20;
-      }
-
-      pdf.setFontSize(16);
-      pdf.setFont("helvetica", "bold");
-      yPosition = addText("Loans Summary", 20, yPosition);
-      yPosition += 5;
-
-      pdf.setFontSize(11);
-      pdf.setFont("helvetica", "normal");
-      loans.forEach(loan => {
-        yPosition = addText(`${loan.name}: Balance ${formatCurrency(parseFloat(loan.balance))}`, 20, yPosition);
-        if (loan.nextPaymentDate) {
-          yPosition = addText(`  Next Payment: ${new Date(loan.nextPaymentDate).toLocaleDateString()}`, 25, yPosition);
-        }
-      });
-    }
+    // Loan functionality has been removed from the application
 
     // Generate timestamp
     pdf.setFontSize(8);
@@ -473,26 +426,7 @@ export default function Reports() {
         <div className="bg-white rounded-xl p-4 border border-gray-100">
           <h3 className="font-semibold text-gray-900 mb-4">Spending Alerts Summary</h3>
           <div className="grid grid-cols-1 gap-4">
-            {/* Loan Payments */}
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <span className="text-blue-600 text-sm">🏛️</span>
-                </div>
-                <div>
-                  <div className="font-medium text-blue-900">Loan Payments</div>
-                  <div className="text-sm text-blue-700">
-                    {spendingAlertsSummary.loanPayments.current} current, {spendingAlertsSummary.loanPayments.missed} missed
-                  </div>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-semibold text-blue-900">
-                  {spendingAlertsSummary.loanPayments.total}
-                </div>
-                <div className="text-xs text-blue-600">total due</div>
-              </div>
-            </div>
+            {/* Loan functionality has been removed from the application */}
 
             {/* Savings Goals */}
             <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">

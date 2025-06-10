@@ -122,7 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(budgets);
     } catch (error) {
       console.error("Budget fetch error:", error);
-      res.status(500).json({ message: "Failed to fetch budgets", error: error.message });
+      res.status(500).json({ message: "Failed to fetch budgets", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
