@@ -229,6 +229,22 @@ export default function Budgets() {
   });
 
   // Group budgets by start month
+  // Calculate total budget stats
+  const totalBudgetStats = useMemo(() => {
+    const totalAmount = filteredBudgets.reduce((sum, budget) => sum + parseFloat(budget.amount), 0);
+    const totalSpent = filteredBudgets.reduce((sum, budget) => sum + parseFloat(budget.spent), 0);
+    const totalRemaining = totalAmount - totalSpent;
+    const spentPercentage = totalAmount > 0 ? (totalSpent / totalAmount) * 100 : 0;
+    
+    return {
+      totalAmount,
+      totalSpent,
+      totalRemaining,
+      spentPercentage,
+      budgetCount: filteredBudgets.length
+    };
+  }, [filteredBudgets]);
+
   const budgetsByMonth = useMemo(() => {
     const grouped = filteredBudgets.reduce((acc, budget) => {
       const startDate = new Date(budget.startDate);
@@ -286,6 +302,56 @@ export default function Budgets() {
             Add Budget
           </Button>
         </div>
+
+        {/* Total Budget Card */}
+        {filteredBudgets.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <div className="text-2xl">💼</div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Total Budget Overview</h3>
+                  <p className="text-sm text-gray-600">{totalBudgetStats.budgetCount} active budgets</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="text-center">
+                <p className="text-xs text-gray-600 mb-1">Budgeted</p>
+                <p className="font-semibold text-blue-600">{formatCurrency(totalBudgetStats.totalAmount)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-gray-600 mb-1">Spent</p>
+                <p className="font-semibold text-orange-600">{formatCurrency(totalBudgetStats.totalSpent)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-gray-600 mb-1">Remaining</p>
+                <p className={`font-semibold ${totalBudgetStats.totalRemaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(totalBudgetStats.totalRemaining)}
+                </p>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>Progress</span>
+                <span>{totalBudgetStats.spentPercentage.toFixed(1)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    totalBudgetStats.spentPercentage > 100 ? 'bg-red-500' :
+                    totalBudgetStats.spentPercentage > 80 ? 'bg-orange-500' :
+                    'bg-blue-500'
+                  }`}
+                  style={{ width: `${Math.min(totalBudgetStats.spentPercentage, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Budget List */}
         <div className="space-y-6">
