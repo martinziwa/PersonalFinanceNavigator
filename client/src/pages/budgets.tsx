@@ -76,10 +76,11 @@ export default function Budgets() {
         description: "Your budget has been created successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const errorMessage = error.message || "Failed to create budget. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to create budget. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -98,10 +99,11 @@ export default function Budgets() {
         description: "Your budget has been updated successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const errorMessage = error.message || "Failed to update budget. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to update budget. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },

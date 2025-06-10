@@ -132,6 +132,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Budget creation request body:", req.body);
       const budget = insertBudgetSchema.parse(req.body);
       console.log("Parsed budget data:", budget);
+      
+      // Check for existing budgets with same category and overlapping time periods
+      const existingBudgets = await storage.getBudgets(userId);
+      const newStartDate = new Date(budget.startDate);
+      const newEndDate = new Date(budget.endDate);
+      
+      const conflictingBudget = existingBudgets.find(existing => {
+        if (existing.category !== budget.category) return false;
+        
+        const existingStartDate = new Date(existing.startDate);
+        const existingEndDate = new Date(existing.endDate);
+        
+        // Check for any overlap in date ranges
+        return (newStartDate <= existingEndDate && newEndDate >= existingStartDate);
+      });
+      
+      if (conflictingBudget) {
+        return res.status(400).json({
+          message: `A budget for ${budget.category} already exists for this time period. Please choose a different category or time period.`
+        });
+      }
+      
       const created = await storage.createBudget(userId, budget);
       res.status(201).json(created);
     } catch (error) {
@@ -150,6 +172,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate the update data
       const validatedUpdates = insertBudgetSchema.partial().parse(updates);
       console.log("Validated budget updates:", validatedUpdates);
+      
+      // If category, startDate, or endDate are being updated, check for conflicts
+      if (validatedUpdates.category || validatedUpdates.startDate || validatedUpdates.endDate) {
+        const existingBudgets = await storage.getBudgets(userId);
+        const currentBudget = existingBudgets.find(b => b.id === id);
+        
+        if (currentBudget) {
+          // Create the updated budget data
+          const updatedBudget = {
+            ...currentBudget,
+            ...validatedUpdates
+          };
+          
+          const newStartDate = new Date(updatedBudget.startDate);
+          const newEndDate = new Date(updatedBudget.endDate);
+          
+          // Check for conflicts with other budgets (excluding the current one)
+          const conflictingBudget = existingBudgets.find(existing => {
+            if (existing.id === id) return false; // Skip the current budget
+            if (existing.category !== updatedBudget.category) return false;
+            
+            const existingStartDate = new Date(existing.startDate);
+            const existingEndDate = new Date(existing.endDate);
+            
+            // Check for any overlap in date ranges
+            return (newStartDate <= existingEndDate && newEndDate >= existingStartDate);
+          });
+          
+          if (conflictingBudget) {
+            return res.status(400).json({
+              message: `A budget for ${updatedBudget.category} already exists for this time period. Please choose a different category or time period.`
+            });
+          }
+        }
+      }
       
       const updated = await storage.updateBudget(userId, id, validatedUpdates);
       res.json(updated);
