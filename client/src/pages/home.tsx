@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useGoals } from "@/hooks/use-goals";
-import { useLoans } from "@/hooks/use-loans";
+
 import { formatCurrency } from "@/lib/currency";
 import type { Transaction } from "@shared/schema";
 
@@ -33,7 +33,7 @@ export default function Home() {
   const { data: transactions = [] } = useTransactions();
   const { data: budgets = [] } = useBudgets();
   const { data: goals = [] } = useGoals();
-  const { data: loans = [] } = useLoans();
+
 
   const recentTransactions = transactions.slice(0, 4);
 

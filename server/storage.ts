@@ -235,41 +235,8 @@ export class DatabaseStorage implements IStorage {
     await db.delete(savingsGoals).where(and(eq(savingsGoals.id, id), eq(savingsGoals.userId, userId)));
   }
 
-  // Loans
-  async getLoans(userId: string): Promise<Loan[]> {
-    return await db.select().from(loans).where(eq(loans.userId, userId)).orderBy(loans.name);
-  }
 
-  async getLoan(userId: string, id: number): Promise<Loan | undefined> {
-    const [loan] = await db.select().from(loans).where(and(eq(loans.id, id), eq(loans.userId, userId)));
-    return loan;
-  }
 
-  async createLoan(userId: string, insertLoan: InsertLoan): Promise<Loan> {
-    const [loan] = await db
-      .insert(loans)
-      .values({
-        ...insertLoan,
-        userId,
-        nextPaymentDate: new Date(insertLoan.nextPaymentDate),
-        startDate: new Date(insertLoan.startDate),
-      })
-      .returning();
-    return loan;
-  }
-
-  async updateLoan(userId: string, id: number, updates: Partial<Loan>): Promise<Loan> {
-    const [loan] = await db
-      .update(loans)
-      .set(updates)
-      .where(and(eq(loans.id, id), eq(loans.userId, userId)))
-      .returning();
-    return loan;
-  }
-
-  async deleteLoan(userId: string, id: number): Promise<void> {
-    await db.delete(loans).where(and(eq(loans.id, id), eq(loans.userId, userId)));
-  }
 
   // Financial Summary
   async getFinancialSummary(userId: string): Promise<{
@@ -330,65 +297,11 @@ export class DatabaseStorage implements IStorage {
       totalSavings += goalProgress;
     }
 
-    // Get total debt from loans and adjust for loan payments
-    const userLoans = await db.select().from(loans).where(eq(loans.userId, userId));
-    let totalDebt = 0;
-    
-    for (const loan of userLoans) {
-      // Start with original loan balance
-      let remainingBalance = parseFloat(loan.balance);
-      
-      // Subtract loan payments made for this loan
-      const loanPayments = allUserTransactions.filter((t: any) => 
-        t.loanId === loan.id && t.type === 'loan_payment'
-      );
-      
-      const totalPayments = loanPayments.reduce((sum: number, t: any) => {
-        return sum + parseFloat(t.amount);
-      }, 0);
-      
-      // Add loan receipts (increases debt)
-      const loanReceipts = allUserTransactions.filter((t: any) => 
-        t.loanId === loan.id && t.type === 'loan_received'
-      );
-      
-      const totalReceipts = loanReceipts.reduce((sum: number, t: any) => {
-        return sum + parseFloat(t.amount);
-      }, 0);
-      
-      // Calculate accumulated interest based on time elapsed and compounding frequency
-      const interestRate = parseFloat(loan.interestRate) / 100; // Convert percentage to decimal
-      const principalAmount = parseFloat(loan.principalAmount || loan.balance);
-      
-      // Calculate time elapsed since loan start date
-      const currentDate = new Date();
-      const loanStartDate = new Date(loan.startDate);
-      
-      const timeElapsedDays = Math.max(1, Math.floor((currentDate.getTime() - loanStartDate.getTime()) / (1000 * 60 * 60 * 24)));
-      const timeElapsedYears = timeElapsedDays / 365;
-      
-      let accumulatedInterest = 0;
-      
-      if (loan.interestType === 'simple') {
-        // Simple interest: Principal × Rate × Time
-        accumulatedInterest = principalAmount * interestRate * timeElapsedYears;
-      } else {
-        // Compound interest: A = P(1 + r/n)^(nt) - P
-        const compoundingFrequency = getCompoundingFrequency(loan.interestPeriod || 'monthly');
-        const compoundedAmount = principalAmount * Math.pow(
-          (1 + interestRate / compoundingFrequency), 
-          compoundingFrequency * timeElapsedYears
-        );
-        accumulatedInterest = compoundedAmount - principalAmount;
-      }
-      
-      // Adjust balance: original + receipts - payments + accumulated interest
-      remainingBalance = remainingBalance + totalReceipts - totalPayments + accumulatedInterest;
-      totalDebt += Math.max(0, remainingBalance); // Don't allow negative debt
-    }
+    // Total debt is 0 since loans functionality has been removed
+    const totalDebt = 0;
 
-    // Calculate net worth only from savings and loans (excluding income/expenses)
-    const netWorth = totalSavings - totalDebt;
+    // Calculate net worth from savings only
+    const netWorth = totalSavings;
 
     return {
       netWorth,

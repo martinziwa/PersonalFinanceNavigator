@@ -275,75 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Loans
-  app.get("/api/loans", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const loans = await storage.getLoans(userId);
-      res.json(loans);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch loans" });
-    }
-  });
 
-  app.post("/api/loans", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      
-      // Convert date strings to Date objects before storage
-      const bodyWithDates = {
-        ...req.body,
-        startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
-        nextPaymentDate: req.body.nextPaymentDate ? new Date(req.body.nextPaymentDate) : undefined,
-      };
-      
-      const created = await storage.createLoan(userId, bodyWithDates);
-      res.status(201).json(created);
-    } catch (error) {
-      console.error("Loan validation error:", error);
-      res.status(400).json({ message: "Invalid loan data", error: error.message });
-    }
-  });
-
-  app.patch("/api/loans/:id", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const id = parseInt(req.params.id);
-      console.log("Loan update request:", { userId, id, body: req.body });
-      
-      // Clean up null values and convert dates
-      const cleanedData = {
-        ...req.body,
-        startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
-        nextPaymentDate: req.body.nextPaymentDate ? new Date(req.body.nextPaymentDate) : undefined,
-        currentRepayment: req.body.currentRepayment === null ? null : req.body.currentRepayment,
-        interestPeriod: req.body.interestPeriod === null ? null : req.body.interestPeriod,
-        repaymentFrequency: req.body.repaymentFrequency === null ? null : req.body.repaymentFrequency,
-        loanTermMonths: req.body.loanTermMonths === null ? null : req.body.loanTermMonths,
-        calculatedPayment: req.body.calculatedPayment === null ? null : req.body.calculatedPayment,
-      };
-      
-      console.log("Cleaned data for update:", cleanedData);
-      const updated = await storage.updateLoan(userId, id, cleanedData);
-      console.log("Updated loan:", updated);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("Loan update error:", error);
-      console.error("Error stack:", error.stack);
-      res.status(400).json({ message: "Failed to update loan", error: error.message });
-    }
-  });
-
-  app.delete("/api/loans/:id", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const id = parseInt(req.params.id);
-      await storage.deleteLoan(userId, id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete loan" });
-    }
-  });
 
   // Financial Summary
   app.get("/api/financial-summary", isAuthenticated, async (req: any, res) => {
