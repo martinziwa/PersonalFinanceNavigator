@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Plus, Trash2, Edit, PieChart, History, X } from "lucide-react";
+import { Plus, Trash2, Edit, PieChart, History, X, CalendarDays } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import ProgressBar from "@/components/ui/progress-bar";
@@ -44,6 +44,16 @@ export default function Budgets() {
   // Transaction History States
   const [selectedBudgetForHistory, setSelectedBudgetForHistory] = useState<any>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  
+  // Date range state for budget overview
+  const [overviewStartDate, setOverviewStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [overviewEndDate, setOverviewEndDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
   
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
@@ -229,21 +239,45 @@ export default function Budgets() {
   });
 
   // Group budgets by start month
-  // Calculate total budget stats
+  // Calculate total budget stats for the selected period
   const totalBudgetStats = useMemo(() => {
-    const totalAmount = filteredBudgets.reduce((sum, budget) => sum + parseFloat(budget.amount), 0);
-    const totalSpent = filteredBudgets.reduce((sum, budget) => sum + parseFloat(budget.spent), 0);
+    const overviewStart = new Date(overviewStartDate);
+    const overviewEnd = new Date(overviewEndDate);
+    
+    // Filter budgets that overlap with the overview period
+    const applicableBudgets = filteredBudgets.filter(budget => {
+      const budgetStart = new Date(budget.startDate);
+      const budgetEnd = new Date(budget.endDate);
+      // Check if budget period overlaps with overview period
+      return budgetStart <= overviewEnd && budgetEnd >= overviewStart;
+    });
+    
+    const totalAmount = applicableBudgets.reduce((sum, budget) => sum + parseFloat(budget.amount), 0);
+    const totalSpent = applicableBudgets.reduce((sum, budget) => sum + parseFloat(budget.spent), 0);
     const totalRemaining = totalAmount - totalSpent;
     const spentPercentage = totalAmount > 0 ? (totalSpent / totalAmount) * 100 : 0;
+    
+    // Calculate time progress
+    const now = new Date();
+    const totalPeriodDays = Math.ceil((overviewEnd.getTime() - overviewStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const elapsedDays = Math.max(0, Math.min(
+      totalPeriodDays,
+      Math.ceil((now.getTime() - overviewStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    ));
+    const timeProgress = totalPeriodDays > 0 ? (elapsedDays / totalPeriodDays) * 100 : 0;
     
     return {
       totalAmount,
       totalSpent,
       totalRemaining,
       spentPercentage,
-      budgetCount: filteredBudgets.length
+      budgetCount: applicableBudgets.length,
+      timeProgress,
+      elapsedDays,
+      totalPeriodDays,
+      applicableBudgets
     };
-  }, [filteredBudgets]);
+  }, [filteredBudgets, overviewStartDate, overviewEndDate]);
 
   const budgetsByMonth = useMemo(() => {
     const grouped = filteredBudgets.reduce((acc, budget) => {
@@ -310,8 +344,73 @@ export default function Budgets() {
               <div className="flex items-center space-x-2">
                 <div className="text-2xl">💼</div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Total Budget Overview</h3>
-                  <p className="text-sm text-gray-600">{totalBudgetStats.budgetCount} active budgets</p>
+                  <h3 className="font-semibold text-gray-900">Budget Overview</h3>
+                  <p className="text-sm text-gray-600">{totalBudgetStats.budgetCount} applicable budgets</p>
+                </div>
+              </div>
+              <CalendarDays className="h-5 w-5 text-blue-600" />
+            </div>
+
+            {/* Date Range Selector */}
+            <div className="space-y-2 mb-3">
+              <div className="flex space-x-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs px-2 py-1 h-6"
+                  onClick={() => {
+                    const now = new Date();
+                    setOverviewStartDate(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]);
+                    setOverviewEndDate(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
+                  }}
+                >
+                  This Month
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs px-2 py-1 h-6"
+                  onClick={() => {
+                    const now = new Date();
+                    setOverviewStartDate(new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0]);
+                    setOverviewEndDate(new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]);
+                  }}
+                >
+                  Last Month
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs px-2 py-1 h-6"
+                  onClick={() => {
+                    const now = new Date();
+                    const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+                    const quarterEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 0);
+                    setOverviewStartDate(quarterStart.toISOString().split('T')[0]);
+                    setOverviewEndDate(quarterEnd.toISOString().split('T')[0]);
+                  }}
+                >
+                  Quarter
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-600 block mb-1">From</label>
+                  <input
+                    type="date"
+                    value={overviewStartDate}
+                    onChange={(e) => setOverviewStartDate(e.target.value)}
+                    className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600 block mb-1">To</label>
+                  <input
+                    type="date"
+                    value={overviewEndDate}
+                    onChange={(e) => setOverviewEndDate(e.target.value)}
+                    className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
               </div>
             </div>
@@ -333,10 +432,10 @@ export default function Budgets() {
               </div>
             </div>
 
-            {/* Progress Bar */}
-            <div className="space-y-2">
+            {/* Spending Progress Bar */}
+            <div className="space-y-2 mb-3">
               <div className="flex justify-between text-xs text-gray-600">
-                <span>Progress</span>
+                <span>Spending Progress</span>
                 <span>{totalBudgetStats.spentPercentage.toFixed(1)}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -349,6 +448,32 @@ export default function Budgets() {
                   style={{ width: `${Math.min(totalBudgetStats.spentPercentage, 100)}%` }}
                 ></div>
               </div>
+            </div>
+
+            {/* Time Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>Time Progress</span>
+                <span>{totalBudgetStats.timeProgress.toFixed(1)}% ({totalBudgetStats.elapsedDays}/{totalBudgetStats.totalPeriodDays} days)</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="h-2 rounded-full transition-all duration-300 bg-gray-500"
+                  style={{ width: `${Math.min(totalBudgetStats.timeProgress, 100)}%` }}
+                ></div>
+              </div>
+              {/* Spending vs Time Indicator */}
+              {totalBudgetStats.timeProgress > 0 && (
+                <div className="text-xs text-center">
+                  {totalBudgetStats.spentPercentage > totalBudgetStats.timeProgress + 10 ? (
+                    <span className="text-red-600">⚠️ Spending ahead of schedule</span>
+                  ) : totalBudgetStats.spentPercentage < totalBudgetStats.timeProgress - 10 ? (
+                    <span className="text-green-600">✓ Spending on track</span>
+                  ) : (
+                    <span className="text-blue-600">📊 Spending balanced</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
