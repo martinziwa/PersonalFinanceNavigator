@@ -20,9 +20,18 @@ import type { InsertLoan, Transaction } from "@shared/schema";
 
 const loanSchema = z.object({
   name: z.string().min(1, "Loan name is required"),
-  principalAmount: z.string().min(1, "Principal amount is required"),
-  interestRate: z.string().min(1, "Interest rate is required"),
-  loanTermMonths: z.string().min(1, "Loan term is required"),
+  principalAmount: z.string().min(1, "Principal amount is required").refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num > 0;
+  }, "Principal amount must be a positive number"),
+  interestRate: z.string().min(1, "Interest rate is required").refine((val) => {
+    const num = parseFloat(val);
+    return !isNaN(num) && num >= 0;
+  }, "Interest rate must be a valid number"),
+  loanTermMonths: z.string().min(1, "Loan term is required").refine((val) => {
+    const num = parseInt(val);
+    return !isNaN(num) && num > 0 && num <= 600; // Max 50 years
+  }, "Loan term must be a positive number of months"),
   monthlyPayment: z.string().optional(),
   nextPaymentDate: z.string().min(1, "Next payment date is required"),
   loanType: z.enum(["personal", "mortgage", "auto", "student", "business", "other"]),
@@ -66,16 +75,22 @@ export default function Loans() {
   // Auto-calculate monthly payment when inputs change
   React.useEffect(() => {
     const subscription = form.watch((values) => {
-      const { principalAmount, interestRate, loanTermMonths } = values;
-      if (principalAmount && interestRate && loanTermMonths) {
-        const principal = parseFloat(principalAmount);
-        const rate = parseFloat(interestRate);
-        const months = parseInt(loanTermMonths);
-        
-        if (!isNaN(principal) && !isNaN(rate) && !isNaN(months)) {
-          const payment = calculateMonthlyPayment(principal, rate, months);
-          form.setValue("monthlyPayment", payment.toFixed(2));
+      try {
+        const { principalAmount, interestRate, loanTermMonths } = values;
+        if (principalAmount && interestRate && loanTermMonths) {
+          const principal = parseFloat(principalAmount);
+          const rate = parseFloat(interestRate);
+          const months = parseInt(loanTermMonths);
+          
+          if (!isNaN(principal) && principal > 0 && !isNaN(rate) && rate >= 0 && !isNaN(months) && months > 0) {
+            const payment = calculateMonthlyPayment(principal, rate, months);
+            if (payment && isFinite(payment)) {
+              form.setValue("monthlyPayment", payment.toFixed(2));
+            }
+          }
         }
+      } catch (error) {
+        console.error('Auto-calculation error:', error);
       }
     });
     return () => subscription.unsubscribe();
@@ -433,7 +448,19 @@ export default function Loans() {
                   <FormItem>
                     <FormLabel>Principal Amount (MWK)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="500000" {...field} />
+                      <Input 
+                        type="number" 
+                        placeholder="500000" 
+                        min="1"
+                        {...field}
+                        onChange={(e) => {
+                          try {
+                            field.onChange(e);
+                          } catch (error) {
+                            console.error('Principal amount input error:', error);
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -447,7 +474,21 @@ export default function Loans() {
                   <FormItem>
                     <FormLabel>Interest Rate (%)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="15.5" {...field} />
+                      <Input 
+                        type="number" 
+                        step="0.01" 
+                        placeholder="15.5" 
+                        min="0"
+                        max="100"
+                        {...field}
+                        onChange={(e) => {
+                          try {
+                            field.onChange(e);
+                          } catch (error) {
+                            console.error('Interest rate input error:', error);
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -461,7 +502,20 @@ export default function Loans() {
                   <FormItem>
                     <FormLabel>Loan Term (Months)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="36" {...field} />
+                      <Input 
+                        type="number" 
+                        placeholder="36" 
+                        min="1"
+                        max="600"
+                        {...field}
+                        onChange={(e) => {
+                          try {
+                            field.onChange(e);
+                          } catch (error) {
+                            console.error('Input change error:', error);
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
