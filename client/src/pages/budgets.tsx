@@ -45,14 +45,24 @@ export default function Budgets() {
   const [selectedBudgetForHistory, setSelectedBudgetForHistory] = useState<any>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   
+  // Helper function to format date for input without timezone issues
+  const formatDateForInput = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Date range state for budget overview
   const [overviewStartDate, setOverviewStartDate] = useState(() => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    return formatDateForInput(firstDay);
   });
   const [overviewEndDate, setOverviewEndDate] = useState(() => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return formatDateForInput(lastDay);
   });
   
   const { data: budgets = [], isLoading } = useBudgets();
@@ -360,8 +370,10 @@ export default function Budgets() {
                   className="text-xs px-2 py-1 h-6"
                   onClick={() => {
                     const now = new Date();
-                    setOverviewStartDate(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]);
-                    setOverviewEndDate(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
+                    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                    setOverviewStartDate(formatDateForInput(firstDay));
+                    setOverviewEndDate(formatDateForInput(lastDay));
                   }}
                 >
                   This Month
@@ -372,8 +384,10 @@ export default function Budgets() {
                   className="text-xs px-2 py-1 h-6"
                   onClick={() => {
                     const now = new Date();
-                    setOverviewStartDate(new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0]);
-                    setOverviewEndDate(new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0]);
+                    const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+                    setOverviewStartDate(formatDateForInput(firstDay));
+                    setOverviewEndDate(formatDateForInput(lastDay));
                   }}
                 >
                   Last Month
@@ -386,8 +400,8 @@ export default function Budgets() {
                     const now = new Date();
                     const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
                     const quarterEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 0);
-                    setOverviewStartDate(quarterStart.toISOString().split('T')[0]);
-                    setOverviewEndDate(quarterEnd.toISOString().split('T')[0]);
+                    setOverviewStartDate(formatDateForInput(quarterStart));
+                    setOverviewEndDate(formatDateForInput(quarterEnd));
                   }}
                 >
                   Quarter
