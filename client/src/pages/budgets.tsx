@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useTransactions } from "@/hooks/use-transactions";
+import { useCategories } from "@/hooks/use-categories";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/currency";
@@ -32,25 +33,11 @@ const budgetSchema = z.object({
 
 type BudgetFormData = z.infer<typeof budgetSchema>;
 
-const categories = [
-  { value: "food", label: "Food & Dining", icon: "🍽️" },
-  { value: "transportation", label: "Transportation", icon: "🚗" },
-  { value: "shopping", label: "Shopping", icon: "🛍️" },
-  { value: "entertainment", label: "Entertainment", icon: "🎬" },
-  { value: "bills", label: "Bills & Utilities", icon: "📄" },
-  { value: "healthcare", label: "Healthcare", icon: "🏥" },
-  { value: "education", label: "Education", icon: "📚" },
-  { value: "savings", label: "Savings", icon: "💳" },
-  { value: "loan", label: "Loan", icon: "🏛️" },
-  { value: "other", label: "Other", icon: "📝" },
-];
-
 export default function Budgets() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
   const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("dateAdded");
   
@@ -60,6 +47,7 @@ export default function Budgets() {
   
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
+  const { budgetCategories, addCustomCategory } = useCategories();
   const { toast } = useToast();
 
   const form = useForm<BudgetFormData>({
@@ -175,8 +163,8 @@ export default function Budgets() {
 
   const handleAddCustomCategory = () => {
     if (customCategoryInput.trim()) {
-      setCustomCategories(prev => [...prev, customCategoryInput.trim().toLowerCase()]);
-      form.setValue("category", customCategoryInput.trim().toLowerCase());
+      const categoryValue = addCustomCategory(customCategoryInput.trim());
+      form.setValue("category", categoryValue);
       form.setValue("icon", "📝");
       setCustomCategoryInput("");
       setIsAddingCustomCategory(false);
@@ -231,12 +219,7 @@ export default function Budgets() {
     }
   }, [isDialogOpen, editingBudget, form]);
 
-  const allCategories = [
-    ...categories,
-    ...customCategories
-      .filter(cat => !categories.some(predef => predef.value === cat))
-      .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' '), icon: "📝" }))
-  ];
+  const allCategories = budgetCategories;
 
   const filteredBudgets = budgets.filter(budget => {
     if (categoryFilter === "all") return true;
