@@ -142,15 +142,15 @@ export default function Home() {
       const severityOrder = { high: 3, medium: 2, low: 1 };
       return severityOrder[b.severity] - severityOrder[a.severity];
     }).slice(0, 3); // Show max 3 alerts
-  }, [budgets, loans, goals, transactions]);
+  }, [budgets, goals, transactions]);
 
   // Calculate aggregate amounts
   const totalIncome = transactions
-    .filter(t => t.type === "income" || t.type === "savings_withdrawal" || t.type === "loan_received")
+    .filter(t => t.type === "income" || t.type === "savings_withdrawal")
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
   const totalExpenses = transactions
-    .filter(t => t.type === "expense" || t.type === "savings_deposit" || t.type === "loan_payment")
+    .filter(t => t.type === "expense" || t.type === "savings_deposit")
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
   const netAmount = totalIncome - totalExpenses;

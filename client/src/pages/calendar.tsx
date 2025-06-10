@@ -21,7 +21,7 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 interface CalendarEvent {
   id: string;
   title: string;
-  type: "transaction" | "goal_deadline" | "goal_start" | "loan_payment" | "loan_start" | "budget_start" | "budget_end";
+  type: "transaction" | "goal_deadline" | "goal_start" | "budget_start" | "budget_end";
   date: Date;
   amount?: string;
   description?: string;
@@ -37,7 +37,7 @@ export default function Calendar() {
 
   const { data: transactions = [] } = useTransactions();
   const { data: goals = [] } = useGoals();
-  const { data: loans = [] } = useLoans();
+
   const { data: budgets = [] } = useBudgets();
 
   // Generate calendar events from financial data
@@ -93,35 +93,7 @@ export default function Calendar() {
       }
     });
 
-    // Add loan events
-    loans.forEach((loan: Loan) => {
-      // Loan start date (you might want to add this field to the schema)
-      events.push({
-        id: `loan-start-${loan.id}`,
-        title: `Loan Started: ${loan.name}`,
-        type: "loan_start",
-        date: new Date(), // You might want to add a loanStartDate field
-        amount: loan.principalAmount || loan.balance,
-        description: `Loan of ${formatCurrency(parseFloat(loan.principalAmount || loan.balance))}`,
-        icon: <CalendarIcon className="h-4 w-4" />,
-        color: "#DC2626"
-      });
 
-      // Next payment due date
-      const paymentDate = new Date(loan.nextPaymentDate);
-      const isOverdue = paymentDate < today;
-      events.push({
-        id: `loan-payment-${loan.id}`,
-        title: `Payment Due: ${loan.name}`,
-        type: "loan_payment",
-        date: paymentDate,
-        amount: loan.minPayment,
-        description: `Loan payment due`,
-        status: isOverdue ? "overdue" : "upcoming",
-        icon: <Clock className="h-4 w-4" />,
-        color: isOverdue ? "#EF4444" : "#F59E0B"
-      });
-    });
 
     // Add budget events
     budgets.forEach((budget: Budget) => {

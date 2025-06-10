@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useGoals } from "@/hooks/use-goals";
-import { useLoans } from "@/hooks/use-loans";
+
 import { useBudgets } from "@/hooks/use-budgets";
 import { formatCurrency } from "@/lib/currency";
 import jsPDF from "jspdf";
@@ -42,7 +42,7 @@ export default function Reports() {
 
   const { data: allTransactions = [] } = useTransactions();
   const { data: goals = [] } = useGoals();
-  const { data: loans = [] } = useLoans();
+
   const { data: budgets = [] } = useBudgets();
 
   // Handle preset period selection

@@ -97,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (error) {
       console.error("Transaction update error:", error);
-      res.status(400).json({ message: "Failed to update transaction", error: error.message });
+      res.status(400).json({ message: "Failed to update transaction", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
