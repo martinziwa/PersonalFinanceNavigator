@@ -131,12 +131,64 @@ export class DatabaseStorage implements IStorage {
 
   // Budgets
   async getBudgets(userId: string): Promise<Budget[]> {
-    return await db.select().from(budgets).where(eq(budgets.userId, userId)).orderBy(desc(budgets.startDate), budgets.category);
+    const budgetsData = await db.select().from(budgets).where(eq(budgets.userId, userId)).orderBy(desc(budgets.startDate), budgets.category);
+    
+    // Calculate actual spending for each budget from transactions
+    const budgetsWithSpending = await Promise.all(
+      budgetsData.map(async (budget) => {
+        // Get transactions that match this budget's category and fall within its date range
+        const budgetTransactions = await db
+          .select()
+          .from(transactions)
+          .where(and(
+            eq(transactions.userId, userId),
+            eq(transactions.category, budget.category),
+            eq(transactions.type, 'expense'),
+            gte(transactions.date, budget.startDate),
+            lte(transactions.date, budget.endDate)
+          ));
+        
+        // Calculate total spent from matching transactions
+        const totalSpent = budgetTransactions.reduce((sum, transaction) => {
+          return sum + parseFloat(transaction.amount);
+        }, 0);
+        
+        return {
+          ...budget,
+          spent: totalSpent.toFixed(2)
+        };
+      })
+    );
+    
+    return budgetsWithSpending;
   }
 
   async getBudget(userId: string, id: number): Promise<Budget | undefined> {
     const [budget] = await db.select().from(budgets).where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
-    return budget;
+    
+    if (!budget) return undefined;
+    
+    // Calculate actual spending for this budget from transactions
+    const budgetTransactions = await db
+      .select()
+      .from(transactions)
+      .where(and(
+        eq(transactions.userId, userId),
+        eq(transactions.category, budget.category),
+        eq(transactions.type, 'expense'),
+        gte(transactions.date, budget.startDate),
+        lte(transactions.date, budget.endDate)
+      ));
+    
+    // Calculate total spent from matching transactions
+    const totalSpent = budgetTransactions.reduce((sum, transaction) => {
+      return sum + parseFloat(transaction.amount);
+    }, 0);
+    
+    return {
+      ...budget,
+      spent: totalSpent.toFixed(2)
+    };
   }
 
   async createBudget(userId: string, insertBudget: InsertBudget): Promise<Budget> {
