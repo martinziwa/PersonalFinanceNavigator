@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useGoals } from "@/hooks/use-goals";
 import { useLoans } from "@/hooks/use-loans";
 import { useTransactions } from "@/hooks/use-transactions";
+import { useCategories } from "@/hooks/use-categories";
 import type { InsertTransaction } from "@shared/schema";
 
 const transactionSchema = z.object({
@@ -39,28 +40,14 @@ interface TransactionModalProps {
   editingTransaction?: any;
 }
 
-const categories = [
-  { value: "bills", label: "Bills & Utilities" },
-  { value: "education", label: "Education" },
-  { value: "entertainment", label: "Entertainment" },
-  { value: "food", label: "Food & Dining" },
-  { value: "healthcare", label: "Healthcare" },
-  { value: "income", label: "Income" },
-  { value: "loan", label: "Loan" },
-  { value: "other", label: "Other" },
-  { value: "savings", label: "Savings Account" },
-  { value: "shopping", label: "Shopping" },
-  { value: "transportation", label: "Transportation" },
-];
-
 export default function TransactionModal({ isOpen, onClose, editingTransaction }: TransactionModalProps) {
   const { toast } = useToast();
   const { data: goals = [] } = useGoals();
   const { data: loans = [] } = useLoans();
   const { data: transactions = [] } = useTransactions();
+  const { transactionCategories, addCustomCategory } = useCategories();
   const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
   
   // Helper function to get current time in HH:MM format
   const getCurrentTime = () => {
@@ -120,28 +107,11 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
     }
   }, [isOpen, editingTransaction, form]);
 
-  // Get unique categories from existing transactions
-  const uniqueCategories = new Set<string>();
-  transactions.forEach(t => uniqueCategories.add(t.category));
-  const existingCategories = Array.from(uniqueCategories);
-  
-  // Combine predefined, existing, and custom categories
-  const allCategories = [
-    ...categories,
-    ...existingCategories
-      .filter(cat => !categories.some(predef => predef.value === cat))
-      .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' ') })),
-    ...customCategories
-      .filter(cat => !categories.some(predef => predef.value === cat) && !existingCategories.includes(cat))
-      .map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' ') }))
-  ].sort((a, b) => a.label.localeCompare(b.label));
+  const allCategories = transactionCategories;
 
   const handleAddCustomCategory = () => {
     if (customCategoryInput.trim()) {
-      const categoryValue = customCategoryInput.toLowerCase().replace(/\s+/g, '_');
-      
-      // Add to custom categories state
-      setCustomCategories(prev => [...prev, categoryValue]);
+      const categoryValue = addCustomCategory(customCategoryInput.trim());
       
       // Set the form value
       form.setValue("category", categoryValue);
