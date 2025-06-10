@@ -479,10 +479,10 @@ export default function Home() {
                   </div>
                   <div className="text-right">
                     <div className={`font-semibold ${
-                      transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received" 
+                      transaction.type === "income" || transaction.type === "savings_withdrawal" 
                         ? "text-green-600" : "text-red-600"
                     }`}>
-                      {(transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received") ? "+" : "-"}
+                      {(transaction.type === "income" || transaction.type === "savings_withdrawal") ? "+" : "-"}
                       {formatCurrency(parseFloat(transaction.amount))}
                     </div>
                   </div>

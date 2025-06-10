@@ -21,14 +21,7 @@ const menuItems = [
     color: "bg-blue-100",
     iconColor: "text-blue-600"
   },
-  {
-    path: "/loans",
-    label: "Loans",
-    description: "Manage your loans and debt payments",
-    icon: CreditCard,
-    color: "bg-red-100",
-    iconColor: "text-red-600"
-  },
+
   {
     path: "/settings",
     label: "Settings",
