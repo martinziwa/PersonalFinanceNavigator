@@ -3,8 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Plus, Trash2, Edit, PieChart, History, X, CalendarDays, Calculator } from "lucide-react";
-import { Link } from "wouter";
+import { Plus, Trash2, Edit, PieChart, History, X, CalendarDays, Calculator, RotateCcw, AlertTriangle, Check } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import ProgressBar from "@/components/ui/progress-bar";
@@ -12,8 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useCategories } from "@/hooks/use-categories";
@@ -34,6 +38,22 @@ const budgetSchema = z.object({
 
 type BudgetFormData = z.infer<typeof budgetSchema>;
 
+// Budget allocator types
+interface BudgetAllocation {
+  category: string;
+  icon: string;
+  percentage: number;
+  amount: number;
+  enabled: boolean;
+}
+
+// 50/30/20 rule categorization
+const BUDGET_RULES = {
+  needs: { percentage: 50, categories: ["food", "transportation", "bills", "healthcare", "housing"] },
+  wants: { percentage: 30, categories: ["entertainment", "shopping", "dining", "hobbies", "cosmetics"] },
+  savings: { percentage: 20, categories: ["savings", "investment", "emergency", "debt"] }
+};
+
 export default function Budgets() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
@@ -45,6 +65,12 @@ export default function Budgets() {
   // Transaction History States
   const [selectedBudgetForHistory, setSelectedBudgetForHistory] = useState<any>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  
+  // Budget Allocator States
+  const [activeTab, setActiveTab] = useState("list");
+  const [totalIncome, setTotalIncome] = useState<string>("");
+  const [budgetAllocations, setBudgetAllocations] = useState<BudgetAllocation[]>([]);
+  const [allocatorConflicts, setAllocatorConflicts] = useState<string[]>([]);
   
   // Helper function to format date for input without timezone issues
   const formatDateForInput = (date: Date) => {
@@ -70,6 +96,73 @@ export default function Budgets() {
   const { data: transactions = [] } = useTransactions();
   const { budgetCategories, addCustomCategory } = useCategories();
   const { toast } = useToast();
+
+  // Initialize budget allocations with 50/30/20 rule
+  useEffect(() => {
+    const initialAllocations: BudgetAllocation[] = budgetCategories.map(category => {
+      let percentage = 0;
+      
+      if (BUDGET_RULES.needs.categories.includes(category.value)) {
+        percentage = BUDGET_RULES.needs.percentage / BUDGET_RULES.needs.categories.length;
+      } else if (BUDGET_RULES.wants.categories.includes(category.value)) {
+        percentage = BUDGET_RULES.wants.percentage / BUDGET_RULES.wants.categories.length;
+      } else {
+        percentage = BUDGET_RULES.savings.percentage / BUDGET_RULES.savings.categories.length;
+      }
+
+      return {
+        category: category.value,
+        icon: category.icon,
+        percentage: Math.round(percentage * 100) / 100,
+        amount: 0,
+        enabled: true,
+      };
+    });
+
+    setBudgetAllocations(initialAllocations);
+  }, [budgetCategories]);
+
+  // Update amounts when total income or percentages change
+  useEffect(() => {
+    if (totalIncome) {
+      const income = parseFloat(totalIncome);
+      setBudgetAllocations(prev => 
+        prev.map(allocation => ({
+          ...allocation,
+          amount: Math.round((allocation.percentage / 100) * income)
+        }))
+      );
+    }
+  }, [totalIncome]);
+
+  // Check for conflicts with existing budgets
+  useEffect(() => {
+    const formData = form.getValues();
+    const conflictingCategories: string[] = [];
+
+    budgetAllocations.forEach(allocation => {
+      if (!allocation.enabled) return;
+
+      const hasConflict = budgets.some(budget => {
+        const budgetStart = new Date(budget.startDate);
+        const budgetEnd = new Date(budget.endDate);
+        const newStart = new Date(formData.startDate);
+        const newEnd = new Date(formData.endDate);
+
+        return budget.category === allocation.category &&
+               budget.period === formData.period &&
+               ((newStart >= budgetStart && newStart <= budgetEnd) ||
+                (newEnd >= budgetStart && newEnd <= budgetEnd) ||
+                (newStart <= budgetStart && newEnd >= budgetEnd));
+      });
+
+      if (hasConflict) {
+        conflictingCategories.push(allocation.category);
+      }
+    });
+
+    setAllocatorConflicts(conflictingCategories);
+  }, [budgetAllocations, budgets, form.watch("startDate"), form.watch("endDate"), form.watch("period")]);
 
   const form = useForm<BudgetFormData>({
     resolver: zodResolver(budgetSchema),
