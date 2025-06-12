@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Plus, Trash2, Edit, PieChart, History, X, CalendarDays } from "lucide-react";
+import { Plus, Trash2, Edit, PieChart, History, X, CalendarDays, Calculator, RotateCcw, Check, AlertTriangle } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import ProgressBar from "@/components/ui/progress-bar";
@@ -13,6 +13,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useCategories } from "@/hooks/use-categories";
@@ -33,6 +37,21 @@ const budgetSchema = z.object({
 
 type BudgetFormData = z.infer<typeof budgetSchema>;
 
+interface BudgetAllocation {
+  category: string;
+  icon: string;
+  percentage: number;
+  amount: number;
+  enabled: boolean;
+}
+
+// 50/30/20 rule categorization
+const BUDGET_RULES = {
+  needs: { percentage: 50, categories: ["food", "transportation", "bills", "healthcare", "housing"] },
+  wants: { percentage: 30, categories: ["entertainment", "shopping", "dining", "hobbies", "cosmetics"] },
+  savings: { percentage: 20, categories: ["savings", "investment", "emergency", "debt"] }
+};
+
 export default function Budgets() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
@@ -44,6 +63,11 @@ export default function Budgets() {
   // Transaction History States
   const [selectedBudgetForHistory, setSelectedBudgetForHistory] = useState<any>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  
+  // Budget Allocator States
+  const [totalIncome, setTotalIncome] = useState<string>("");
+  const [budgetAllocations, setBudgetAllocations] = useState<BudgetAllocation[]>([]);
+  const [conflicts, setConflicts] = useState<string[]>([]);
   
   // Helper function to format date for input without timezone issues
   const formatDateForInput = (date: Date) => {
@@ -70,6 +94,45 @@ export default function Budgets() {
   const { budgetCategories, addCustomCategory } = useCategories();
   const { toast } = useToast();
 
+  // Initialize budget allocations with 50/30/20 rule
+  useEffect(() => {
+    const initialAllocations: BudgetAllocation[] = budgetCategories.map(category => {
+      let percentage = 0;
+      
+      // Categorize based on 50/30/20 rule
+      if (BUDGET_RULES.needs.categories.includes(category.value)) {
+        percentage = BUDGET_RULES.needs.percentage / BUDGET_RULES.needs.categories.length;
+      } else if (BUDGET_RULES.wants.categories.includes(category.value)) {
+        percentage = BUDGET_RULES.wants.percentage / BUDGET_RULES.wants.categories.length;
+      } else {
+        percentage = BUDGET_RULES.savings.percentage / BUDGET_RULES.savings.categories.length;
+      }
+
+      return {
+        category: category.value,
+        icon: category.icon,
+        percentage: Math.round(percentage * 100) / 100,
+        amount: 0,
+        enabled: true,
+      };
+    });
+
+    setBudgetAllocations(initialAllocations);
+  }, [budgetCategories]);
+
+  // Update amounts when total income or percentages change
+  useEffect(() => {
+    if (totalIncome) {
+      const income = parseFloat(totalIncome);
+      setBudgetAllocations(prev => 
+        prev.map(allocation => ({
+          ...allocation,
+          amount: Math.round((allocation.percentage / 100) * income)
+        }))
+      );
+    }
+  }, [totalIncome]);
+
   const form = useForm<BudgetFormData>({
     resolver: zodResolver(budgetSchema),
     defaultValues: {
@@ -82,6 +145,35 @@ export default function Budgets() {
       description: "",
     },
   });
+
+  // Check for conflicts with existing budgets
+  useEffect(() => {
+    const formData = form.getValues();
+    const conflictingCategories: string[] = [];
+
+    budgetAllocations.forEach(allocation => {
+      if (!allocation.enabled) return;
+
+      const hasConflict = budgets.some(budget => {
+        const budgetStart = new Date(budget.startDate);
+        const budgetEnd = new Date(budget.endDate);
+        const newStart = new Date(formData.startDate);
+        const newEnd = new Date(formData.endDate);
+
+        return budget.category === allocation.category &&
+               budget.period === formData.period &&
+               ((newStart >= budgetStart && newStart <= budgetEnd) ||
+                (newEnd >= budgetStart && newEnd <= budgetEnd) ||
+                (newStart <= budgetStart && newEnd >= budgetEnd));
+      });
+
+      if (hasConflict) {
+        conflictingCategories.push(allocation.category);
+      }
+    });
+
+    setConflicts(conflictingCategories);
+  }, [budgetAllocations, budgets, form.watch("startDate"), form.watch("endDate"), form.watch("period")]);
 
   const createBudgetMutation = useMutation({
     mutationFn: async (data: InsertBudget) => {
@@ -170,8 +262,8 @@ export default function Budgets() {
       category: data.category,
       amount: data.amount,
       period: data.period,
-      startDate: data.startDate,
-      endDate: data.endDate,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
       icon: data.icon,
       description: data.description || null,
     };
@@ -201,6 +293,149 @@ export default function Budgets() {
   const handleCloseHistoryModal = () => {
     setIsHistoryModalOpen(false);
     setSelectedBudgetForHistory(null);
+  };
+
+  // Budget Allocator Helper Functions
+  const totalPercentage = useMemo(() => {
+    return budgetAllocations
+      .filter(allocation => allocation.enabled)
+      .reduce((sum, allocation) => sum + allocation.percentage, 0);
+  }, [budgetAllocations]);
+
+  const totalAmount = useMemo(() => {
+    return budgetAllocations
+      .filter(allocation => allocation.enabled)
+      .reduce((sum, allocation) => sum + allocation.amount, 0);
+  }, [budgetAllocations]);
+
+  const updatePercentage = (category: string, newPercentage: number) => {
+    setBudgetAllocations(prev =>
+      prev.map(allocation =>
+        allocation.category === category
+          ? { ...allocation, percentage: newPercentage }
+          : allocation
+      )
+    );
+  };
+
+  const toggleBudgetEnabled = (category: string) => {
+    setBudgetAllocations(prev =>
+      prev.map(allocation =>
+        allocation.category === category
+          ? { ...allocation, enabled: !allocation.enabled }
+          : allocation
+      )
+    );
+  };
+
+  const resetTo50_30_20 = () => {
+    setBudgetAllocations(prev => prev.map(allocation => {
+      let percentage = 0;
+      
+      if (BUDGET_RULES.needs.categories.includes(allocation.category)) {
+        percentage = BUDGET_RULES.needs.percentage / BUDGET_RULES.needs.categories.length;
+      } else if (BUDGET_RULES.wants.categories.includes(allocation.category)) {
+        percentage = BUDGET_RULES.wants.percentage / BUDGET_RULES.wants.categories.length;
+      } else {
+        percentage = BUDGET_RULES.savings.percentage / BUDGET_RULES.savings.categories.length;
+      }
+
+      return {
+        ...allocation,
+        percentage: Math.round(percentage * 100) / 100,
+        enabled: true,
+      };
+    }));
+  };
+
+  const getCategoryName = (category: string) => {
+    const categoryData = budgetCategories.find(cat => cat.value === category);
+    return categoryData?.label || category;
+  };
+
+  const getRuleCategory = (category: string) => {
+    if (BUDGET_RULES.needs.categories.includes(category)) return "needs";
+    if (BUDGET_RULES.wants.categories.includes(category)) return "wants";
+    return "savings";
+  };
+
+  const getRuleColor = (ruleCategory: string) => {
+    switch (ruleCategory) {
+      case "needs": return "bg-red-100 text-red-800";
+      case "wants": return "bg-yellow-100 text-yellow-800";
+      case "savings": return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const createBudgetsMutation = useMutation({
+    mutationFn: async (data: { budgets: InsertBudget[] }) => {
+      const promises = data.budgets.map(budget => 
+        apiRequest("/api/budgets", "POST", budget)
+      );
+      return Promise.all(promises);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      toast({
+        title: "Success",
+        description: "All budgets have been created successfully!",
+      });
+      // Reset form
+      setTotalIncome("");
+      resetTo50_30_20();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create budgets",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateAllBudgets = () => {
+    if (!totalIncome || parseFloat(totalIncome) <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid total income amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (conflicts.length > 0) {
+      toast({
+        title: "Error",
+        description: "Please resolve budget conflicts before creating budgets",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const formData = form.getValues();
+    const budgetsToCreate: InsertBudget[] = budgetAllocations
+      .filter(allocation => allocation.enabled && allocation.amount > 0)
+      .map(allocation => ({
+        category: allocation.category,
+        amount: allocation.amount.toString(),
+        period: formData.period,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        icon: allocation.icon,
+        description: `Budget allocated via Budget Allocator - ${allocation.percentage}% of income`,
+      }));
+
+    if (budgetsToCreate.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please enable at least one budget category",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createBudgetsMutation.mutate({ budgets: budgetsToCreate });
   };
 
   const getBudgetTransactions = (budget: any) => {
