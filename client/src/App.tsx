@@ -42,9 +42,7 @@ function Router() {
           <Route path="/reports" component={Reports} />
           <Route path="/calendar" component={Calendar} />
           <Route path="/other" component={Other} />
-          <Route path="*">
-            {() => <Home />}
-          </Route>
+
         </>
       )}
     </Switch>
