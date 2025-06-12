@@ -1,18 +1,10 @@
 import { Link } from "wouter";
-import { BarChart3, Settings, HelpCircle, Shield, CreditCard, Calendar, Calculator } from "lucide-react";
+import { BarChart3, Settings, HelpCircle, Shield, CreditCard, Calendar } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import { Button } from "@/components/ui/button";
 
 const menuItems = [
-  {
-    path: "/budget-allocator",
-    label: "Budget Allocator",
-    description: "Easily create monthly budgets using the 50/30/20 rule",
-    icon: Calculator,
-    color: "bg-green-100",
-    iconColor: "text-green-600"
-  },
   {
     path: "/calendar",
     label: "Calendar",

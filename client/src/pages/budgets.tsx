@@ -3,8 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { Plus, Trash2, Edit, PieChart, History, X, CalendarDays, Calculator } from "lucide-react";
-import { Link } from "wouter";
+import { Plus, Trash2, Edit, PieChart, History, X, CalendarDays } from "lucide-react";
 import Header from "@/components/layout/header";
 import BottomNavigation from "@/components/layout/bottom-navigation";
 import ProgressBar from "@/components/ui/progress-bar";
@@ -338,7 +337,7 @@ export default function Budgets() {
       <Header title="Budgets" subtitle="Manage your spending" />
       
       <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between">
           <Button
             onClick={handleCreateNew}
             className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl"
@@ -346,16 +345,6 @@ export default function Budgets() {
             <Plus className="h-4 w-4" />
             Add Budget
           </Button>
-          
-          <Link href="/budget-allocator">
-            <Button
-              variant="outline"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border-green-200 text-green-700 hover:bg-green-50"
-            >
-              <Calculator className="h-4 w-4" />
-              Allocator
-            </Button>
-          </Link>
         </div>
 
         {/* Total Budget Card */}
