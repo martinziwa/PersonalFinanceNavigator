@@ -9,7 +9,7 @@ import Transactions from "@/pages/transactions";
 import Budgets from "@/pages/budgets";
 import Goals from "@/pages/goals";
 import Reports from "@/pages/reports";
-
+import BudgetAllocator from "@/pages/budget-allocator";
 import Other from "@/pages/other";
 import Calendar from "@/pages/calendar";
 import Landing from "@/pages/landing";
@@ -40,7 +40,7 @@ function Router() {
           <Route path="/budgets" component={Budgets} />
           <Route path="/goals" component={Goals} />
           <Route path="/reports" component={Reports} />
-
+          <Route path="/budget-allocator" component={BudgetAllocator} />
           <Route path="/calendar" component={Calendar} />
           <Route path="/other" component={Other} />
 
