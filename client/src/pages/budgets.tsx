@@ -57,16 +57,6 @@ const BUDGET_RULES = {
 export default function Budgets() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<any>(null);
-  const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
-  const [customCategoryInput, setCustomCategoryInput] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("dateAdded");
-  
-  // Transaction History States
-  const [selectedBudgetForHistory, setSelectedBudgetForHistory] = useState<any>(null);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  
-  // Budget Allocator States
   const [activeTab, setActiveTab] = useState("list");
   const [totalIncome, setTotalIncome] = useState<string>("");
   const [budgetAllocations, setBudgetAllocations] = useState<BudgetAllocation[]>([]);
@@ -277,6 +267,148 @@ export default function Budgets() {
     }
   };
 
+  // Budget Allocator Functions
+  const totalPercentage = useMemo(() => {
+    return budgetAllocations
+      .filter(allocation => allocation.enabled)
+      .reduce((sum, allocation) => sum + allocation.percentage, 0);
+  }, [budgetAllocations]);
+
+  const totalAmount = useMemo(() => {
+    return budgetAllocations
+      .filter(allocation => allocation.enabled)
+      .reduce((sum, allocation) => sum + allocation.amount, 0);
+  }, [budgetAllocations]);
+
+  const updatePercentage = (category: string, newPercentage: number) => {
+    setBudgetAllocations(prev =>
+      prev.map(allocation =>
+        allocation.category === category
+          ? { ...allocation, percentage: newPercentage }
+          : allocation
+      )
+    );
+  };
+
+  const toggleBudgetEnabled = (category: string) => {
+    setBudgetAllocations(prev =>
+      prev.map(allocation =>
+        allocation.category === category
+          ? { ...allocation, enabled: !allocation.enabled }
+          : allocation
+      )
+    );
+  };
+
+  const resetTo50_30_20 = () => {
+    setBudgetAllocations(prev => prev.map(allocation => {
+      let percentage = 0;
+      
+      if (BUDGET_RULES.needs.categories.includes(allocation.category)) {
+        percentage = BUDGET_RULES.needs.percentage / BUDGET_RULES.needs.categories.length;
+      } else if (BUDGET_RULES.wants.categories.includes(allocation.category)) {
+        percentage = BUDGET_RULES.wants.percentage / BUDGET_RULES.wants.categories.length;
+      } else {
+        percentage = BUDGET_RULES.savings.percentage / BUDGET_RULES.savings.categories.length;
+      }
+
+      return {
+        ...allocation,
+        percentage: Math.round(percentage * 100) / 100,
+        enabled: true,
+      };
+    }));
+  };
+
+  const createBudgetsMutation = useMutation({
+    mutationFn: async (data: { budgets: InsertBudget[] }) => {
+      const promises = data.budgets.map(budget => 
+        apiRequest("POST", "/api/budgets", budget)
+      );
+      return Promise.all(promises);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      toast({
+        title: "Success",
+        description: "All budgets have been created successfully!",
+      });
+      setTotalIncome("");
+      resetTo50_30_20();
+      setActiveTab("list");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create budgets",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onAllocatorSubmit = (data: BudgetFormData) => {
+    if (!totalIncome || parseFloat(totalIncome) <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid total income amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (allocatorConflicts.length > 0) {
+      toast({
+        title: "Error",
+        description: "Please resolve budget conflicts before creating budgets",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const budgetsToCreate: InsertBudget[] = budgetAllocations
+      .filter(allocation => allocation.enabled && allocation.amount > 0)
+      .map(allocation => ({
+        category: allocation.category,
+        amount: allocation.amount.toString(),
+        period: data.period,
+        startDate: data.startDate,
+        endDate: data.endDate,
+        icon: allocation.icon,
+        description: `Budget allocated via Budget Allocator - ${allocation.percentage}% of income`,
+      }));
+
+    if (budgetsToCreate.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please enable at least one budget category",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createBudgetsMutation.mutate({ budgets: budgetsToCreate });
+  };
+
+  const getCategoryName = (category: string) => {
+    const categoryData = budgetCategories.find(cat => cat.value === category);
+    return categoryData?.label || category;
+  };
+
+  const getRuleCategory = (category: string) => {
+    if (BUDGET_RULES.needs.categories.includes(category)) return "needs";
+    if (BUDGET_RULES.wants.categories.includes(category)) return "wants";
+    return "savings";
+  };
+
+  const getRuleColor = (ruleCategory: string) => {
+    switch (ruleCategory) {
+      case "needs": return "bg-red-100 text-red-800";
+      case "wants": return "bg-yellow-100 text-yellow-800";
+      case "savings": return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
   const handleAddCustomCategory = () => {
     if (customCategoryInput.trim()) {
       const categoryValue = addCustomCategory(customCategoryInput.trim());
@@ -431,25 +563,11 @@ export default function Budgets() {
       <Header title="Budgets" subtitle="Manage your spending" />
       
       <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4">
-        <div className="flex items-center justify-between gap-3">
-          <Button
-            onClick={handleCreateNew}
-            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl"
-          >
-            <Plus className="h-4 w-4" />
-            Add Budget
-          </Button>
-          
-          <Link href="/budget-allocator">
-            <Button
-              variant="outline"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border-green-200 text-green-700 hover:bg-green-50"
-            >
-              <Calculator className="h-4 w-4" />
-              Allocator
-            </Button>
-          </Link>
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="list">Budget List</TabsTrigger>
+            <TabsTrigger value="allocator">Budget Allocator</TabsTrigger>
+          </TabsList>
 
         {/* Total Budget Card */}
         {filteredBudgets.length > 0 && (
