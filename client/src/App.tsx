@@ -13,7 +13,7 @@ import Reports from "@/pages/reports";
 import Other from "@/pages/other";
 import Calendar from "@/pages/calendar";
 import Landing from "@/pages/landing";
-import NotFound from "@/pages/not-found";
+
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -42,7 +42,9 @@ function Router() {
           <Route path="/reports" component={Reports} />
           <Route path="/calendar" component={Calendar} />
           <Route path="/other" component={Other} />
-          <Route path="*" component={NotFound} />
+          <Route path="*">
+            {() => <Home />}
+          </Route>
         </>
       )}
     </Switch>
