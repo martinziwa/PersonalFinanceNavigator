@@ -79,28 +79,30 @@ export default function Budgets() {
 
   // Initialize budget allocations with 50/30/20 rule
   useEffect(() => {
-    const initialAllocations: BudgetAllocation[] = budgetCategories.map(category => {
-      let percentage = 0;
-      
-      if (BUDGET_RULES.needs.categories.includes(category.value)) {
-        percentage = BUDGET_RULES.needs.percentage / BUDGET_RULES.needs.categories.length;
-      } else if (BUDGET_RULES.wants.categories.includes(category.value)) {
-        percentage = BUDGET_RULES.wants.percentage / BUDGET_RULES.wants.categories.length;
-      } else {
-        percentage = BUDGET_RULES.savings.percentage / BUDGET_RULES.savings.categories.length;
-      }
+    if (budgetCategories.length > 0 && budgetAllocations.length === 0) {
+      const initialAllocations: BudgetAllocation[] = budgetCategories.map(category => {
+        let percentage = 0;
+        
+        if (BUDGET_RULES.needs.categories.includes(category.value)) {
+          percentage = BUDGET_RULES.needs.percentage / BUDGET_RULES.needs.categories.length;
+        } else if (BUDGET_RULES.wants.categories.includes(category.value)) {
+          percentage = BUDGET_RULES.wants.percentage / BUDGET_RULES.wants.categories.length;
+        } else {
+          percentage = BUDGET_RULES.savings.percentage / BUDGET_RULES.savings.categories.length;
+        }
 
-      return {
-        category: category.value,
-        icon: category.icon,
-        percentage: Math.round(percentage * 100) / 100,
-        amount: 0,
-        enabled: true,
-      };
-    });
+        return {
+          category: category.value,
+          icon: category.icon,
+          percentage: Math.round(percentage * 100) / 100,
+          amount: 0,
+          enabled: true,
+        };
+      });
 
-    setBudgetAllocations(initialAllocations);
-  }, [budgetCategories]);
+      setBudgetAllocations(initialAllocations);
+    }
+  }, [budgetCategories, budgetAllocations.length]);
 
   // Update amounts when total income or percentages change
   useEffect(() => {
@@ -115,8 +117,13 @@ export default function Budgets() {
     }
   }, [totalIncome]);
 
-  // Check for conflicts with existing budgets
+  // Check for conflicts with existing budgets (optimized)
   useEffect(() => {
+    if (budgetAllocations.length === 0 || budgets.length === 0) {
+      setConflicts([]);
+      return;
+    }
+
     const formData = form.getValues();
     const conflictingCategories: string[] = [];
 
@@ -432,8 +439,8 @@ export default function Budgets() {
                           </div>
                           
                           <ProgressBar 
-                            progress={Math.min(spentPercentage, 100)} 
-                            className={spentPercentage > 100 ? 'bg-red-500' : spentPercentage > 80 ? 'bg-yellow-500' : 'bg-green-500'}
+                            percentage={Math.min(spentPercentage, 100)} 
+                            color={spentPercentage > 100 ? 'bg-red-500' : spentPercentage > 80 ? 'bg-yellow-500' : 'bg-green-500'}
                           />
                           
                           <div className="text-xs text-gray-500 text-center">
