@@ -420,8 +420,8 @@ export default function Budgets() {
         category: allocation.category,
         amount: allocation.amount.toString(),
         period: formData.period,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
+        startDate: new Date(formData.startDate),
+        endDate: new Date(formData.endDate),
         icon: allocation.icon,
         description: `Budget allocated via Budget Allocator - ${allocation.percentage}% of income`,
       }));
@@ -572,15 +572,28 @@ export default function Budgets() {
       <Header title="Budgets" subtitle="Manage your spending" />
       
       <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4">
-        <div className="flex items-center justify-between">
-          <Button
-            onClick={handleCreateNew}
-            className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl"
-          >
-            <Plus className="h-4 w-4" />
-            Add Budget
-          </Button>
-        </div>
+        <Tabs defaultValue="list" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="list" className="flex items-center gap-2">
+              <PieChart className="h-4 w-4" />
+              Budget List
+            </TabsTrigger>
+            <TabsTrigger value="allocator" className="flex items-center gap-2">
+              <Calculator className="h-4 w-4" />
+              Budget Allocator
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="list" className="space-y-4 mt-4">
+            <div className="flex items-center justify-between">
+              <Button
+                onClick={handleCreateNew}
+                className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl"
+              >
+                <Plus className="h-4 w-4" />
+                Add Budget
+              </Button>
+            </div>
 
         {/* Total Budget Card */}
         {filteredBudgets.length > 0 && (
@@ -1244,6 +1257,256 @@ export default function Budgets() {
             </div>
           </DialogContent>
         </Dialog>
+          </TabsContent>
+
+          <TabsContent value="allocator" className="space-y-4 mt-4">
+            {/* Total Income Input */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span>💰</span>
+                  Total Income
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="totalIncome" className="block text-sm font-medium text-gray-700 mb-1">
+                      Enter your total income for budget allocation
+                    </label>
+                    <Input
+                      id="totalIncome"
+                      type="number"
+                      placeholder="Enter amount (MWK)"
+                      value={totalIncome}
+                      onChange={(e) => setTotalIncome(e.target.value)}
+                    />
+                  </div>
+                  
+                  {totalIncome && (
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <div className="text-sm text-blue-700 mb-2">Allocation Summary</div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-blue-600">Total Allocated:</span>
+                          <div className="font-semibold">{formatCurrency(totalAmount)}</div>
+                        </div>
+                        <div>
+                          <span className="text-blue-600">Percentage:</span>
+                          <div className="font-semibold">{totalPercentage.toFixed(1)}%</div>
+                        </div>
+                      </div>
+                      {totalPercentage !== 100 && (
+                        <div className="mt-2 text-xs text-orange-600">
+                          ⚠️ Total percentage is {totalPercentage.toFixed(1)}% (should be 100%)
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Period Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5" />
+                  Budget Period
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="startDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Start Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="endDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>End Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="period"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Period Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select period" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="weekly">Weekly</SelectItem>
+                              <SelectItem value="monthly">Monthly</SelectItem>
+                              <SelectItem value="yearly">Yearly</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </Form>
+              </CardContent>
+            </Card>
+
+            {/* Conflicts Alert */}
+            {conflicts.length > 0 && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-800">
+                  <div className="font-medium mb-2">Budget Conflicts Detected:</div>
+                  <div className="space-y-1">
+                    {conflicts.map(category => (
+                      <div key={category} className="flex items-center gap-2">
+                        <span>• {getCategoryName(category)}</span>
+                        <Badge variant="destructive" className="text-xs">Conflict</Badge>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 text-sm">
+                    These categories already have budgets for the selected time period. Please adjust the dates or remove conflicting budgets.
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Budget Controls */}
+            <div className="flex gap-2">
+              <Button 
+                onClick={resetTo50_30_20} 
+                variant="outline" 
+                className="flex items-center gap-2"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Reset to 50/30/20 Rule
+              </Button>
+            </div>
+
+            {/* Budget Allocations */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Budget Categories</h3>
+              
+              {["needs", "wants", "savings"].map(ruleCategory => {
+                const categoryBudgets = budgetAllocations.filter(allocation => 
+                  getRuleCategory(allocation.category) === ruleCategory
+                );
+                
+                if (categoryBudgets.length === 0) return null;
+
+                return (
+                  <Card key={ruleCategory}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2">
+                        <Badge className={getRuleColor(ruleCategory)}>
+                          {ruleCategory === "needs" ? "50% - Needs" : 
+                           ruleCategory === "wants" ? "30% - Wants" : "20% - Savings/Debt"}
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {categoryBudgets.map(allocation => (
+                        <div key={allocation.category} className={`p-4 rounded-lg border transition-all ${
+                          allocation.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'
+                        } ${conflicts.includes(allocation.category) ? 'border-red-300 bg-red-50' : ''}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xl">{allocation.icon}</span>
+                              <div>
+                                <div className="font-medium">{getCategoryName(allocation.category)}</div>
+                                <div className="text-sm text-gray-500">
+                                  {allocation.percentage.toFixed(1)}% • {formatCurrency(allocation.amount)}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              {conflicts.includes(allocation.category) && (
+                                <Badge variant="destructive" className="text-xs">Conflict</Badge>
+                              )}
+                              <Button
+                                variant={allocation.enabled ? "destructive" : "outline"}
+                                size="sm"
+                                onClick={() => toggleBudgetEnabled(allocation.category)}
+                              >
+                                {allocation.enabled ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {allocation.enabled && (
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm text-gray-600">
+                                <span>Percentage</span>
+                                <span>{allocation.percentage.toFixed(1)}%</span>
+                              </div>
+                              <Slider
+                                value={[allocation.percentage]}
+                                onValueChange={(value) => updatePercentage(allocation.category, value[0])}
+                                max={50}
+                                step={0.5}
+                                className="w-full"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Create Budgets Button */}
+            <Card>
+              <CardContent className="pt-6">
+                <Button 
+                  onClick={handleCreateAllBudgets}
+                  disabled={createBudgetsMutation.isPending || conflicts.length > 0 || !totalIncome}
+                  className="w-full py-3"
+                >
+                  {createBudgetsMutation.isPending ? (
+                    "Creating Budgets..."
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Create All Budgets ({budgetAllocations.filter(a => a.enabled).length} categories)
+                    </>
+                  )}
+                </Button>
+                
+                {totalPercentage !== 100 && totalIncome && (
+                  <div className="mt-2 text-center text-sm text-orange-600">
+                    ⚠️ Total allocation is {totalPercentage.toFixed(1)}% (recommend 100%)
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
 
       <BottomNavigation />
