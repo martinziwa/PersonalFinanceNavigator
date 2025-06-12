@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { TrendingUp, ArrowDown, ArrowUp, Plus, AlertTriangle, Clock, Target } from "lucide-react";
 import Header from "@/components/layout/header";
@@ -8,9 +7,7 @@ import StatCard from "@/components/ui/stat-card";
 import ProgressBar from "@/components/ui/progress-bar";
 import TransactionModal from "@/components/modals/transaction-modal";
 import { Button } from "@/components/ui/button";
-import { useTransactions } from "@/hooks/use-transactions";
-import { useBudgets } from "@/hooks/use-budgets";
-import { useGoals } from "@/hooks/use-goals";
+import { useAdaptiveTransactions, useAdaptiveBudgets, useAdaptiveGoals, useAdaptiveFinancialSummary } from "@/hooks/useStorageHooks";
 
 import { formatCurrency } from "@/lib/currency";
 import type { Transaction } from "@shared/schema";
@@ -26,13 +23,10 @@ interface FinancialSummary {
 export default function Home() {
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
 
-  const { data: financialSummary } = useQuery<FinancialSummary>({
-    queryKey: ["/api/financial-summary"],
-  });
-
-  const { data: transactions = [] } = useTransactions();
-  const { data: budgets = [] } = useBudgets();
-  const { data: goals = [] } = useGoals();
+  const { data: financialSummary } = useAdaptiveFinancialSummary();
+  const { data: transactions = [] } = useAdaptiveTransactions();
+  const { data: budgets = [] } = useAdaptiveBudgets();
+  const { data: goals = [] } = useAdaptiveGoals();
 
 
   const recentTransactions = transactions.slice(0, 4);

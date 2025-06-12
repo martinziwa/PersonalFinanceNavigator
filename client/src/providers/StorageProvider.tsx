@@ -52,5 +52,6 @@ export function useCombinedAuth() {
   const databaseAuth = useAuth();
   const localAuth = useLocalAuth();
   
+  // Return the appropriate auth state based on mode
   return isLocalMode ? localAuth : databaseAuth;
 }

@@ -33,9 +33,6 @@ function Router() {
         <Route path="*" component={Landing} />
       ) : (
         <>
-          <div className="fixed top-4 right-4 z-50">
-            <StorageToggle />
-          </div>
           <Route path="/" component={Home} />
           <Route path="/transactions" component={Transactions} />
           <Route path="/budgets" component={Budgets} />
