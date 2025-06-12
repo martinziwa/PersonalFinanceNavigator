@@ -1,22 +1,20 @@
 import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
+import { StorageProvider, useCombinedAuth } from "@/providers/StorageProvider";
+import { StorageToggle } from "@/components/StorageToggle";
 import Home from "@/pages/home";
 import Transactions from "@/pages/transactions";
 import Budgets from "@/pages/budgets";
 import Goals from "@/pages/goals";
 import Reports from "@/pages/reports";
-
 import Other from "@/pages/other";
 import Calendar from "@/pages/calendar";
 import Landing from "@/pages/landing";
 
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useCombinedAuth();
 
   if (isLoading) {
     return (
@@ -35,6 +33,9 @@ function Router() {
         <Route path="*" component={Landing} />
       ) : (
         <>
+          <div className="fixed top-4 right-4 z-50">
+            <StorageToggle />
+          </div>
           <Route path="/" component={Home} />
           <Route path="/transactions" component={Transactions} />
           <Route path="/budgets" component={Budgets} />
@@ -53,12 +54,12 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <StorageProvider>
       <TooltipProvider>
         <Toaster />
         <Router />
       </TooltipProvider>
-    </QueryClientProvider>
+    </StorageProvider>
   );
 }
 

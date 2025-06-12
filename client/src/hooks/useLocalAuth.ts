@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { localStorageManager } from '@/lib/localStorage';
+import { initializeSampleData } from '@/lib/sampleData';
 import type { User } from '@shared/schema';
 
 export function useLocalAuth() {
