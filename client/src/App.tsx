@@ -9,6 +9,7 @@ import Transactions from "@/pages/transactions";
 import Budgets from "@/pages/budgets";
 import Goals from "@/pages/goals";
 import Reports from "@/pages/reports";
+
 import Other from "@/pages/other";
 import Calendar from "@/pages/calendar";
 import Landing from "@/pages/landing";
