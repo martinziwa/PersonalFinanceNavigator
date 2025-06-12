@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { localStorage } from "./localStorage";
+import { localStorageManager } from "./localStorage";
 import type { 
   Transaction, 
   InsertTransaction, 
@@ -19,34 +19,34 @@ export const localQueryClient = new QueryClient({
   },
 });
 
-// Local query functions that simulate API calls but use localStorage
+// Local query functions that simulate API calls but use localStorageManager
 export const localQueries = {
   // User queries
-  getUser: () => localStorage.getUser(),
+  getUser: () => localStorageManager.getUser(),
   
   // Transaction queries
-  getTransactions: () => localStorage.getTransactions(),
-  getTransactionsByCategory: (category: string) => localStorage.getTransactionsByCategory(category),
-  createTransaction: (data: InsertTransaction) => localStorage.createTransaction(data),
-  updateTransaction: (id: number, data: Partial<InsertTransaction>) => localStorage.updateTransaction(id, data),
-  deleteTransaction: (id: number) => localStorage.deleteTransaction(id),
+  getTransactions: () => localStorageManager.getTransactions(),
+  getTransactionsByCategory: (category: string) => localStorageManager.getTransactionsByCategory(category),
+  createTransaction: (data: InsertTransaction) => localStorageManager.createTransaction(data),
+  updateTransaction: (id: number, data: Partial<InsertTransaction>) => localStorageManager.updateTransaction(id, data),
+  deleteTransaction: (id: number) => localStorageManager.deleteTransaction(id),
   
   // Budget queries
-  getBudgets: () => localStorage.getBudgets(),
-  getBudget: (id: number) => localStorage.getBudget(id),
-  createBudget: (data: InsertBudget) => localStorage.createBudget(data),
-  updateBudget: (id: number, data: Partial<Budget>) => localStorage.updateBudget(id, data),
-  deleteBudget: (id: number) => localStorage.deleteBudget(id),
+  getBudgets: () => localStorageManager.getBudgets(),
+  getBudget: (id: number) => localStorageManager.getBudget(id),
+  createBudget: (data: InsertBudget) => localStorageManager.createBudget(data),
+  updateBudget: (id: number, data: Partial<Budget>) => localStorageManager.updateBudget(id, data),
+  deleteBudget: (id: number) => localStorageManager.deleteBudget(id),
   
   // Savings Goals queries
-  getSavingsGoals: () => localStorage.getSavingsGoals(),
-  getSavingsGoal: (id: number) => localStorage.getSavingsGoal(id),
-  createSavingsGoal: (data: InsertSavingsGoal) => localStorage.createSavingsGoal(data),
-  updateSavingsGoal: (id: number, data: Partial<SavingsGoal>) => localStorage.updateSavingsGoal(id, data),
-  deleteSavingsGoal: (id: number) => localStorage.deleteSavingsGoal(id),
+  getSavingsGoals: () => localStorageManager.getSavingsGoals(),
+  getSavingsGoal: (id: number) => localStorageManager.getSavingsGoal(id),
+  createSavingsGoal: (data: InsertSavingsGoal) => localStorageManager.createSavingsGoal(data),
+  updateSavingsGoal: (id: number, data: Partial<SavingsGoal>) => localStorageManager.updateSavingsGoal(id, data),
+  deleteSavingsGoal: (id: number) => localStorageManager.deleteSavingsGoal(id),
   
   // Financial summary
-  getFinancialSummary: () => localStorage.getFinancialSummary(),
+  getFinancialSummary: () => localStorageManager.getFinancialSummary(),
 };
 
 // Helper function to invalidate queries after mutations
@@ -58,54 +58,57 @@ export const invalidateLocalQueries = (queryKeys: string[]) => {
 
 // Mutation helpers for common operations
 export const localMutations = {
-  createTransaction: (data: InsertTransaction) => {
+  createTransaction: async (data: InsertTransaction) => {
     const result = localQueries.createTransaction(data);
-    invalidateLocalQueries(['/api/transactions', '/api/financial-summary']);
+    invalidateLocalQueries(['local-transactions', 'local-financial-summary']);
     return result;
   },
   
-  updateTransaction: (id: number, data: Partial<InsertTransaction>) => {
+  updateTransaction: async (id: number, data: Partial<InsertTransaction>) => {
     const result = localQueries.updateTransaction(id, data);
-    invalidateLocalQueries(['/api/transactions', '/api/financial-summary']);
+    invalidateLocalQueries(['local-transactions', 'local-financial-summary']);
     return result;
   },
   
-  deleteTransaction: (id: number) => {
+  deleteTransaction: async (id: number) => {
     localQueries.deleteTransaction(id);
-    invalidateLocalQueries(['/api/transactions', '/api/financial-summary']);
+    invalidateLocalQueries(['local-transactions', 'local-financial-summary']);
+    return;
   },
   
-  createBudget: (data: InsertBudget) => {
+  createBudget: async (data: InsertBudget) => {
     const result = localQueries.createBudget(data);
-    invalidateLocalQueries(['/api/budgets']);
+    invalidateLocalQueries(['local-budgets']);
     return result;
   },
   
-  updateBudget: (id: number, data: Partial<Budget>) => {
+  updateBudget: async (id: number, data: Partial<Budget>) => {
     const result = localQueries.updateBudget(id, data);
-    invalidateLocalQueries(['/api/budgets']);
+    invalidateLocalQueries(['local-budgets']);
     return result;
   },
   
-  deleteBudget: (id: number) => {
+  deleteBudget: async (id: number) => {
     localQueries.deleteBudget(id);
-    invalidateLocalQueries(['/api/budgets']);
+    invalidateLocalQueries(['local-budgets']);
+    return;
   },
   
-  createSavingsGoal: (data: InsertSavingsGoal) => {
+  createSavingsGoal: async (data: InsertSavingsGoal) => {
     const result = localQueries.createSavingsGoal(data);
-    invalidateLocalQueries(['/api/goals', '/api/financial-summary']);
+    invalidateLocalQueries(['local-goals', 'local-financial-summary']);
     return result;
   },
   
-  updateSavingsGoal: (id: number, data: Partial<SavingsGoal>) => {
+  updateSavingsGoal: async (id: number, data: Partial<SavingsGoal>) => {
     const result = localQueries.updateSavingsGoal(id, data);
-    invalidateLocalQueries(['/api/goals', '/api/financial-summary']);
+    invalidateLocalQueries(['local-goals', 'local-financial-summary']);
     return result;
   },
   
-  deleteSavingsGoal: (id: number) => {
+  deleteSavingsGoal: async (id: number) => {
     localQueries.deleteSavingsGoal(id);
-    invalidateLocalQueries(['/api/goals', '/api/financial-summary']);
+    invalidateLocalQueries(['local-goals', 'local-financial-summary']);
+    return;
   },
 };

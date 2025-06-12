@@ -222,14 +222,14 @@ export class LocalStorageManager {
     };
 
     goals[index] = updatedGoal;
-    localStorage.setItem(STORAGE_KEYS.SAVINGS_GOALS, JSON.stringify(goals));
+    window.localStorage.setItem(STORAGE_KEYS.SAVINGS_GOALS, JSON.stringify(goals));
     return updatedGoal;
   }
 
   deleteSavingsGoal(id: number): void {
     const goals = this.getSavingsGoals();
     const filtered = goals.filter(g => g.id !== id);
-    localStorage.setItem(STORAGE_KEYS.SAVINGS_GOALS, JSON.stringify(filtered));
+    window.localStorage.setItem(STORAGE_KEYS.SAVINGS_GOALS, JSON.stringify(filtered));
   }
 
   // Financial Summary
@@ -316,16 +316,16 @@ export class LocalStorageManager {
       const data = JSON.parse(jsonData);
       
       if (data.user) {
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
+        window.localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.user));
       }
       if (data.transactions) {
-        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(data.transactions));
+        window.localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(data.transactions));
       }
       if (data.budgets) {
-        localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(data.budgets));
+        window.localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(data.budgets));
       }
       if (data.savingsGoals) {
-        localStorage.setItem(STORAGE_KEYS.SAVINGS_GOALS, JSON.stringify(data.savingsGoals));
+        window.localStorage.setItem(STORAGE_KEYS.SAVINGS_GOALS, JSON.stringify(data.savingsGoals));
       }
     } catch (error) {
       throw new Error('Invalid JSON data format');
@@ -334,13 +334,13 @@ export class LocalStorageManager {
 
   clearAllData(): void {
     Object.values(STORAGE_KEYS).forEach(key => {
-      localStorage.removeItem(key);
+      window.localStorage.removeItem(key);
     });
     // Clear ID counters
     ['transaction', 'budget', 'savingsGoal'].forEach(type => {
-      localStorage.removeItem(`${STORAGE_KEYS.NEXT_ID}_${type}`);
+      window.localStorage.removeItem(`${STORAGE_KEYS.NEXT_ID}_${type}`);
     });
   }
 }
 
-export const localStorage = new LocalStorage();
+export const localStorageManager = new LocalStorageManager();
