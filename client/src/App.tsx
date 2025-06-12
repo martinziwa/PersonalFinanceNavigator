@@ -40,10 +40,9 @@ function Router() {
           <Route path="/budgets" component={Budgets} />
           <Route path="/goals" component={Goals} />
           <Route path="/reports" component={Reports} />
-
           <Route path="/calendar" component={Calendar} />
           <Route path="/other" component={Other} />
-          <Route component={NotFound} />
+          <Route path="*" component={NotFound} />
         </>
       )}
     </Switch>
