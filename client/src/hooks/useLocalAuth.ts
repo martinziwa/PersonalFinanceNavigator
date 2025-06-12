@@ -22,6 +22,9 @@ export function useLocalAuth() {
             lastName: 'User',
             profileImageUrl: null,
           });
+          
+          // Initialize sample data for new local users
+          initializeSampleData();
         }
         
         setUser(existingUser);
