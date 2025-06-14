@@ -1,11 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { Home, List, PieChart, Target, MoreHorizontal } from "lucide-react";
+import { Home, List, PieChart, Target, DollarSign, MoreHorizontal } from "lucide-react";
 
 const navItems = [
   { path: "/", label: "Home", icon: Home },
   { path: "/transactions", label: "Transactions", icon: List },
   { path: "/budgets", label: "Budgets", icon: PieChart },
   { path: "/goals", label: "Goals", icon: Target },
+  { path: "/loans", label: "Loans", icon: DollarSign },
   { path: "/other", label: "Other", icon: MoreHorizontal },
 ];
 

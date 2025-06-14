@@ -87,7 +87,7 @@ export default function Loans() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: InsertLoan) => {
+    mutationFn: async (data: any) => {
       const response = await fetch("/api/loans", {
         method: "POST",
         body: JSON.stringify(data),
@@ -116,7 +116,7 @@ export default function Loans() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertLoan> }) => {
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
       const response = await fetch(`/api/loans/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
@@ -186,9 +186,9 @@ export default function Loans() {
     };
 
     if (editingLoan) {
-      updateMutation.mutate({ id: editingLoan.id, data: submitData });
+      updateMutation.mutate({ id: editingLoan.id, data: submitData as any });
     } else {
-      createMutation.mutate(submitData);
+      createMutation.mutate(submitData as any);
     }
   };
 
