@@ -413,6 +413,18 @@ export default function Budgets() {
                   const remaining = parseFloat(budget.amount) - totalSpent;
                   const spentPercentage = parseFloat(budget.amount) > 0 ? (totalSpent / parseFloat(budget.amount)) * 100 : 0;
 
+                  // Calculate time progress
+                  const budgetStart = new Date(budget.startDate);
+                  const budgetEnd = new Date(budget.endDate);
+                  const now = new Date();
+                  const totalDuration = budgetEnd.getTime() - budgetStart.getTime();
+                  const elapsedDuration = now.getTime() - budgetStart.getTime();
+                  const timeProgress = Math.max(0, Math.min(100, (elapsedDuration / totalDuration) * 100));
+                  
+                  const daysTotal = Math.ceil(totalDuration / (1000 * 60 * 60 * 24));
+                  const daysElapsed = Math.max(0, Math.ceil(elapsedDuration / (1000 * 60 * 60 * 24)));
+                  const daysRemaining = Math.max(0, daysTotal - daysElapsed);
+
                   return (
                     <Card key={budget.id} className="overflow-hidden">
                       <CardContent className="p-4">
@@ -430,7 +442,7 @@ export default function Budgets() {
                           </div>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-600">Spent: {formatCurrency(totalSpent)}</span>
                             <span className={`font-medium ${remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -438,13 +450,26 @@ export default function Budgets() {
                             </span>
                           </div>
                           
-                          <ProgressBar 
-                            percentage={Math.min(spentPercentage, 100)} 
-                            color={spentPercentage > 100 ? 'bg-red-500' : spentPercentage > 80 ? 'bg-yellow-500' : 'bg-green-500'}
-                          />
-                          
-                          <div className="text-xs text-gray-500 text-center">
-                            {spentPercentage.toFixed(1)}% used
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>Budget Progress</span>
+                              <span>{spentPercentage.toFixed(1)}% used</span>
+                            </div>
+                            <ProgressBar 
+                              percentage={Math.min(spentPercentage, 100)} 
+                              color={spentPercentage > 100 ? 'bg-red-500' : spentPercentage > 80 ? 'bg-yellow-500' : 'bg-green-500'}
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>Time Progress</span>
+                              <span>{daysRemaining} days left</span>
+                            </div>
+                            <ProgressBar 
+                              percentage={timeProgress} 
+                              color={timeProgress > 90 ? 'bg-red-500' : timeProgress > 70 ? 'bg-yellow-500' : 'bg-blue-500'}
+                            />
                           </div>
                         </div>
                       </CardContent>
