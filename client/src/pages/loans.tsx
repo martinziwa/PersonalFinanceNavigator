@@ -22,7 +22,7 @@ import ProgressBar from "@/components/ui/progress-bar";
 const loanFormSchema = z.object({
   name: z.string().min(1, "Loan name is required"),
   principal: z.string().min(1, "Principal amount is required"),
-  currentBalance: z.string().min(1, "Current balance is required"),
+  currentBalance: z.string().optional(),
   interestRate: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number"),
   interestType: z.string().default("simple"),
   compoundFrequency: z.string().optional(),
@@ -172,7 +172,7 @@ export default function Loans() {
     const submitData = {
       name: data.name,
       principal: data.principal,
-      currentBalance: data.currentBalance,
+      currentBalance: data.currentBalance || data.principal, // Use principal if current balance is empty
       interestRate: data.interestRate,
       interestType: data.interestType || "simple",
       compoundFrequency: data.compoundFrequency || "monthly",
@@ -458,9 +458,9 @@ export default function Loans() {
                     name="currentBalance"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Current Balance (MWK) *</FormLabel>
+                        <FormLabel>Current Balance (MWK)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                          <Input type="number" step="0.01" placeholder="Leave empty to use principal amount" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
