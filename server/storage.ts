@@ -277,7 +277,7 @@ export class DatabaseStorage implements IStorage {
     // Calculate monthly payment using full amortization
     const monthlyPayment = this.calculateAmortizedPayment(
       parseFloat(insertLoan.principal),
-      parseFloat(insertLoan.interestRate),
+      parseFloat(insertLoan.interestRate || "0"),
       insertLoan.termMonths
     );
 
@@ -293,6 +293,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateLoan(userId: string, id: number, updates: Partial<Loan>): Promise<Loan> {
+    // If key loan parameters are being updated, recalculate monthly payment
+    if (updates.principal || updates.interestRate || updates.termMonths) {
+      const currentLoan = await this.getLoan(userId, id);
+      if (currentLoan) {
+        const principal = parseFloat(updates.principal || currentLoan.principal);
+        const interestRate = parseFloat(updates.interestRate || currentLoan.interestRate);
+        const termMonths = updates.termMonths || currentLoan.termMonths;
+        
+        const monthlyPayment = this.calculateAmortizedPayment(principal, interestRate, termMonths);
+        updates.monthlyPayment = monthlyPayment.toFixed(2);
+      }
+    }
+
     const [loan] = await db
       .update(loans)
       .set(updates)
@@ -325,26 +338,28 @@ export class DatabaseStorage implements IStorage {
     let monthlyPayment = 0;
     let payoffDate: Date | null = null;
 
-    if (loan.interestType === "simple") {
-      // Simple Interest: I = P * r * t
-      totalInterest = principal * annualRate * timeElapsed;
-      calculatedBalance = principal + totalInterest;
+    // For amortized loans, calculate based on standard amortization
+    const monthlyRate = annualRate / 12;
+    monthlyPayment = parseFloat(loan.monthlyPayment || "0");
+    
+    if (monthlyPayment > 0 && monthlyRate > 0) {
+      // Calculate remaining months to pay off the loan
+      const remainingMonths = Math.ceil(
+        -Math.log(1 - (currentBalance * monthlyRate) / monthlyPayment) / 
+        Math.log(1 + monthlyRate)
+      );
       
-      if (loan.monthlyPayment && parseFloat(loan.monthlyPayment) > 0) {
-        monthlyPayment = parseFloat(loan.monthlyPayment);
-        const monthsToPayoff = calculatedBalance / monthlyPayment;
-        payoffDate = new Date(now.getTime() + (monthsToPayoff * 30 * 24 * 60 * 60 * 1000));
-      }
-    } else {
-      // Compound Interest: A = P(1 + r/n)^(nt)
-      const frequency = getCompoundingFrequency(loan.compoundFrequency || 'monthly');
-      const compoundAmount = principal * Math.pow(1 + (annualRate / frequency), frequency * timeElapsed);
-      totalInterest = compoundAmount - principal;
-      calculatedBalance = compoundAmount;
+      // Calculate total interest that will be paid
+      totalInterest = (monthlyPayment * remainingMonths) - currentBalance;
       
-      if (loan.monthlyPayment && parseFloat(loan.monthlyPayment) > 0) {
-        monthlyPayment = parseFloat(loan.monthlyPayment);
-        // Approximate calculation for compound interest payoff
+      // Calculate payoff date
+      payoffDate = new Date(now);
+      payoffDate.setMonth(payoffDate.getMonth() + remainingMonths);
+    } else if (monthlyPayment > 0) {
+      // No interest case
+      const remainingMonths = Math.ceil(currentBalance / monthlyPayment);
+      payoffDate = new Date(now);
+      payoffDate.setMonth(payoffDate.getMonth() + remainingMonths);
         const monthlyRate = annualRate / 12;
         const monthsToPayoff = -Math.log(1 - (calculatedBalance * monthlyRate) / monthlyPayment) / Math.log(1 + monthlyRate);
         if (monthsToPayoff > 0 && isFinite(monthsToPayoff)) {
