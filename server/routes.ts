@@ -290,7 +290,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/loans", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const loan = await storage.createLoan(userId, req.body);
+      const loanData = {
+        ...req.body,
+        startDate: new Date(req.body.startDate),
+        endDate: req.body.endDate ? new Date(req.body.endDate) : null
+      };
+      const loan = await storage.createLoan(userId, loanData);
       res.json(loan);
     } catch (error) {
       console.error("Error creating loan:", error);
@@ -302,7 +307,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const id = parseInt(req.params.id);
-      const loan = await storage.updateLoan(userId, id, req.body);
+      const updateData = {
+        ...req.body,
+        startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
+        endDate: req.body.endDate ? new Date(req.body.endDate) : null
+      };
+      const loan = await storage.updateLoan(userId, id, updateData);
       res.json(loan);
     } catch (error) {
       console.error("Error updating loan:", error);
