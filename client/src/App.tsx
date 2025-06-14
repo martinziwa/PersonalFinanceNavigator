@@ -8,6 +8,7 @@ import Home from "@/pages/home";
 import Transactions from "@/pages/transactions";
 import Budgets from "@/pages/budgets";
 import Goals from "@/pages/goals";
+import Loans from "@/pages/loans";
 import Reports from "@/pages/reports";
 
 import Other from "@/pages/other";
@@ -39,6 +40,7 @@ function Router() {
           <Route path="/transactions" component={Transactions} />
           <Route path="/budgets" component={Budgets} />
           <Route path="/goals" component={Goals} />
+          <Route path="/loans" component={Loans} />
           <Route path="/reports" component={Reports} />
 
           <Route path="/calendar" component={Calendar} />

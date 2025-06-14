@@ -63,7 +63,7 @@ export default function Loans() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: loans = [], isLoading } = useQuery({
+  const { data: loans = [], isLoading } = useQuery<Loan[]>({
     queryKey: ["/api/loans"],
   });
 
@@ -88,11 +88,13 @@ export default function Loans() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertLoan) => {
-      return apiRequest("/api/loans", {
+      const response = await fetch("/api/loans", {
         method: "POST",
         body: JSON.stringify(data),
         headers: { "Content-Type": "application/json" }
       });
+      if (!response.ok) throw new Error("Failed to create loan");
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
@@ -115,11 +117,13 @@ export default function Loans() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<InsertLoan> }) => {
-      return apiRequest(`/api/loans/${id}`, {
+      const response = await fetch(`/api/loans/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
         headers: { "Content-Type": "application/json" }
       });
+      if (!response.ok) throw new Error("Failed to update loan");
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
@@ -143,7 +147,9 @@ export default function Loans() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/loans/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/loans/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to delete loan");
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
@@ -163,7 +169,7 @@ export default function Loans() {
   });
 
   const onSubmit = (data: LoanFormData) => {
-    const submitData: InsertLoan = {
+    const submitData = {
       name: data.name,
       principal: data.principal,
       currentBalance: data.currentBalance,
