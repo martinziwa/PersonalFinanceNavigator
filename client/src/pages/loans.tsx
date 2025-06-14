@@ -193,11 +193,9 @@ export default function Loans() {
       principal: loan.principal,
       currentBalance: loan.currentBalance,
       interestRate: loan.interestRate,
-      interestType: loan.interestType,
-      compoundFrequency: loan.compoundFrequency || "monthly",
+      termMonths: loan.termMonths?.toString() || "12",
       startDate: new Date(loan.startDate).toISOString().split('T')[0],
       endDate: loan.endDate ? new Date(loan.endDate).toISOString().split('T')[0] : "",
-      monthlyPayment: loan.monthlyPayment || "",
       loanType: loan.loanType,
       lender: loan.lender || "",
       description: loan.description || "",
@@ -221,33 +219,19 @@ export default function Loans() {
   const calculateInterestDisplay = (loan: Loan) => {
     const principal = parseFloat(loan.principal);
     const currentBalance = parseFloat(loan.currentBalance);
-    const annualRate = parseFloat(loan.interestRate) / 100;
-    const startDate = new Date(loan.startDate);
-    const now = new Date();
+    const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
+    const termMonths = loan.termMonths || 12;
     
-    // Calculate time elapsed in years
-    const timeElapsed = (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-    
+    // For amortized loans, calculate total interest over the life of the loan
     let totalInterest = 0;
-    let calculatedBalance = currentBalance;
-
-    if (loan.interestType === "simple") {
-      // Simple Interest: I = P * r * t
-      totalInterest = principal * annualRate * timeElapsed;
-      calculatedBalance = principal + totalInterest;
-    } else {
-      // Compound Interest: A = P(1 + r/n)^(nt)
-      const frequency = loan.compoundFrequency === "daily" ? 365 : 
-                       loan.compoundFrequency === "quarterly" ? 4 : 
-                       loan.compoundFrequency === "annually" ? 1 : 12; // monthly default
-      const compoundAmount = principal * Math.pow(1 + (annualRate / frequency), frequency * timeElapsed);
-      totalInterest = compoundAmount - principal;
-      calculatedBalance = compoundAmount;
+    
+    if (monthlyPayment > 0) {
+      totalInterest = (monthlyPayment * termMonths) - principal;
     }
 
     return {
-      totalInterest,
-      calculatedBalance,
+      totalInterest: Math.max(0, totalInterest),
+      calculatedBalance: currentBalance,
       paidAmount: principal - currentBalance
     };
   };
@@ -321,7 +305,7 @@ export default function Loans() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Interest Rate</p>
-                        <p className="font-semibold">{loan.interestRate}% ({loan.interestType})</p>
+                        <p className="font-semibold">{loan.interestRate}% (Amortized)</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Monthly Payment</p>
@@ -348,19 +332,17 @@ export default function Loans() {
                         />
                       </div>
 
-                      {loan.interestType === "compound" && (
-                        <div className="bg-blue-50 p-3 rounded-lg">
-                          <div className="flex items-center space-x-2">
-                            <TrendingUp className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium text-blue-800">
-                              Compound Interest ({loan.compoundFrequency})
-                            </span>
-                          </div>
-                          <p className="text-xs text-blue-600 mt-1">
-                            Current calculated balance: {formatCurrency(calculatedBalance)}
-                          </p>
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <TrendingUp className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-800">
+                            Amortized Loan ({loan.termMonths} months)
+                          </span>
                         </div>
-                      )}
+                        <p className="text-xs text-blue-600 mt-1">
+                          Monthly Payment: {formatCurrency(parseFloat(loan.monthlyPayment || "0"))}
+                        </p>
+                      </div>
 
                       {loan.status !== "active" && (
                         <div className="bg-gray-100 p-3 rounded-lg">
@@ -521,19 +503,7 @@ export default function Loans() {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="monthlyPayment"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monthly Payment (MWK)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" placeholder="0.00" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
