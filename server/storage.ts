@@ -83,6 +83,20 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Helper method to calculate amortized monthly payment
+  private calculateAmortizedPayment(principal: number, annualRate: number, termMonths: number): number {
+    if (annualRate === 0) {
+      // If no interest, simply divide principal by term
+      return principal / termMonths;
+    }
+    
+    const monthlyRate = annualRate / 100 / 12; // Convert annual percentage to monthly decimal
+    const payment = principal * (monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / 
+                   (Math.pow(1 + monthlyRate, termMonths) - 1);
+    
+    return payment;
+  }
+
   // User operations (IMPORTANT) these user operations are mandatory for Replit Auth.
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -260,9 +274,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLoan(userId: string, insertLoan: InsertLoan): Promise<Loan> {
+    // Calculate monthly payment using full amortization
+    const monthlyPayment = this.calculateAmortizedPayment(
+      parseFloat(insertLoan.principal),
+      parseFloat(insertLoan.interestRate),
+      insertLoan.termMonths
+    );
+
     const [loan] = await db
       .insert(loans)
-      .values({ ...insertLoan, userId })
+      .values({ 
+        ...insertLoan, 
+        userId,
+        monthlyPayment: monthlyPayment.toFixed(2)
+      })
       .returning();
     return loan;
   }

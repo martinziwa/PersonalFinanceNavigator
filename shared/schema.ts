@@ -48,11 +48,10 @@ export const loans = pgTable("loans", {
   principal: decimal("principal", { precision: 12, scale: 2 }).notNull(),
   currentBalance: decimal("current_balance", { precision: 12, scale: 2 }).notNull(),
   interestRate: decimal("interest_rate", { precision: 5, scale: 2 }).default("0.00").notNull(),
-  interestType: text("interest_type").default("simple").notNull(), // "simple" or "compound"
-  compoundFrequency: text("compound_frequency").default("monthly"), // "daily", "monthly", "quarterly", "annually"
+  termMonths: integer("term_months").notNull(), // loan term in months for amortization calculation
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"),
-  monthlyPayment: decimal("monthly_payment", { precision: 12, scale: 2 }),
+  monthlyPayment: decimal("monthly_payment", { precision: 12, scale: 2 }), // calculated automatically
   loanType: text("loan_type").notNull(), // "personal", "mortgage", "auto", "student", "business", "credit_card", "other"
   lender: text("lender"),
   description: text("description"),
@@ -109,6 +108,7 @@ export const insertSavingsGoalSchema = createInsertSchema(savingsGoals).omit({
 
 export const insertLoanSchema = createInsertSchema(loans).omit({
   id: true,
+  monthlyPayment: true, // calculated automatically
 }).extend({
   startDate: z.string().transform((val) => new Date(val)),
   endDate: z.string().nullable().optional().transform((val) => val ? new Date(val) : null),
