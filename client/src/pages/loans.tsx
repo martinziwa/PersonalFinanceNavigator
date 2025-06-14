@@ -24,11 +24,9 @@ const loanFormSchema = z.object({
   principal: z.string().min(1, "Principal amount is required"),
   currentBalance: z.string().optional(),
   interestRate: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number"),
-  interestType: z.string().default("simple"),
-  compoundFrequency: z.string().optional(),
+  termMonths: z.string().min(1, "Loan term is required"),
   startDate: z.string(),
   endDate: z.string().optional(),
-  monthlyPayment: z.string().optional(),
   loanType: z.string(),
   lender: z.string().optional(),
   description: z.string().optional(),
@@ -74,11 +72,9 @@ export default function Loans() {
       principal: "",
       currentBalance: "",
       interestRate: "0",
-      interestType: "simple",
-      compoundFrequency: "monthly",
+      termMonths: "12",
       startDate: new Date().toISOString().split('T')[0],
       endDate: "",
-      monthlyPayment: "",
       loanType: "personal",
       lender: "",
       description: "",
@@ -174,11 +170,9 @@ export default function Loans() {
       principal: data.principal,
       currentBalance: data.currentBalance || data.principal, // Use principal if current balance is empty
       interestRate: data.interestRate,
-      interestType: data.interestType || "simple",
-      compoundFrequency: data.compoundFrequency || "monthly",
+      termMonths: parseInt(data.termMonths),
       startDate: data.startDate,
       endDate: data.endDate || null,
-      monthlyPayment: data.monthlyPayment || null,
       loanType: data.loanType,
       lender: data.lender || null,
       description: data.description || null,
@@ -485,51 +479,17 @@ export default function Loans() {
 
                   <FormField
                     control={form.control}
-                    name="interestType"
+                    name="termMonths"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Interest Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="simple">Simple Interest</SelectItem>
-                            <SelectItem value="compound">Compound Interest</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>Loan Term (months) *</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="12" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
-                  {form.watch("interestType") === "compound" && (
-                    <FormField
-                      control={form.control}
-                      name="compoundFrequency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Compound Frequency</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="daily">Daily</SelectItem>
-                              <SelectItem value="monthly">Monthly</SelectItem>
-                              <SelectItem value="quarterly">Quarterly</SelectItem>
-                              <SelectItem value="annually">Annually</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

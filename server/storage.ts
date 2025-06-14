@@ -16,22 +16,7 @@ import {
   type UpsertUser,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte, sum } from "drizzle-orm";
-import { desc } from "drizzle-orm";
-
-// Helper function to convert frequency string to compounding periods per year
-function getCompoundingFrequency(frequency: string): number {
-  switch (frequency.toLowerCase()) {
-    case "daily": return 365;
-    case "weekly": return 52;
-    case "biweekly": return 26;
-    case "monthly": return 12;
-    case "bimonthly": return 6;
-    case "quarterly": return 4;
-    case "annually": return 1;
-    default: return 12; // Default to monthly
-  }
-}
+import { eq, and, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (IMPORTANT) these user operations are mandatory for Replit Auth.
@@ -125,14 +110,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTransactionsByCategory(userId: string, category: string): Promise<Transaction[]> {
-    return await db.select().from(transactions).where(and(eq(transactions.userId, userId), eq(transactions.category, category))).orderBy(transactions.date);
+    return await db.select().from(transactions).where(and(eq(transactions.userId, userId), eq(transactions.category, category)));
   }
 
   async createTransaction(userId: string, insertTransaction: InsertTransaction): Promise<Transaction> {
     const [transaction] = await db
       .insert(transactions)
-      .values({...insertTransaction, userId})
+      .values({ ...insertTransaction, userId })
       .returning();
+
+    // Update budget spent amount if it's an expense or loan payment and within budget period
+    if (transaction.type === "expense" || transaction.type === "loan_payment") {
+      const matchingBudgets = await db
+        .select()
+        .from(budgets)
+        .where(
+          and(
+            eq(budgets.userId, userId),
+            eq(budgets.category, transaction.category),
+            lte(budgets.startDate, transaction.date),
+            gte(budgets.endDate, transaction.date)
+          )
+        );
+
+      for (const budget of matchingBudgets) {
+        const newSpent = parseFloat(budget.spent) + parseFloat(transaction.amount);
+        await db
+          .update(budgets)
+          .set({ spent: newSpent.toString() })
+          .where(eq(budgets.id, budget.id));
+      }
+    }
+
     return transaction;
   }
 
@@ -146,86 +155,63 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTransaction(userId: string, id: number): Promise<void> {
+    const [transaction] = await db.select().from(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
+    
+    if (transaction && (transaction.type === "expense" || transaction.type === "loan_payment")) {
+      // Update budget spent amount if within budget period
+      const matchingBudgets = await db
+        .select()
+        .from(budgets)
+        .where(
+          and(
+            eq(budgets.userId, userId),
+            eq(budgets.category, transaction.category),
+            lte(budgets.startDate, transaction.date),
+            gte(budgets.endDate, transaction.date)
+          )
+        );
+
+      for (const budget of matchingBudgets) {
+        const newSpent = parseFloat(budget.spent) - parseFloat(transaction.amount);
+        await db
+          .update(budgets)
+          .set({ spent: Math.max(0, newSpent).toString() })
+          .where(eq(budgets.id, budget.id));
+      }
+    }
+    
     await db.delete(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
   }
 
   // Budgets
   async getBudgets(userId: string): Promise<Budget[]> {
-    const budgetsData = await db.select().from(budgets).where(eq(budgets.userId, userId)).orderBy(desc(budgets.startDate), budgets.category);
-    
-    // Calculate actual spending for each budget from transactions
-    const budgetsWithSpending = await Promise.all(
-      budgetsData.map(async (budget) => {
-        // Get transactions that match this budget's category and fall within its date range
-        const budgetTransactions = await db
-          .select()
-          .from(transactions)
-          .where(and(
-            eq(transactions.userId, userId),
-            eq(transactions.category, budget.category),
-            eq(transactions.type, 'expense'),
-            gte(transactions.date, budget.startDate),
-            lte(transactions.date, budget.endDate)
-          ));
-        
-        // Calculate total spent from matching transactions
-        const totalSpent = budgetTransactions.reduce((sum, transaction) => {
-          return sum + parseFloat(transaction.amount);
-        }, 0);
-        
-        return {
-          ...budget,
-          spent: totalSpent.toFixed(2)
-        };
-      })
-    );
-    
-    return budgetsWithSpending;
+    return await db.select().from(budgets).where(eq(budgets.userId, userId));
   }
 
   async getBudget(userId: string, id: number): Promise<Budget | undefined> {
     const [budget] = await db.select().from(budgets).where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
-    
-    if (!budget) return undefined;
-    
-    // Calculate actual spending for this budget from transactions
-    const budgetTransactions = await db
-      .select()
-      .from(transactions)
-      .where(and(
-        eq(transactions.userId, userId),
-        eq(transactions.category, budget.category),
-        eq(transactions.type, 'expense'),
-        gte(transactions.date, budget.startDate),
-        lte(transactions.date, budget.endDate)
-      ));
-    
-    // Calculate total spent from matching transactions
-    const totalSpent = budgetTransactions.reduce((sum, transaction) => {
-      return sum + parseFloat(transaction.amount);
-    }, 0);
-    
-    return {
-      ...budget,
-      spent: totalSpent.toFixed(2)
-    };
+    return budget || undefined;
   }
 
   async createBudget(userId: string, insertBudget: InsertBudget): Promise<Budget> {
     const [budget] = await db
       .insert(budgets)
-      .values({...insertBudget, userId})
+      .values({ ...insertBudget, userId })
       .returning();
     return budget;
   }
 
   async updateBudget(userId: string, id: number, updates: Partial<Budget>): Promise<Budget> {
-    const [budget] = await db
+    const [updated] = await db
       .update(budgets)
       .set(updates)
       .where(and(eq(budgets.id, id), eq(budgets.userId, userId)))
       .returning();
-    return budget;
+    
+    if (!updated) {
+      throw new Error("Budget not found");
+    }
+    return updated;
   }
 
   async deleteBudget(userId: string, id: number): Promise<void> {
@@ -234,29 +220,33 @@ export class DatabaseStorage implements IStorage {
 
   // Savings Goals
   async getSavingsGoals(userId: string): Promise<SavingsGoal[]> {
-    return await db.select().from(savingsGoals).where(eq(savingsGoals.userId, userId)).orderBy(savingsGoals.name);
+    return await db.select().from(savingsGoals).where(eq(savingsGoals.userId, userId));
   }
 
   async getSavingsGoal(userId: string, id: number): Promise<SavingsGoal | undefined> {
     const [goal] = await db.select().from(savingsGoals).where(and(eq(savingsGoals.id, id), eq(savingsGoals.userId, userId)));
-    return goal;
+    return goal || undefined;
   }
 
   async createSavingsGoal(userId: string, insertGoal: InsertSavingsGoal): Promise<SavingsGoal> {
     const [goal] = await db
       .insert(savingsGoals)
-      .values({...insertGoal, userId})
+      .values({ ...insertGoal, userId })
       .returning();
     return goal;
   }
 
   async updateSavingsGoal(userId: string, id: number, updates: Partial<SavingsGoal>): Promise<SavingsGoal> {
-    const [goal] = await db
+    const [updated] = await db
       .update(savingsGoals)
       .set(updates)
       .where(and(eq(savingsGoals.id, id), eq(savingsGoals.userId, userId)))
       .returning();
-    return goal;
+    
+    if (!updated) {
+      throw new Error("Savings goal not found");
+    }
+    return updated;
   }
 
   async deleteSavingsGoal(userId: string, id: number): Promise<void> {
@@ -265,7 +255,7 @@ export class DatabaseStorage implements IStorage {
 
   // Loans
   async getLoans(userId: string): Promise<Loan[]> {
-    return await db.select().from(loans).where(eq(loans.userId, userId)).orderBy(desc(loans.id));
+    return await db.select().from(loans).where(eq(loans.userId, userId));
   }
 
   async getLoan(userId: string, id: number): Promise<Loan | undefined> {
@@ -327,50 +317,42 @@ export class DatabaseStorage implements IStorage {
     const principal = parseFloat(loan.principal);
     const currentBalance = parseFloat(loan.currentBalance);
     const annualRate = parseFloat(loan.interestRate) / 100;
-    const startDate = new Date(loan.startDate);
+    const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
     const now = new Date();
     
-    // Calculate time elapsed in years
-    const timeElapsed = (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-    
     let totalInterest = 0;
-    let calculatedBalance = currentBalance;
-    let monthlyPayment = 0;
     let payoffDate: Date | null = null;
-
-    // For amortized loans, calculate based on standard amortization
-    const monthlyRate = annualRate / 12;
-    monthlyPayment = parseFloat(loan.monthlyPayment || "0");
     
-    if (monthlyPayment > 0 && monthlyRate > 0) {
-      // Calculate remaining months to pay off the loan
-      const remainingMonths = Math.ceil(
-        -Math.log(1 - (currentBalance * monthlyRate) / monthlyPayment) / 
-        Math.log(1 + monthlyRate)
-      );
+    // For amortized loans with monthly payments
+    if (monthlyPayment > 0) {
+      const monthlyRate = annualRate / 12;
       
-      // Calculate total interest that will be paid
-      totalInterest = (monthlyPayment * remainingMonths) - currentBalance;
-      
-      // Calculate payoff date
-      payoffDate = new Date(now);
-      payoffDate.setMonth(payoffDate.getMonth() + remainingMonths);
-    } else if (monthlyPayment > 0) {
-      // No interest case
-      const remainingMonths = Math.ceil(currentBalance / monthlyPayment);
-      payoffDate = new Date(now);
-      payoffDate.setMonth(payoffDate.getMonth() + remainingMonths);
-        const monthlyRate = annualRate / 12;
-        const monthsToPayoff = -Math.log(1 - (calculatedBalance * monthlyRate) / monthlyPayment) / Math.log(1 + monthlyRate);
-        if (monthsToPayoff > 0 && isFinite(monthsToPayoff)) {
-          payoffDate = new Date(now.getTime() + (monthsToPayoff * 30 * 24 * 60 * 60 * 1000));
+      if (monthlyRate > 0) {
+        // Calculate remaining months to pay off the loan
+        const remainingMonths = Math.ceil(
+          -Math.log(1 - (currentBalance * monthlyRate) / monthlyPayment) / 
+          Math.log(1 + monthlyRate)
+        );
+        
+        if (remainingMonths > 0 && isFinite(remainingMonths)) {
+          // Calculate total interest that will be paid
+          totalInterest = (monthlyPayment * remainingMonths) - currentBalance;
+          
+          // Calculate payoff date
+          payoffDate = new Date(now);
+          payoffDate.setMonth(payoffDate.getMonth() + remainingMonths);
         }
+      } else {
+        // No interest case
+        const remainingMonths = Math.ceil(currentBalance / monthlyPayment);
+        payoffDate = new Date(now);
+        payoffDate.setMonth(payoffDate.getMonth() + remainingMonths);
       }
     }
-
+    
     return {
-      totalInterest,
-      currentBalance: calculatedBalance,
+      totalInterest: Math.max(0, totalInterest),
+      currentBalance,
       monthlyPayment,
       payoffDate
     };
@@ -384,64 +366,57 @@ export class DatabaseStorage implements IStorage {
     totalSavings: number;
     totalDebt: number;
   }> {
-    // Get current month's transactions
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
+    
     const monthlyTransactions = await db
       .select()
       .from(transactions)
-      .where(and(
-        eq(transactions.userId, userId),
-        gte(transactions.date, startOfMonth),
-        lte(transactions.date, endOfMonth)
-      ));
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          gte(transactions.date, startOfMonth),
+          lte(transactions.date, endOfMonth)
+        )
+      );
 
     const monthlyIncome = monthlyTransactions
-      .filter(t => t.type === 'income')
+      .filter(t => parseFloat(t.amount) > 0)
       .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
     const monthlyExpenses = monthlyTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      .filter(t => parseFloat(t.amount) < 0)
+      .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0);
 
-    // Get all transactions for calculations
-    const allUserTransactions = await db.select().from(transactions).where(eq(transactions.userId, userId));
+    // Get all user transactions for total calculations
+    const allUserTransactions = await this.getTransactions(userId);
 
-    // Get savings goals total - calculate actual progress from transactions
-    const userSavingsGoals = await db.select().from(savingsGoals).where(eq(savingsGoals.userId, userId));
+    // Get savings goals
+    const userSavingsGoals = await this.getSavingsGoals(userId);
     let totalSavings = 0;
     
     for (const goal of userSavingsGoals) {
-      // Start with initial current amount AND starting savings
-      let goalProgress = parseFloat(goal.currentAmount);
-      const startingSavings = parseFloat(goal.startingSavings || '0');
-      goalProgress += startingSavings;
+      // Calculate saved amount for each goal
+      const goalTransactions = allUserTransactions.filter(transaction => 
+        transaction.description?.toLowerCase().includes(goal.name.toLowerCase()) ||
+        transaction.category === 'savings'
+      );
       
-      // Add savings deposits and subtract withdrawals for this goal
-      const goalTransactions = allUserTransactions.filter((t: any) => t.savingsGoalId === goal.id);
+      const goalSavings = goalTransactions
+        .filter(t => parseFloat(t.amount) > 0)
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
       
-      const transactionTotal = goalTransactions.reduce((sum: number, t: any) => {
-        if (t.type === 'savings_deposit') {
-          return sum + parseFloat(t.amount);
-        } else if (t.type === 'savings_withdrawal') {
-          return sum - parseFloat(t.amount);
-        }
-        return sum;
-      }, 0);
-      
-      goalProgress += transactionTotal;
-      totalSavings += goalProgress;
+      totalSavings += goalSavings;
     }
 
-    // Get total debt from loans
-    const userLoans = await db.select().from(loans).where(eq(loans.userId, userId));
+    // Get loans for debt calculation
+    const userLoans = await this.getLoans(userId);
     const totalDebt = userLoans.reduce((sum, loan) => {
       return sum + parseFloat(loan.currentBalance);
     }, 0);
 
-    // Calculate net worth (assets - debt)
+    // Calculate net worth (simplified as savings - debt)
     const netWorth = totalSavings - totalDebt;
 
     return {
@@ -449,7 +424,7 @@ export class DatabaseStorage implements IStorage {
       monthlyIncome,
       monthlyExpenses,
       totalSavings,
-      totalDebt,
+      totalDebt
     };
   }
 }
