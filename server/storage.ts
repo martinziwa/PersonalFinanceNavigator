@@ -2,6 +2,7 @@ import {
   transactions,
   budgets,
   savingsGoals,
+  loans,
   users,
   type Transaction,
   type InsertTransaction,
@@ -9,6 +10,8 @@ import {
   type InsertBudget,
   type SavingsGoal,
   type InsertSavingsGoal,
+  type Loan,
+  type InsertLoan,
   type User,
   type UpsertUser,
 } from "@shared/schema";
@@ -56,7 +59,18 @@ export interface IStorage {
   updateSavingsGoal(userId: string, id: number, goal: Partial<SavingsGoal>): Promise<SavingsGoal>;
   deleteSavingsGoal(userId: string, id: number): Promise<void>;
 
-
+  // Loans
+  getLoans(userId: string): Promise<Loan[]>;
+  getLoan(userId: string, id: number): Promise<Loan | undefined>;
+  createLoan(userId: string, loan: InsertLoan): Promise<Loan>;
+  updateLoan(userId: string, id: number, loan: Partial<Loan>): Promise<Loan>;
+  deleteLoan(userId: string, id: number): Promise<void>;
+  calculateLoanInterest(loan: Loan): Promise<{
+    totalInterest: number;
+    currentBalance: number;
+    monthlyPayment: number;
+    payoffDate: Date | null;
+  }>;
 
   // Financial Summary
   getFinancialSummary(userId: string): Promise<{
@@ -235,8 +249,92 @@ export class DatabaseStorage implements IStorage {
     await db.delete(savingsGoals).where(and(eq(savingsGoals.id, id), eq(savingsGoals.userId, userId)));
   }
 
+  // Loans
+  async getLoans(userId: string): Promise<Loan[]> {
+    return await db.select().from(loans).where(eq(loans.userId, userId)).orderBy(desc(loans.id));
+  }
 
+  async getLoan(userId: string, id: number): Promise<Loan | undefined> {
+    const [loan] = await db.select().from(loans).where(and(eq(loans.id, id), eq(loans.userId, userId)));
+    return loan;
+  }
 
+  async createLoan(userId: string, insertLoan: InsertLoan): Promise<Loan> {
+    const [loan] = await db
+      .insert(loans)
+      .values({ ...insertLoan, userId })
+      .returning();
+    return loan;
+  }
+
+  async updateLoan(userId: string, id: number, updates: Partial<Loan>): Promise<Loan> {
+    const [loan] = await db
+      .update(loans)
+      .set(updates)
+      .where(and(eq(loans.id, id), eq(loans.userId, userId)))
+      .returning();
+    return loan;
+  }
+
+  async deleteLoan(userId: string, id: number): Promise<void> {
+    await db.delete(loans).where(and(eq(loans.id, id), eq(loans.userId, userId)));
+  }
+
+  async calculateLoanInterest(loan: Loan): Promise<{
+    totalInterest: number;
+    currentBalance: number;
+    monthlyPayment: number;
+    payoffDate: Date | null;
+  }> {
+    const principal = parseFloat(loan.principal);
+    const currentBalance = parseFloat(loan.currentBalance);
+    const annualRate = parseFloat(loan.interestRate) / 100;
+    const startDate = new Date(loan.startDate);
+    const now = new Date();
+    
+    // Calculate time elapsed in years
+    const timeElapsed = (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+    
+    let totalInterest = 0;
+    let calculatedBalance = currentBalance;
+    let monthlyPayment = 0;
+    let payoffDate: Date | null = null;
+
+    if (loan.interestType === "simple") {
+      // Simple Interest: I = P * r * t
+      totalInterest = principal * annualRate * timeElapsed;
+      calculatedBalance = principal + totalInterest;
+      
+      if (loan.monthlyPayment && parseFloat(loan.monthlyPayment) > 0) {
+        monthlyPayment = parseFloat(loan.monthlyPayment);
+        const monthsToPayoff = calculatedBalance / monthlyPayment;
+        payoffDate = new Date(now.getTime() + (monthsToPayoff * 30 * 24 * 60 * 60 * 1000));
+      }
+    } else {
+      // Compound Interest: A = P(1 + r/n)^(nt)
+      const frequency = getCompoundingFrequency(loan.compoundFrequency || 'monthly');
+      const compoundAmount = principal * Math.pow(1 + (annualRate / frequency), frequency * timeElapsed);
+      totalInterest = compoundAmount - principal;
+      calculatedBalance = compoundAmount;
+      
+      if (loan.monthlyPayment && parseFloat(loan.monthlyPayment) > 0) {
+        monthlyPayment = parseFloat(loan.monthlyPayment);
+        // Approximate calculation for compound interest payoff
+        const monthlyRate = annualRate / 12;
+        const monthsToPayoff = -Math.log(1 - (calculatedBalance * monthlyRate) / monthlyPayment) / Math.log(1 + monthlyRate);
+        if (monthsToPayoff > 0 && isFinite(monthsToPayoff)) {
+          payoffDate = new Date(now.getTime() + (monthsToPayoff * 30 * 24 * 60 * 60 * 1000));
+        }
+      }
+    }
+
+    return {
+      totalInterest,
+      currentBalance: calculatedBalance,
+      monthlyPayment,
+      payoffDate
+    };
+  }
 
   // Financial Summary
   async getFinancialSummary(userId: string): Promise<{

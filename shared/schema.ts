@@ -41,6 +41,24 @@ export const savingsGoals = pgTable("savings_goals", {
   color: text("color").notNull(),
 });
 
+export const loans = pgTable("loans", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
+  name: text("name").notNull(),
+  principal: decimal("principal", { precision: 12, scale: 2 }).notNull(),
+  currentBalance: decimal("current_balance", { precision: 12, scale: 2 }).notNull(),
+  interestRate: decimal("interest_rate", { precision: 5, scale: 2 }).default("0.00").notNull(),
+  interestType: text("interest_type").default("simple").notNull(), // "simple" or "compound"
+  compoundFrequency: text("compound_frequency").default("monthly"), // "daily", "monthly", "quarterly", "annually"
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  monthlyPayment: decimal("monthly_payment", { precision: 12, scale: 2 }),
+  loanType: text("loan_type").notNull(), // "personal", "mortgage", "auto", "student", "business", "credit_card", "other"
+  lender: text("lender"),
+  description: text("description"),
+  status: text("status").default("active").notNull(), // "active", "paid_off", "defaulted"
+});
+
 // Session storage table for Replit Auth
 export const sessions = pgTable(
   "sessions",
@@ -89,6 +107,13 @@ export const insertSavingsGoalSchema = createInsertSchema(savingsGoals).omit({
   startingSavings: z.string().optional().transform((val) => val ? val : "0"),
 });
 
+export const insertLoanSchema = createInsertSchema(loans).omit({
+  id: true,
+}).extend({
+  startDate: z.string().transform((val) => new Date(val)),
+  endDate: z.string().nullable().optional().transform((val) => val ? new Date(val) : null),
+});
+
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 
@@ -97,6 +122,9 @@ export type Budget = typeof budgets.$inferSelect;
 
 export type InsertSavingsGoal = z.infer<typeof insertSavingsGoalSchema>;
 export type SavingsGoal = typeof savingsGoals.$inferSelect;
+
+export type InsertLoan = z.infer<typeof insertLoanSchema>;
+export type Loan = typeof loans.$inferSelect;
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
