@@ -275,7 +275,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Loans routes
+  app.get("/api/loans", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const loans = await storage.getLoans(userId);
+      res.json(loans);
+    } catch (error) {
+      console.error("Error fetching loans:", error);
+      res.status(500).json({ message: "Failed to fetch loans" });
+    }
+  });
 
+  app.post("/api/loans", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const loan = await storage.createLoan(userId, req.body);
+      res.json(loan);
+    } catch (error) {
+      console.error("Error creating loan:", error);
+      res.status(500).json({ message: "Failed to create loan" });
+    }
+  });
+
+  app.put("/api/loans/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      const loan = await storage.updateLoan(userId, id, req.body);
+      res.json(loan);
+    } catch (error) {
+      console.error("Error updating loan:", error);
+      res.status(500).json({ message: "Failed to update loan" });
+    }
+  });
+
+  app.delete("/api/loans/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      await storage.deleteLoan(userId, id);
+      res.json({ message: "Loan deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting loan:", error);
+      res.status(500).json({ message: "Failed to delete loan" });
+    }
+  });
+
+  app.get("/api/loans/:id/interest", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      const loan = await storage.getLoan(userId, id);
+      if (!loan) {
+        return res.status(404).json({ message: "Loan not found" });
+      }
+      const interestData = await storage.calculateLoanInterest(loan);
+      res.json(interestData);
+    } catch (error) {
+      console.error("Error calculating loan interest:", error);
+      res.status(500).json({ message: "Failed to calculate loan interest" });
+    }
+  });
 
   // Financial Summary
   app.get("/api/financial-summary", isAuthenticated, async (req: any, res) => {

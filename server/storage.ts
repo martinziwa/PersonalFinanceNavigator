@@ -395,11 +395,14 @@ export class DatabaseStorage implements IStorage {
       totalSavings += goalProgress;
     }
 
-    // Total debt is 0 since loans functionality has been removed
-    const totalDebt = 0;
+    // Get total debt from loans
+    const userLoans = await db.select().from(loans).where(eq(loans.userId, userId));
+    const totalDebt = userLoans.reduce((sum, loan) => {
+      return sum + parseFloat(loan.currentBalance);
+    }, 0);
 
-    // Calculate net worth from savings only
-    const netWorth = totalSavings;
+    // Calculate net worth (assets - debt)
+    const netWorth = totalSavings - totalDebt;
 
     return {
       netWorth,
