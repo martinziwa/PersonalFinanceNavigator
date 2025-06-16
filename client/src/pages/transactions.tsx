@@ -233,7 +233,7 @@ export default function Transactions() {
     <div className="max-w-sm mx-auto bg-white min-h-screen relative flex flex-col">
       <Header title="Transactions" subtitle="Track your finances" />
       
-      <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4">
+      <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4" style={{ scrollBehavior: 'smooth' }}>
         {/* Transaction Summary */}
         {filteredAndSortedTransactions.length > 0 && (
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
@@ -370,12 +370,13 @@ export default function Transactions() {
             {sortedDateKeys.map((dateKey) => (
               <div key={dateKey} className="space-y-3">
                 {/* Date Header */}
-                <div className="sticky top-0 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 z-10">
+                <div className="sticky top-0 bg-gradient-to-r from-white via-blue-50 to-white border-b-2 border-blue-200 px-4 py-3 z-20 shadow-lg backdrop-blur-sm">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-700">
+                    <h3 className="text-base font-bold text-gray-900 flex items-center">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
                       {formatDateHeader(dateKey)}
                     </h3>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-sm font-medium text-blue-600 bg-blue-100 px-3 py-1 rounded-full border border-blue-200">
                       {groupedTransactions[dateKey].length} transaction{groupedTransactions[dateKey].length !== 1 ? 's' : ''}
                     </div>
                   </div>
