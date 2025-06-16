@@ -233,10 +233,10 @@ export default function Transactions() {
     <div className="max-w-sm mx-auto bg-white min-h-screen relative flex flex-col">
       <Header title="Transactions" subtitle="Track your finances" />
       
-      <main className="flex-1 overflow-y-auto pb-20 px-4 space-y-4 pt-4" style={{ scrollBehavior: 'smooth' }}>
+      <main className="flex-1 overflow-y-auto pb-20 space-y-4 pt-4" style={{ scrollBehavior: 'smooth' }}>
         {/* Transaction Summary */}
         {filteredAndSortedTransactions.length > 0 && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100 mx-4">
             <h3 className="font-semibold text-gray-900 mb-3">Transaction Summary</h3>
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center">
@@ -262,7 +262,7 @@ export default function Transactions() {
         )}
 
         {/* Search */}
-        <div className="relative">
+        <div className="relative mx-4">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
             type="text"
@@ -274,7 +274,7 @@ export default function Transactions() {
         </div>
 
         {/* Filters and Sorting */}
-        <div className="space-y-3">
+        <div className="space-y-3 mx-4">
           <div className="flex space-x-3">
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="flex-1">
@@ -348,7 +348,7 @@ export default function Transactions() {
             ))}
           </div>
         ) : filteredAndSortedTransactions.length === 0 ? (
-          <div className="bg-white rounded-xl p-8 border border-gray-100 text-center">
+          <div className="bg-white rounded-xl p-8 border border-gray-100 text-center mx-4">
             <div className="text-4xl mb-4">📊</div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No transactions found</h3>
             <p className="text-gray-500 mb-4">
@@ -366,11 +366,11 @@ export default function Transactions() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-0">
             {sortedDateKeys.map((dateKey) => (
-              <div key={dateKey} className="space-y-3">
+              <div key={dateKey} className="space-y-0">
                 {/* Date Header */}
-                <div className="sticky top-0 bg-gradient-to-r from-white via-blue-50 to-white border-b-2 border-blue-200 px-4 py-3 z-20 shadow-lg backdrop-blur-sm">
+                <div className="sticky top-0 bg-gradient-to-r from-white via-blue-50 to-white border-b-2 border-blue-200 px-4 py-3 z-30 shadow-lg backdrop-blur-sm mx-0">
                   <div className="flex items-center justify-between">
                     <h3 className="text-base font-bold text-gray-900 flex items-center">
                       <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
@@ -383,7 +383,7 @@ export default function Transactions() {
                 </div>
 
                 {/* Transactions for this date */}
-                <div className="space-y-3">
+                <div className="space-y-3 px-4 pt-3 pb-6">
                   {groupedTransactions[dateKey].map((transaction) => (
                     <div key={transaction.id} className="bg-white rounded-xl p-4 border border-gray-100">
                       <div className="flex items-center justify-between">
