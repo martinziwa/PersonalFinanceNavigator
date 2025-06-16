@@ -242,6 +242,8 @@ export default function Transactions() {
       
       let newVisibleDate = sortedDateKeys[0]; // Default to first date
       
+      console.log('Scroll detected, checking', sortedDateKeys.length, 'date sections');
+      
       // Find the current visible date section
       for (let i = sortedDateKeys.length - 1; i >= 0; i--) {
         const dateKey = sortedDateKeys[i];
@@ -251,9 +253,12 @@ export default function Transactions() {
           const rect = element.getBoundingClientRect();
           const relativeTop = rect.top - containerRect.top;
           
+          console.log(`Date ${dateKey}: relativeTop = ${relativeTop}, threshold = ${floatingHeaderTop}`);
+          
           // If this date header has passed the floating header position
           if (relativeTop <= floatingHeaderTop) {
             newVisibleDate = dateKey;
+            console.log(`Setting visible date to: ${dateKey}`);
             break;
           }
         }
