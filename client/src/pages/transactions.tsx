@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Trash2, Filter, Plus, Edit2, Search } from "lucide-react";
 import Header from "@/components/layout/header";
@@ -20,6 +20,9 @@ export default function Transactions() {
   const [sortBy, setSortBy] = useState("date");
   const [sortOrder, setSortOrder] = useState("desc");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentFloatingDate, setCurrentFloatingDate] = useState<string>("");
+  const scrollContainerRef = useRef<HTMLElement>(null);
+  const dateHeaderRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   
   const { data: transactions = [], isLoading } = useTransactions();
   const { toast } = useToast();
@@ -229,11 +232,63 @@ export default function Transactions() {
       : new Date(a).getTime() - new Date(b).getTime();
   });
 
+  // Handle scroll to update floating date header
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!scrollContainerRef.current) return;
+
+      const scrollTop = scrollContainerRef.current.scrollTop;
+      const containerRect = scrollContainerRef.current.getBoundingClientRect();
+      
+      // Find which date section is currently at the top
+      let currentVisibleDate = "";
+      
+      for (const dateKey of sortedDateKeys) {
+        const element = dateHeaderRefs.current[dateKey];
+        if (!element) continue;
+        
+        const rect = element.getBoundingClientRect();
+        const relativeTop = rect.top - containerRect.top;
+        
+        // If this header is visible or above the viewport
+        if (relativeTop <= 100) { // 100px threshold for header area
+          currentVisibleDate = dateKey;
+        } else {
+          break;
+        }
+      }
+      
+      if (currentVisibleDate && currentVisibleDate !== currentFloatingDate) {
+        setCurrentFloatingDate(currentVisibleDate);
+      }
+    };
+
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll);
+      // Set initial floating date
+      handleScroll();
+    }
+
+    return () => {
+      if (scrollContainer) {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [sortedDateKeys, currentFloatingDate]);
+
+  // Initialize floating date when data changes
+  useEffect(() => {
+    if (sortedDateKeys.length > 0 && !currentFloatingDate) {
+      setCurrentFloatingDate(sortedDateKeys[0]);
+    }
+  }, [sortedDateKeys, currentFloatingDate]);
+
   return (
     <div className="max-w-sm mx-auto bg-white min-h-screen relative flex flex-col">
       <Header title="Transactions" subtitle="Track your finances" />
       
-      <main className="flex-1 overflow-y-auto pb-20 space-y-4 pt-4" style={{ scrollBehavior: 'smooth' }}>
+      <main ref={scrollContainerRef} className="flex-1 overflow-y-auto pb-20 space-y-4 pt-4" style={{ scrollBehavior: 'smooth' }}>
         {/* Transaction Summary */}
         {filteredAndSortedTransactions.length > 0 && (
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100 mx-4">
@@ -366,11 +421,23 @@ export default function Transactions() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-0">
+          <div className="space-y-0 relative">
+            {/* Floating Date Header */}
+            {currentFloatingDate && (
+              <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
+                <div className="bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg backdrop-blur-sm bg-opacity-90 text-sm font-medium">
+                  {formatDateHeader(currentFloatingDate)}
+                </div>
+              </div>
+            )}
+
             {sortedDateKeys.map((dateKey) => (
               <div key={dateKey} className="space-y-0">
                 {/* Date Header */}
-                <div className="sticky top-0 bg-gradient-to-r from-white via-blue-50 to-white border-b-2 border-blue-200 px-4 py-3 z-30 shadow-lg backdrop-blur-sm mx-0">
+                <div 
+                  ref={(el) => { dateHeaderRefs.current[dateKey] = el; }}
+                  className="bg-gray-50 border-b border-gray-200 px-4 py-3 mx-0"
+                >
                   <div className="flex items-center justify-between">
                     <h3 className="text-base font-bold text-gray-900 flex items-center">
                       <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
