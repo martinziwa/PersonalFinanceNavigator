@@ -235,37 +235,39 @@ export default function Transactions() {
   // Handle scroll to update floating date header
   useEffect(() => {
     const handleScroll = () => {
-      if (!scrollContainerRef.current) return;
+      if (!scrollContainerRef.current || sortedDateKeys.length === 0) return;
 
-      const scrollTop = scrollContainerRef.current.scrollTop;
       const containerRect = scrollContainerRef.current.getBoundingClientRect();
+      const floatingHeaderTop = 80; // Position where floating header appears
       
-      // Find which date section is currently at the top
-      let currentVisibleDate = "";
+      let newVisibleDate = sortedDateKeys[0]; // Default to first date
       
-      for (const dateKey of sortedDateKeys) {
+      // Find the current visible date section
+      for (let i = sortedDateKeys.length - 1; i >= 0; i--) {
+        const dateKey = sortedDateKeys[i];
         const element = dateHeaderRefs.current[dateKey];
-        if (!element) continue;
         
-        const rect = element.getBoundingClientRect();
-        const relativeTop = rect.top - containerRect.top;
-        
-        // If this header is visible or above the viewport
-        if (relativeTop <= 100) { // 100px threshold for header area
-          currentVisibleDate = dateKey;
-        } else {
-          break;
+        if (element) {
+          const rect = element.getBoundingClientRect();
+          const relativeTop = rect.top - containerRect.top;
+          
+          // If this date header has passed the floating header position
+          if (relativeTop <= floatingHeaderTop) {
+            newVisibleDate = dateKey;
+            break;
+          }
         }
       }
       
-      if (currentVisibleDate && currentVisibleDate !== currentFloatingDate) {
-        setCurrentFloatingDate(currentVisibleDate);
+      if (newVisibleDate !== currentFloatingDate) {
+        console.log('Updating floating date from', currentFloatingDate, 'to', newVisibleDate);
+        setCurrentFloatingDate(newVisibleDate);
       }
     };
 
     const scrollContainer = scrollContainerRef.current;
     if (scrollContainer) {
-      scrollContainer.addEventListener('scroll', handleScroll);
+      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
       // Set initial floating date
       handleScroll();
     }
@@ -275,14 +277,14 @@ export default function Transactions() {
         scrollContainer.removeEventListener('scroll', handleScroll);
       }
     };
-  }, [sortedDateKeys, currentFloatingDate]);
+  }, [sortedDateKeys]);
 
   // Initialize floating date when data changes
   useEffect(() => {
-    if (sortedDateKeys.length > 0 && !currentFloatingDate) {
+    if (sortedDateKeys.length > 0) {
       setCurrentFloatingDate(sortedDateKeys[0]);
     }
-  }, [sortedDateKeys, currentFloatingDate]);
+  }, [sortedDateKeys]);
 
   return (
     <div className="max-w-sm mx-auto bg-white min-h-screen relative flex flex-col">
