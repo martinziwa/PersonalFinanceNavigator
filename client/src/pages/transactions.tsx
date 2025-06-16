@@ -237,12 +237,12 @@ export default function Transactions() {
     const handleScroll = () => {
       if (!scrollContainerRef.current || sortedDateKeys.length === 0) return;
 
+      console.log('Scroll event fired!');
+      
       const containerRect = scrollContainerRef.current.getBoundingClientRect();
       const floatingHeaderTop = 80; // Position where floating header appears
       
       let newVisibleDate = sortedDateKeys[0]; // Default to first date
-      
-      console.log('Scroll detected, checking', sortedDateKeys.length, 'date sections');
       
       // Find the current visible date section
       for (let i = sortedDateKeys.length - 1; i >= 0; i--) {
@@ -253,12 +253,9 @@ export default function Transactions() {
           const rect = element.getBoundingClientRect();
           const relativeTop = rect.top - containerRect.top;
           
-          console.log(`Date ${dateKey}: relativeTop = ${relativeTop}, threshold = ${floatingHeaderTop}`);
-          
           // If this date header has passed the floating header position
           if (relativeTop <= floatingHeaderTop) {
             newVisibleDate = dateKey;
-            console.log(`Setting visible date to: ${dateKey}`);
             break;
           }
         }
@@ -270,16 +267,23 @@ export default function Transactions() {
       }
     };
 
+    // Add scroll listener to both the container and window for testing
     const scrollContainer = scrollContainerRef.current;
     if (scrollContainer) {
+      console.log('Adding scroll listener to container');
       scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+      
+      // Also add to window to see if that works
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      
       // Set initial floating date
-      handleScroll();
+      setTimeout(handleScroll, 100);
     }
 
     return () => {
       if (scrollContainer) {
         scrollContainer.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('scroll', handleScroll);
       }
     };
   }, [sortedDateKeys]);
