@@ -24,13 +24,21 @@ const loanFormSchema = z.object({
   principal: z.string().min(1, "Principal amount is required"),
   currentBalance: z.string().optional(),
   interestRate: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number"),
-  termMonths: z.string().min(1, "Loan term is required"),
+  termYears: z.string().default("0"),
+  termMonths: z.string().default("0"),
   startDate: z.string(),
   endDate: z.string().optional(),
   loanType: z.string(),
   lender: z.string().optional(),
   description: z.string().optional(),
   status: z.string().default("active")
+}).refine((data) => {
+  const years = parseInt(data.termYears) || 0;
+  const months = parseInt(data.termMonths) || 0;
+  return (years * 12 + months) > 0;
+}, {
+  message: "Loan term must be at least 1 month",
+  path: ["termMonths"]
 });
 
 type LoanFormData = z.infer<typeof loanFormSchema>;
@@ -72,6 +80,7 @@ export default function Loans() {
       principal: "",
       currentBalance: "",
       interestRate: "0",
+      termYears: "0",
       termMonths: "12",
       startDate: new Date().toISOString().split('T')[0],
       endDate: "",
@@ -165,12 +174,17 @@ export default function Loans() {
   });
 
   const onSubmit = (data: LoanFormData) => {
+    // Calculate total months from years and months
+    const years = parseInt(data.termYears) || 0;
+    const months = parseInt(data.termMonths) || 0;
+    const totalMonths = (years * 12) + months;
+
     const submitData = {
       name: data.name,
       principal: data.principal,
       currentBalance: data.currentBalance || data.principal, // Use principal if current balance is empty
       interestRate: data.interestRate,
-      termMonths: parseInt(data.termMonths),
+      termMonths: totalMonths,
       startDate: data.startDate,
       endDate: data.endDate || null,
       loanType: data.loanType,
@@ -188,12 +202,19 @@ export default function Loans() {
 
   const handleEdit = (loan: Loan) => {
     setEditingLoan(loan);
+    
+    // Convert total months back to years and months for editing
+    const totalMonths = loan.termMonths || 12;
+    const years = Math.floor(totalMonths / 12);
+    const months = totalMonths % 12;
+    
     form.reset({
       name: loan.name,
       principal: loan.principal,
       currentBalance: loan.currentBalance,
       interestRate: loan.interestRate,
-      termMonths: loan.termMonths?.toString() || "12",
+      termYears: years.toString(),
+      termMonths: months.toString(),
       startDate: new Date(loan.startDate).toISOString().split('T')[0],
       endDate: loan.endDate ? new Date(loan.endDate).toISOString().split('T')[0] : "",
       loanType: loan.loanType,
@@ -459,19 +480,50 @@ export default function Loans() {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="termMonths"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Loan Term (months) *</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="12" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-2">
+                    <FormLabel>Loan Term *</FormLabel>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField
+                        control={form.control}
+                        name="termYears"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <div className="space-y-1">
+                                <Input type="number" placeholder="0" min="0" max="50" {...field} />
+                                <p className="text-xs text-gray-500 text-center">Years</p>
+                              </div>
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="termMonths"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <div className="space-y-1">
+                                <Input type="number" placeholder="0" min="0" max="11" {...field} />
+                                <p className="text-xs text-gray-500 text-center">Months</p>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="bg-blue-50 p-2 rounded-lg">
+                      <p className="text-sm text-blue-700 text-center">
+                        Total: {(() => {
+                          const years = parseInt(form.watch("termYears")) || 0;
+                          const months = parseInt(form.watch("termMonths")) || 0;
+                          const total = (years * 12) + months;
+                          return `${total} month${total !== 1 ? 's' : ''}`;
+                        })()}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
