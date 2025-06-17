@@ -68,18 +68,40 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // Helper method to calculate amortized monthly payment
-  private calculateAmortizedPayment(principal: number, annualRate: number, termMonths: number): number {
+  // Helper method to calculate amortized monthly payment with different compounding frequencies
+  private calculateAmortizedPayment(principal: number, annualRate: number, termMonths: number, compoundFrequency: string = "monthly"): number {
     if (annualRate === 0) {
       // If no interest, simply divide principal by term
       return principal / termMonths;
     }
     
-    const monthlyRate = annualRate / 100 / 12; // Convert annual percentage to monthly decimal
+    // Get compounding periods per year
+    const compoundingPeriodsPerYear = this.getCompoundingPeriodsPerYear(compoundFrequency);
+    
+    // Calculate effective monthly rate
+    const annualRateDecimal = annualRate / 100;
+    const effectiveAnnualRate = Math.pow(1 + (annualRateDecimal / compoundingPeriodsPerYear), compoundingPeriodsPerYear) - 1;
+    const monthlyRate = Math.pow(1 + effectiveAnnualRate, 1/12) - 1;
+    
+    // Standard amortization formula with effective monthly rate
     const payment = principal * (monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / 
                    (Math.pow(1 + monthlyRate, termMonths) - 1);
     
     return payment;
+  }
+
+  // Helper method to get compounding periods per year
+  private getCompoundingPeriodsPerYear(frequency: string): number {
+    switch (frequency) {
+      case "daily": return 365;
+      case "weekly": return 52;
+      case "biweekly": return 26;
+      case "monthly": return 12;
+      case "quarterly": return 4;
+      case "semiannually": return 2;
+      case "annually": return 1;
+      default: return 12; // Default to monthly
+    }
   }
 
   // User operations (IMPORTANT) these user operations are mandatory for Replit Auth.
@@ -264,11 +286,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLoan(userId: string, insertLoan: InsertLoan): Promise<Loan> {
-    // Calculate monthly payment using full amortization
+    // Calculate monthly payment using full amortization with compound frequency
     const monthlyPayment = this.calculateAmortizedPayment(
       parseFloat(insertLoan.principal),
       parseFloat(insertLoan.interestRate || "0"),
-      insertLoan.termMonths
+      insertLoan.termMonths,
+      insertLoan.compoundFrequency || "monthly"
     );
 
     const [loan] = await db
@@ -284,14 +307,15 @@ export class DatabaseStorage implements IStorage {
 
   async updateLoan(userId: string, id: number, updates: Partial<Loan>): Promise<Loan> {
     // If key loan parameters are being updated, recalculate monthly payment
-    if (updates.principal || updates.interestRate || updates.termMonths) {
+    if (updates.principal || updates.interestRate || updates.termMonths || updates.compoundFrequency) {
       const currentLoan = await this.getLoan(userId, id);
       if (currentLoan) {
         const principal = parseFloat(updates.principal || currentLoan.principal);
         const interestRate = parseFloat(updates.interestRate || currentLoan.interestRate);
         const termMonths = updates.termMonths || currentLoan.termMonths;
+        const compoundFrequency = updates.compoundFrequency || currentLoan.compoundFrequency || "monthly";
         
-        const monthlyPayment = this.calculateAmortizedPayment(principal, interestRate, termMonths);
+        const monthlyPayment = this.calculateAmortizedPayment(principal, interestRate, termMonths, compoundFrequency);
         updates.monthlyPayment = monthlyPayment.toFixed(2);
       }
     }
