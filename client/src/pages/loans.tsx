@@ -103,6 +103,80 @@ export default function Loans() {
     }
   });
 
+  // Helper functions for date-term synchronization
+  const calculateEndDate = (startDate: string, years: number, months: number): string => {
+    if (!startDate || (!years && !months)) return "";
+    
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setFullYear(end.getFullYear() + years);
+    end.setMonth(end.getMonth() + months);
+    
+    return end.toISOString().split('T')[0];
+  };
+
+  const calculateTermFromDates = (startDate: string, endDate: string): { years: number; months: number } => {
+    if (!startDate || !endDate) return { years: 0, months: 0 };
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (end <= start) return { years: 0, months: 0 };
+    
+    let years = end.getFullYear() - start.getFullYear();
+    let months = end.getMonth() - start.getMonth();
+    
+    // Adjust if the day of the month is earlier in the end date
+    if (end.getDate() < start.getDate()) {
+      months--;
+    }
+    
+    // Normalize months
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+    
+    return { years, months };
+  };
+
+  // Handle changes to term fields (years/months) - update end date
+  const handleTermChange = () => {
+    const startDate = form.getValues("startDate");
+    const termYears = parseInt(form.getValues("termYears")) || 0;
+    const termMonths = parseInt(form.getValues("termMonths")) || 0;
+    
+    if (startDate && (termYears > 0 || termMonths > 0)) {
+      const endDate = calculateEndDate(startDate, termYears, termMonths);
+      form.setValue("endDate", endDate);
+    }
+  };
+
+  // Handle changes to date fields - update term
+  const handleDateChange = () => {
+    const startDate = form.getValues("startDate");
+    const endDate = form.getValues("endDate");
+    
+    if (startDate && endDate) {
+      const { years, months } = calculateTermFromDates(startDate, endDate);
+      form.setValue("termYears", years.toString());
+      form.setValue("termMonths", months.toString());
+    }
+  };
+
+  // Initialize end date on form load if term is set
+  const initializeEndDate = () => {
+    const startDate = form.getValues("startDate");
+    const termYears = parseInt(form.getValues("termYears")) || 0;
+    const termMonths = parseInt(form.getValues("termMonths")) || 0;
+    const currentEndDate = form.getValues("endDate");
+    
+    if (startDate && (termYears > 0 || termMonths > 0) && !currentEndDate) {
+      const endDate = calculateEndDate(startDate, termYears, termMonths);
+      form.setValue("endDate", endDate);
+    }
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await fetch("/api/loans", {
@@ -249,6 +323,8 @@ export default function Loans() {
     setEditingLoan(null);
     form.reset();
     setIsModalOpen(true);
+    // Initialize end date after form reset
+    setTimeout(initializeEndDate, 100);
   };
 
   const calculateInterestDisplay = (loan: Loan) => {
@@ -504,7 +580,17 @@ export default function Loans() {
                           <FormItem>
                             <FormControl>
                               <div className="space-y-1">
-                                <Input type="number" placeholder="0" min="0" max="50" {...field} />
+                                <Input 
+                                  type="number" 
+                                  placeholder="0" 
+                                  min="0" 
+                                  max="50" 
+                                  {...field} 
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    setTimeout(handleTermChange, 0);
+                                  }}
+                                />
                                 <p className="text-xs text-gray-500 text-center">Years</p>
                               </div>
                             </FormControl>
@@ -518,7 +604,17 @@ export default function Loans() {
                           <FormItem>
                             <FormControl>
                               <div className="space-y-1">
-                                <Input type="number" placeholder="0" min="0" max="11" {...field} />
+                                <Input 
+                                  type="number" 
+                                  placeholder="0" 
+                                  min="0" 
+                                  max="11" 
+                                  {...field} 
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    setTimeout(handleTermChange, 0);
+                                  }}
+                                />
                                 <p className="text-xs text-gray-500 text-center">Months</p>
                               </div>
                             </FormControl>
@@ -573,7 +669,21 @@ export default function Loans() {
                       <FormItem>
                         <FormLabel>Start Date *</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input 
+                            type="date" 
+                            {...field} 
+                            onChange={(e) => {
+                              field.onChange(e);
+                              setTimeout(() => {
+                                const endDate = form.getValues("endDate");
+                                if (endDate) {
+                                  handleDateChange();
+                                } else {
+                                  handleTermChange();
+                                }
+                              }, 0);
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -587,14 +697,30 @@ export default function Loans() {
                       <FormItem>
                         <FormLabel>End Date</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input 
+                            type="date" 
+                            {...field} 
+                            onChange={(e) => {
+                              field.onChange(e);
+                              setTimeout(handleDateChange, 0);
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Calendar className="h-4 w-4 text-amber-600" />
+                      <span className="text-sm font-medium text-amber-800">Auto-Sync</span>
+                    </div>
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      Changing loan term updates end date. 
+                      Changing start/end dates updates loan term.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
