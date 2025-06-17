@@ -26,6 +26,7 @@ const loanFormSchema = z.object({
   interestRate: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number"),
   termYears: z.string().default("0"),
   termMonths: z.string().default("0"),
+  compoundFrequency: z.string().default("monthly"),
   startDate: z.string(),
   endDate: z.string().optional(),
   loanType: z.string(),
@@ -63,6 +64,16 @@ const loanTypeLabels: Record<string, string> = {
   other: "Other"
 };
 
+const compoundFrequencyOptions = [
+  { value: "daily", label: "Daily", periodsPerYear: 365 },
+  { value: "weekly", label: "Weekly", periodsPerYear: 52 },
+  { value: "biweekly", label: "Bi-weekly", periodsPerYear: 26 },
+  { value: "monthly", label: "Monthly", periodsPerYear: 12 },
+  { value: "quarterly", label: "Quarterly", periodsPerYear: 4 },
+  { value: "semiannually", label: "Semi-annually", periodsPerYear: 2 },
+  { value: "annually", label: "Annually", periodsPerYear: 1 }
+];
+
 export default function Loans() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
@@ -82,6 +93,7 @@ export default function Loans() {
       interestRate: "0",
       termYears: "0",
       termMonths: "12",
+      compoundFrequency: "monthly",
       startDate: new Date().toISOString().split('T')[0],
       endDate: "",
       loanType: "personal",
@@ -185,6 +197,7 @@ export default function Loans() {
       currentBalance: data.currentBalance || data.principal, // Use principal if current balance is empty
       interestRate: data.interestRate,
       termMonths: totalMonths,
+      compoundFrequency: data.compoundFrequency,
       startDate: data.startDate,
       endDate: data.endDate || null,
       loanType: data.loanType,
@@ -215,6 +228,7 @@ export default function Loans() {
       interestRate: loan.interestRate,
       termYears: years.toString(),
       termMonths: months.toString(),
+      compoundFrequency: loan.compoundFrequency || "monthly",
       startDate: new Date(loan.startDate).toISOString().split('T')[0],
       endDate: loan.endDate ? new Date(loan.endDate).toISOString().split('T')[0] : "",
       loanType: loan.loanType,
@@ -524,6 +538,31 @@ export default function Loans() {
                       </p>
                     </div>
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="compoundFrequency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Compounding Frequency</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select frequency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {compoundFrequencyOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -49,6 +49,7 @@ export const loans = pgTable("loans", {
   currentBalance: decimal("current_balance", { precision: 12, scale: 2 }).notNull(),
   interestRate: decimal("interest_rate", { precision: 5, scale: 2 }).default("0.00").notNull(),
   termMonths: integer("term_months").notNull(), // loan term in months for amortization calculation
+  compoundFrequency: text("compound_frequency").default("monthly").notNull(), // "daily", "weekly", "biweekly", "monthly", "quarterly", "semiannually", "annually"
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"),
   monthlyPayment: decimal("monthly_payment", { precision: 12, scale: 2 }), // calculated automatically
