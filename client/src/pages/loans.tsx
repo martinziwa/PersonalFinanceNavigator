@@ -488,7 +488,9 @@ export default function Loans() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Interest Rate</p>
-                        <p className="font-semibold">{loan.interestRate}% (Amortized)</p>
+                        <p className="font-semibold">
+                          {loan.interestRate}% ({loan.interestType === "simple" ? "Simple" : "Amortized"})
+                        </p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">
