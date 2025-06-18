@@ -286,20 +286,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLoan(userId: string, insertLoan: InsertLoan): Promise<Loan> {
-    // Calculate monthly payment using full amortization with compound frequency
-    const monthlyPayment = this.calculateAmortizedPayment(
-      parseFloat(insertLoan.principal),
-      parseFloat(insertLoan.interestRate || "0"),
-      insertLoan.termMonths,
-      insertLoan.compoundFrequency || "monthly"
-    );
+    let monthlyPayment = null;
+    
+    // Only calculate monthly payment for compound interest loans
+    if (insertLoan.interestType === "compound") {
+      monthlyPayment = this.calculateAmortizedPayment(
+        parseFloat(insertLoan.principal),
+        parseFloat(insertLoan.interestRate || "0"),
+        insertLoan.termMonths,
+        insertLoan.compoundFrequency || "monthly"
+      ).toFixed(2);
+    }
 
     const [loan] = await db
       .insert(loans)
       .values({ 
         ...insertLoan, 
         userId,
-        monthlyPayment: monthlyPayment.toFixed(2)
+        monthlyPayment: monthlyPayment,
+        compoundFrequency: insertLoan.interestType === "simple" ? null : insertLoan.compoundFrequency
       })
       .returning();
     return loan;
@@ -307,16 +312,23 @@ export class DatabaseStorage implements IStorage {
 
   async updateLoan(userId: string, id: number, updates: Partial<Loan>): Promise<Loan> {
     // If key loan parameters are being updated, recalculate monthly payment
-    if (updates.principal || updates.interestRate || updates.termMonths || updates.compoundFrequency) {
+    if (updates.principal || updates.interestRate || updates.termMonths || updates.compoundFrequency || updates.interestType) {
       const currentLoan = await this.getLoan(userId, id);
       if (currentLoan) {
         const principal = parseFloat(updates.principal || currentLoan.principal);
         const interestRate = parseFloat(updates.interestRate || currentLoan.interestRate);
         const termMonths = updates.termMonths || currentLoan.termMonths;
-        const compoundFrequency = updates.compoundFrequency || currentLoan.compoundFrequency || "monthly";
+        const interestType = updates.interestType || currentLoan.interestType || "compound";
         
-        const monthlyPayment = this.calculateAmortizedPayment(principal, interestRate, termMonths, compoundFrequency);
-        updates.monthlyPayment = monthlyPayment.toFixed(2);
+        if (interestType === "compound") {
+          const compoundFrequency = updates.compoundFrequency || currentLoan.compoundFrequency || "monthly";
+          const monthlyPayment = this.calculateAmortizedPayment(principal, interestRate, termMonths, compoundFrequency);
+          updates.monthlyPayment = monthlyPayment.toFixed(2);
+        } else {
+          // Simple interest loans don't use monthly payments or compound frequency
+          updates.monthlyPayment = null;
+          updates.compoundFrequency = null;
+        }
       }
     }
 

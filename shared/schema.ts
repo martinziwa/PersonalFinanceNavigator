@@ -48,11 +48,12 @@ export const loans = pgTable("loans", {
   principal: decimal("principal", { precision: 12, scale: 2 }).notNull(),
   currentBalance: decimal("current_balance", { precision: 12, scale: 2 }).notNull(),
   interestRate: decimal("interest_rate", { precision: 5, scale: 2 }).default("0.00").notNull(),
+  interestType: text("interest_type").default("compound").notNull(), // "simple", "compound"
   termMonths: integer("term_months").notNull(), // loan term in months for amortization calculation
-  compoundFrequency: text("compound_frequency").default("monthly").notNull(), // "daily", "weekly", "biweekly", "monthly", "quarterly", "semiannually", "annually"
+  compoundFrequency: text("compound_frequency"), // "daily", "weekly", "biweekly", "monthly", "quarterly", "semiannually", "annually" - only for compound loans
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"),
-  monthlyPayment: decimal("monthly_payment", { precision: 12, scale: 2 }), // calculated automatically
+  monthlyPayment: decimal("monthly_payment", { precision: 12, scale: 2 }), // calculated automatically for compound loans only
   loanType: text("loan_type").notNull(), // "personal", "mortgage", "auto", "student", "business", "credit_card", "other"
   lender: text("lender"),
   description: text("description"),

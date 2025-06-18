@@ -24,9 +24,10 @@ const loanFormSchema = z.object({
   principal: z.string().min(1, "Principal amount is required"),
   currentBalance: z.string().optional(),
   interestRate: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number"),
+  interestType: z.string().default("compound"),
   termYears: z.string().default("0"),
   termMonths: z.string().default("0"),
-  compoundFrequency: z.string().default("monthly"),
+  compoundFrequency: z.string().optional(),
   startDate: z.string(),
   endDate: z.string().optional(),
   loanType: z.string(),
@@ -91,6 +92,7 @@ export default function Loans() {
       principal: "",
       currentBalance: "",
       interestRate: "0",
+      interestType: "compound",
       termYears: "0",
       termMonths: "12",
       compoundFrequency: "monthly",
@@ -330,9 +332,9 @@ export default function Loans() {
   const calculateInterestDisplay = (loan: Loan) => {
     const principal = parseFloat(loan.principal);
     const currentBalance = parseFloat(loan.currentBalance);
-    const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
     const termMonths = loan.termMonths || 12;
     const interestRate = parseFloat(loan.interestRate || "0") / 100;
+    const interestType = loan.interestType || "compound";
     
     // Calculate months elapsed since loan start
     const startDate = new Date(loan.startDate);
@@ -342,28 +344,43 @@ export default function Loans() {
       (currentDate.getMonth() - startDate.getMonth())
     ));
     
-    // Total interest over the life of the loan
-    const totalLoanInterest = monthlyPayment > 0 ? (monthlyPayment * termMonths) - principal : 0;
-    
-    // Calculate payment progress based on scheduled payments
-    const scheduledPrincipalPaid = calculateScheduledPrincipalPaid(
-      principal, interestRate, monthlyPayment, monthsElapsed
-    );
-    const principalProgress = principal > 0 ? (scheduledPrincipalPaid / principal) * 100 : 0;
-    
-    // Calculate interest progress based on scheduled payments
-    const scheduledInterestPaid = (monthlyPayment * monthsElapsed) - scheduledPrincipalPaid;
-    const interestProgress = totalLoanInterest > 0 ? (scheduledInterestPaid / totalLoanInterest) * 100 : 0;
+    if (interestType === "simple") {
+      // Simple interest calculations
+      const termYears = termMonths / 12;
+      const totalSimpleInterest = principal * interestRate * termYears;
+      
+      return {
+        totalInterest: Math.max(0, totalSimpleInterest),
+        calculatedBalance: currentBalance,
+        paidAmount: null, // Will be implemented later
+        monthsElapsed,
+        principalProgress: null, // Will be implemented later
+        interestProgress: null, // Will be implemented later
+        scheduledInterestPaid: null // Will be implemented later
+      };
+    } else {
+      // Compound interest calculations (existing logic)
+      const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
+      const totalLoanInterest = monthlyPayment > 0 ? (monthlyPayment * termMonths) - principal : 0;
+      
+      const scheduledPrincipalPaid = calculateScheduledPrincipalPaid(
+        principal, interestRate, monthlyPayment, monthsElapsed
+      );
+      const principalProgress = principal > 0 ? (scheduledPrincipalPaid / principal) * 100 : 0;
+      
+      const scheduledInterestPaid = (monthlyPayment * monthsElapsed) - scheduledPrincipalPaid;
+      const interestProgress = totalLoanInterest > 0 ? (scheduledInterestPaid / totalLoanInterest) * 100 : 0;
 
-    return {
-      totalInterest: Math.max(0, totalLoanInterest),
-      calculatedBalance: currentBalance,
-      paidAmount: scheduledPrincipalPaid,
-      monthsElapsed,
-      principalProgress: Math.min(100, Math.max(0, principalProgress)),
-      interestProgress: Math.min(100, Math.max(0, interestProgress)),
-      scheduledInterestPaid: Math.max(0, scheduledInterestPaid)
-    };
+      return {
+        totalInterest: Math.max(0, totalLoanInterest),
+        calculatedBalance: currentBalance,
+        paidAmount: scheduledPrincipalPaid,
+        monthsElapsed,
+        principalProgress: Math.min(100, Math.max(0, principalProgress)),
+        interestProgress: Math.min(100, Math.max(0, interestProgress)),
+        scheduledInterestPaid: Math.max(0, scheduledInterestPaid)
+      };
+    }
   };
 
   // Helper function to calculate how much principal should be paid by a given month
@@ -641,6 +658,36 @@ export default function Loans() {
                         <FormControl>
                           <Input type="number" step="0.01" placeholder="0.00" {...field} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="interestType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Interest Type</FormLabel>
+                        <Select onValueChange={(value) => {
+                          field.onChange(value);
+                          // Reset compound frequency when switching to simple interest
+                          if (value === "simple") {
+                            form.setValue("compoundFrequency", undefined);
+                          } else {
+                            form.setValue("compoundFrequency", "monthly");
+                          }
+                        }} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select interest type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="simple">Simple Interest</SelectItem>
+                            <SelectItem value="compound">Compound Interest</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
