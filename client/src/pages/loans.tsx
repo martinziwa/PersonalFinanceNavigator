@@ -272,8 +272,9 @@ export default function Loans() {
       principal: data.principal,
       currentBalance: data.currentBalance || data.principal, // Use principal if current balance is empty
       interestRate: data.interestRate,
+      interestType: data.interestType,
       termMonths: totalMonths,
-      compoundFrequency: data.compoundFrequency,
+      compoundFrequency: data.interestType === "compound" ? data.compoundFrequency : undefined,
       startDate: data.startDate,
       endDate: data.endDate || null,
       loanType: data.loanType,
@@ -302,6 +303,7 @@ export default function Loans() {
       principal: loan.principal,
       currentBalance: loan.currentBalance,
       interestRate: loan.interestRate,
+      interestType: loan.interestType || "compound",
       termYears: years.toString(),
       termMonths: months.toString(),
       compoundFrequency: loan.compoundFrequency || "monthly",
@@ -489,9 +491,14 @@ export default function Loans() {
                         <p className="font-semibold">{loan.interestRate}% (Amortized)</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">Monthly Payment</p>
+                        <p className="text-xs text-gray-500">
+                          {loan.interestType === "simple" ? "Interest Type" : "Monthly Payment"}
+                        </p>
                         <p className="font-semibold">
-                          {loan.monthlyPayment ? formatCurrency(parseFloat(loan.monthlyPayment)) : "Not set"}
+                          {loan.interestType === "simple" 
+                            ? "Simple Interest" 
+                            : (loan.monthlyPayment ? formatCurrency(parseFloat(loan.monthlyPayment)) : "Not set")
+                          }
                         </p>
                       </div>
                     </div>
@@ -499,33 +506,49 @@ export default function Loans() {
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Total Interest: {formatCurrency(totalInterest)}</span>
-                        <span className="text-gray-600">Interest Paid: {formatCurrency(scheduledInterestPaid)}</span>
+                        <span className="text-gray-600">Interest Paid: {scheduledInterestPaid !== null ? formatCurrency(scheduledInterestPaid) : "Pending"}</span>
                       </div>
                       
                       <div className="space-y-3">
                         {/* Principal Progress */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>Principal Progress</span>
-                            <span>{principalProgress.toFixed(1)}% paid down</span>
+                        {principalProgress !== null ? (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>Principal Progress</span>
+                              <span>{principalProgress.toFixed(1)}% paid down</span>
+                            </div>
+                            <ProgressBar 
+                              percentage={principalProgress} 
+                              color={principalProgress > 75 ? 'bg-green-500' : principalProgress > 50 ? 'bg-yellow-500' : 'bg-red-500'}
+                            />
                           </div>
-                          <ProgressBar 
-                            percentage={principalProgress} 
-                            color={principalProgress > 75 ? 'bg-green-500' : principalProgress > 50 ? 'bg-yellow-500' : 'bg-red-500'}
-                          />
-                        </div>
+                        ) : (
+                          <div className="bg-gray-100 p-2 rounded-lg">
+                            <div className="text-xs text-gray-500 text-center">
+                              Principal progress calculation pending
+                            </div>
+                          </div>
+                        )}
 
                         {/* Interest Progress */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>Interest Progress</span>
-                            <span>{interestProgress.toFixed(1)}% of total interest paid</span>
+                        {interestProgress !== null ? (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>Interest Progress</span>
+                              <span>{interestProgress.toFixed(1)}% of total interest paid</span>
+                            </div>
+                            <ProgressBar 
+                              percentage={interestProgress} 
+                              color={interestProgress > 75 ? 'bg-blue-500' : interestProgress > 50 ? 'bg-purple-500' : 'bg-orange-500'}
+                            />
                           </div>
-                          <ProgressBar 
-                            percentage={interestProgress} 
-                            color={interestProgress > 75 ? 'bg-blue-500' : interestProgress > 50 ? 'bg-purple-500' : 'bg-orange-500'}
-                          />
-                        </div>
+                        ) : (
+                          <div className="bg-gray-100 p-2 rounded-lg">
+                            <div className="text-xs text-gray-500 text-center">
+                              Interest progress calculation pending
+                            </div>
+                          </div>
+                        )}
 
                         {/* Time Progress Indicator */}
                         <div className="bg-gray-50 p-2 rounded-lg">
@@ -536,16 +559,26 @@ export default function Loans() {
                         </div>
                       </div>
 
-                      <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className={`p-3 rounded-lg ${loan.interestType === "simple" ? "bg-green-50" : "bg-blue-50"}`}>
                         <div className="flex items-center space-x-2">
-                          <TrendingUp className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-800">
-                            Amortized Loan ({loan.termMonths} months)
+                          <TrendingUp className={`h-4 w-4 ${loan.interestType === "simple" ? "text-green-600" : "text-blue-600"}`} />
+                          <span className={`text-sm font-medium ${loan.interestType === "simple" ? "text-green-800" : "text-blue-800"}`}>
+                            {loan.interestType === "simple" 
+                              ? `Simple Interest Loan (${loan.termMonths} months)`
+                              : `Amortized Loan (${loan.termMonths} months)`
+                            }
                           </span>
                         </div>
-                        <p className="text-xs text-blue-600 mt-1">
-                          Monthly Payment: {formatCurrency(parseFloat(loan.monthlyPayment || "0"))}
-                        </p>
+                        {loan.interestType === "compound" && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Monthly Payment: {formatCurrency(parseFloat(loan.monthlyPayment || "0"))}
+                          </p>
+                        )}
+                        {loan.interestType === "simple" && (
+                          <p className="text-xs text-green-600 mt-1">
+                            Interest calculated using simple interest formula
+                          </p>
+                        )}
                       </div>
 
                       {loan.status !== "active" && (
@@ -758,30 +791,32 @@ export default function Loans() {
                     </div>
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="compoundFrequency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Compounding Frequency</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select frequency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {compoundFrequencyOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {form.watch("interestType") === "compound" && (
+                    <FormField
+                      control={form.control}
+                      name="compoundFrequency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Compounding Frequency</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value || "monthly"}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select frequency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {compoundFrequencyOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
