@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useGoals } from "@/hooks/use-goals";
+import { useLoans } from "@/hooks/use-loans";
 
 import { useTransactions } from "@/hooks/use-transactions";
 import { useCategories } from "@/hooks/use-categories";
@@ -25,7 +26,7 @@ const transactionSchema = z.object({
   ),
   description: z.string().min(1, "Description is required"),
   category: z.string().min(1, "Category is required"),
-  type: z.enum(["income", "expense", "savings_deposit", "savings_withdrawal", "loan_received", "loan_payment"]),
+  type: z.enum(["income", "expense", "savings_deposit", "savings_withdrawal", "loan_repayment"]),
   date: z.string().min(1, "Date is required"),
   time: z.string().optional(),
   savingsGoalId: z.string().optional(),

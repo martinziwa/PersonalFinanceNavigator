@@ -348,6 +348,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/loans/:id/progress", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const id = parseInt(req.params.id);
+      const loan = await storage.getLoan(userId, id);
+      if (!loan) {
+        return res.status(404).json({ message: "Loan not found" });
+      }
+      const progress = await storage.calculateSimpleLoanProgress(userId, loan);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error calculating loan progress:", error);
+      res.status(500).json({ message: "Failed to calculate loan progress" });
+    }
+  });
+
   // Financial Summary
   app.get("/api/financial-summary", isAuthenticated, async (req: any, res) => {
     try {

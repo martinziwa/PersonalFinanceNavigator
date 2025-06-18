@@ -366,7 +366,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  private async reverseLoanPayment(userId: string, loanId: number, paymentAmount: number): Promise<void> {
+  async reverseLoanPayment(userId: string, loanId: number, paymentAmount: number): Promise<void> {
     const [loan] = await db.select().from(loans).where(and(eq(loans.id, loanId), eq(loans.userId, userId)));
     if (loan && loan.interestType === "simple") {
       const newBalance = parseFloat(loan.currentBalance) + paymentAmount;
@@ -399,44 +399,116 @@ export class DatabaseStorage implements IStorage {
     const principal = parseFloat(loan.principal);
     const currentBalance = parseFloat(loan.currentBalance);
     const annualRate = parseFloat(loan.interestRate) / 100;
-    const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
-    const now = new Date();
+    const termMonths = loan.termMonths || 12;
     
-    let totalInterest = 0;
-    let payoffDate: Date | null = null;
-    
-    // For amortized loans with monthly payments
-    if (monthlyPayment > 0) {
-      const monthlyRate = annualRate / 12;
+    if (loan.interestType === "simple") {
+      // Simple interest calculation: I = P * R * T
+      const termYears = termMonths / 12;
+      const totalInterest = principal * annualRate * termYears;
+      const totalAmount = principal + totalInterest;
+      const suggestedMonthlyPayment = totalAmount / termMonths;
       
-      if (monthlyRate > 0) {
-        // Calculate remaining months to pay off the loan
-        const remainingMonths = Math.ceil(
-          -Math.log(1 - (currentBalance * monthlyRate) / monthlyPayment) / 
-          Math.log(1 + monthlyRate)
-        );
+      return {
+        totalInterest,
+        currentBalance,
+        monthlyPayment: suggestedMonthlyPayment, // Suggested payment for simple interest
+        payoffDate: null, // Will be calculated based on actual payments
+      };
+    } else {
+      // Compound interest (amortized loan) calculation
+      const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
+      const now = new Date();
+      
+      let totalInterest = 0;
+      let payoffDate: Date | null = null;
+      
+      // For amortized loans with monthly payments
+      if (monthlyPayment > 0) {
+        const monthlyRate = annualRate / 12;
         
-        if (remainingMonths > 0 && isFinite(remainingMonths)) {
-          // Calculate total interest that will be paid
-          totalInterest = (monthlyPayment * remainingMonths) - currentBalance;
+        if (monthlyRate > 0) {
+          // Calculate remaining months to pay off the loan
+          const remainingMonths = Math.ceil(
+            -Math.log(1 - (currentBalance * monthlyRate) / monthlyPayment) / 
+            Math.log(1 + monthlyRate)
+          );
           
-          // Calculate payoff date
+          if (remainingMonths > 0 && isFinite(remainingMonths)) {
+            // Calculate total interest that will be paid
+            totalInterest = (monthlyPayment * remainingMonths) - currentBalance;
+            
+            // Calculate payoff date
+            payoffDate = new Date(now);
+            payoffDate.setMonth(payoffDate.getMonth() + remainingMonths);
+          }
+        } else {
+          // No interest case
+          const remainingMonths = Math.ceil(currentBalance / monthlyPayment);
           payoffDate = new Date(now);
           payoffDate.setMonth(payoffDate.getMonth() + remainingMonths);
         }
-      } else {
-        // No interest case
-        const remainingMonths = Math.ceil(currentBalance / monthlyPayment);
-        payoffDate = new Date(now);
-        payoffDate.setMonth(payoffDate.getMonth() + remainingMonths);
       }
+      
+      return {
+        totalInterest: Math.max(0, totalInterest),
+        currentBalance,
+        monthlyPayment,
+        payoffDate
+      };
     }
-    
+  }
+
+  // Calculate simple interest loan progress based on actual payments
+  async calculateSimpleLoanProgress(userId: string, loan: Loan): Promise<{
+    principalProgress: number | null;
+    interestProgress: number | null;
+    totalPaid: number;
+    principalPaid: number;
+    interestPaid: number;
+  }> {
+    if (loan.interestType !== "simple") {
+      return {
+        principalProgress: null,
+        interestProgress: null,
+        totalPaid: 0,
+        principalPaid: 0,
+        interestPaid: 0,
+      };
+    }
+
+    // Get all loan repayment transactions
+    const repayments = await this.getLoanRepayments(userId, loan.id);
+    const totalPaid = repayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
+
+    const principal = parseFloat(loan.principal);
+    const annualRate = parseFloat(loan.interestRate) / 100;
+    const termYears = (loan.termMonths || 12) / 12;
+    const totalInterest = principal * annualRate * termYears;
+
+    // For simple interest, we split payments proportionally
+    // First, interest is paid off, then principal
+    let interestPaid = 0;
+    let principalPaid = 0;
+
+    if (totalPaid <= totalInterest) {
+      // Still paying off interest
+      interestPaid = totalPaid;
+      principalPaid = 0;
+    } else {
+      // Interest fully paid, now paying principal
+      interestPaid = totalInterest;
+      principalPaid = totalPaid - totalInterest;
+    }
+
+    const principalProgress = (principalPaid / principal) * 100;
+    const interestProgress = (interestPaid / totalInterest) * 100;
+
     return {
-      totalInterest: Math.max(0, totalInterest),
-      currentBalance,
-      monthlyPayment,
-      payoffDate
+      principalProgress: Math.min(principalProgress, 100),
+      interestProgress: Math.min(interestProgress, 100),
+      totalPaid,
+      principalPaid,
+      interestPaid,
     };
   }
 
