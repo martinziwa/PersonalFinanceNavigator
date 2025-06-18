@@ -85,6 +85,21 @@ export default function Loans() {
     queryKey: ["/api/loans"],
   });
 
+  // Calculate suggested monthly payment for simple interest loans
+  const calculateSuggestedPayment = (loan: Loan): number => {
+    if (loan.interestType !== "simple") return 0;
+    
+    const principal = parseFloat(loan.principal);
+    const annualRate = parseFloat(loan.interestRate) / 100;
+    const termMonths = loan.termMonths || 12;
+    const termYears = termMonths / 12;
+    
+    const totalInterest = principal * annualRate * termYears;
+    const totalAmount = principal + totalInterest;
+    
+    return totalAmount / termMonths;
+  };
+
   const form = useForm<LoanFormData>({
     resolver: zodResolver(loanFormSchema),
     defaultValues: {
@@ -494,11 +509,11 @@ export default function Loans() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">
-                          {loan.interestType === "simple" ? "Interest Type" : "Monthly Payment"}
+                          {loan.interestType === "simple" ? "Suggested Monthly Payment" : "Monthly Payment"}
                         </p>
                         <p className="font-semibold">
                           {loan.interestType === "simple" 
-                            ? "Simple Interest" 
+                            ? formatCurrency(calculateSuggestedPayment(loan))
                             : (loan.monthlyPayment ? formatCurrency(parseFloat(loan.monthlyPayment)) : "Not set")
                           }
                         </p>

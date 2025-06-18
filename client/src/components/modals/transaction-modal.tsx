@@ -44,6 +44,7 @@ interface TransactionModalProps {
 export default function TransactionModal({ isOpen, onClose, editingTransaction }: TransactionModalProps) {
   const { toast } = useToast();
   const { data: goals = [] } = useGoals();
+  const { data: loans = [] } = useLoans();
 
   const { data: transactions = [] } = useTransactions();
   const { transactionCategories, addCustomCategory } = useCategories();
@@ -417,8 +418,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
                       <SelectItem value="expense">💸 Expense</SelectItem>
                       <SelectItem value="savings_deposit">🏦 Savings Deposit</SelectItem>
                       <SelectItem value="savings_withdrawal">🏧 Savings Withdrawal</SelectItem>
-                      <SelectItem value="loan_received">📈 Loan Received</SelectItem>
-                      <SelectItem value="loan_payment">📉 Loan Payment</SelectItem>
+                      <SelectItem value="loan_repayment">💳 Loan Repayment</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -458,7 +458,39 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
               />
             )}
 
-            {/* Loan functionality has been removed from the application */}
+            {/* Loan Selector - Show only for loan repayment transactions */}
+            {form.watch("type") === "loan_repayment" && (
+              <FormField
+                control={form.control}
+                name="loanId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Loan</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
+                          <SelectValue placeholder="Select a loan" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {loans.filter(loan => loan.interestType === "simple").length === 0 ? (
+                          <SelectItem value="" disabled>No simple interest loans available</SelectItem>
+                        ) : (
+                          loans
+                            .filter(loan => loan.interestType === "simple" && loan.status === "active")
+                            .map((loan) => (
+                              <SelectItem key={loan.id} value={loan.id.toString()}>
+                                💳 {loan.name} (Balance: {new Intl.NumberFormat('en-MW', { style: 'currency', currency: 'MWK' }).format(parseFloat(loan.currentBalance))})
+                              </SelectItem>
+                            ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="flex space-x-4 pt-4">
               <Button
