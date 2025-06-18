@@ -615,10 +615,16 @@ function LoanCard({
   onDelete: (id: number) => void; 
 }) {
   // Fetch real progress data for simple interest loans
-  const { data: progressData } = useQuery({
+  const { data: progressData, refetch: refetchProgress } = useQuery({
     queryKey: ["/api/loans", loan.id, "progress"],
     enabled: loan.interestType === "simple",
+    refetchOnWindowFocus: true,
   });
+
+  // Debug: log progress data for simple interest loans
+  if (loan.interestType === "simple") {
+    console.log(`Progress data for loan ${loan.id}:`, progressData);
+  }
 
   // Calculate interest display data
   const calculateInterestDisplay = (loan: Loan) => {
@@ -730,15 +736,15 @@ function LoanCard({
 
   // Use real progress data for simple interest loans, fallback to calculated for compound
   const principalProgress = loan.interestType === "simple" && progressData 
-    ? progressData.principalProgress 
+    ? (progressData as any).principalProgress 
     : defaultPrincipalProgress;
   
   const interestProgress = loan.interestType === "simple" && progressData 
-    ? progressData.interestProgress 
+    ? (progressData as any).interestProgress 
     : defaultInterestProgress;
   
   const scheduledInterestPaid = loan.interestType === "simple" && progressData 
-    ? progressData.interestPaid 
+    ? (progressData as any).interestPaid 
     : defaultScheduledInterestPaid;
 
   return (
