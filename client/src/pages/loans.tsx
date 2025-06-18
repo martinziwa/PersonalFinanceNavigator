@@ -85,20 +85,7 @@ export default function Loans() {
     queryKey: ["/api/loans"],
   });
 
-  // Calculate suggested monthly payment for simple interest loans
-  const calculateSuggestedPayment = (loan: Loan): number => {
-    if (loan.interestType !== "simple") return 0;
-    
-    const principal = parseFloat(loan.principal);
-    const annualRate = parseFloat(loan.interestRate) / 100;
-    const termMonths = loan.termMonths || 12;
-    const termYears = termMonths / 12;
-    
-    const totalInterest = principal * annualRate * termYears;
-    const totalAmount = principal + totalInterest;
-    
-    return totalAmount / termMonths;
-  };
+
 
   const form = useForm<LoanFormData>({
     resolver: zodResolver(loanFormSchema),
@@ -428,6 +415,8 @@ export default function Loans() {
     return totalPrincipalPaid;
   };
 
+
+
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">Loading loans...</div>;
   }
@@ -467,6 +456,21 @@ export default function Loans() {
                 interestProgress, 
                 scheduledInterestPaid 
               } = calculateInterestDisplay(loan);
+
+              // Calculate suggested monthly payment for simple interest loans
+              const getSuggestedPayment = (loan: Loan): number => {
+                if (loan.interestType !== "simple") return 0;
+                
+                const principal = parseFloat(loan.principal);
+                const annualRate = parseFloat(loan.interestRate) / 100;
+                const termMonths = loan.termMonths || 12;
+                const termYears = termMonths / 12;
+                
+                const totalInterest = principal * annualRate * termYears;
+                const totalAmount = principal + totalInterest;
+                
+                return totalAmount / termMonths;
+              };
               
               return (
                 <Card key={loan.id} className="overflow-hidden">
@@ -513,7 +517,7 @@ export default function Loans() {
                         </p>
                         <p className="font-semibold">
                           {loan.interestType === "simple" 
-                            ? formatCurrency(calculateSuggestedPayment(loan))
+                            ? formatCurrency(getSuggestedPayment(loan))
                             : (loan.monthlyPayment ? formatCurrency(parseFloat(loan.monthlyPayment)) : "Not set")
                           }
                         </p>
