@@ -141,8 +141,13 @@ export class DatabaseStorage implements IStorage {
       .values({ ...insertTransaction, userId })
       .returning();
 
+    // Handle loan repayment updates
+    if (transaction.type === "loan_repayment" && transaction.loanId) {
+      await this.updateLoanBalance(userId, transaction.loanId, parseFloat(transaction.amount));
+    }
+
     // Update budget spent amount if it's an expense or loan payment and within budget period
-    if (transaction.type === "expense" || transaction.type === "loan_payment") {
+    if (transaction.type === "expense" || transaction.type === "loan_repayment") {
       const matchingBudgets = await db
         .select()
         .from(budgets)
@@ -179,7 +184,12 @@ export class DatabaseStorage implements IStorage {
   async deleteTransaction(userId: string, id: number): Promise<void> {
     const [transaction] = await db.select().from(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
     
-    if (transaction && (transaction.type === "expense" || transaction.type === "loan_payment")) {
+    // Handle loan repayment reversal
+    if (transaction && transaction.type === "loan_repayment" && transaction.loanId) {
+      await this.reverseLoanPayment(userId, transaction.loanId, parseFloat(transaction.amount));
+    }
+
+    if (transaction && (transaction.type === "expense" || transaction.type === "loan_repayment")) {
       // Update budget spent amount if within budget period
       const matchingBudgets = await db
         .select()
@@ -342,6 +352,42 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLoan(userId: string, id: number): Promise<void> {
     await db.delete(loans).where(and(eq(loans.id, id), eq(loans.userId, userId)));
+  }
+
+  // Loan balance management for simple interest loans
+  async updateLoanBalance(userId: string, loanId: number, paymentAmount: number): Promise<void> {
+    const [loan] = await db.select().from(loans).where(and(eq(loans.id, loanId), eq(loans.userId, userId)));
+    if (loan && loan.interestType === "simple") {
+      const newBalance = Math.max(0, parseFloat(loan.currentBalance) - paymentAmount);
+      await db
+        .update(loans)
+        .set({ currentBalance: newBalance.toString() })
+        .where(eq(loans.id, loanId));
+    }
+  }
+
+  private async reverseLoanPayment(userId: string, loanId: number, paymentAmount: number): Promise<void> {
+    const [loan] = await db.select().from(loans).where(and(eq(loans.id, loanId), eq(loans.userId, userId)));
+    if (loan && loan.interestType === "simple") {
+      const newBalance = parseFloat(loan.currentBalance) + paymentAmount;
+      await db
+        .update(loans)
+        .set({ currentBalance: newBalance.toString() })
+        .where(eq(loans.id, loanId));
+    }
+  }
+
+  // Get loan repayment transactions for a specific loan
+  async getLoanRepayments(userId: string, loanId: number): Promise<Transaction[]> {
+    return await db
+      .select()
+      .from(transactions)
+      .where(and(
+        eq(transactions.userId, userId),
+        eq(transactions.type, "loan_repayment"),
+        eq(transactions.loanId, loanId)
+      ))
+      .orderBy(transactions.date);
   }
 
   async calculateLoanInterest(loan: Loan): Promise<{
