@@ -637,7 +637,7 @@ export default function Loans() {
                     name="interestRate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Interest Rate (%)</FormLabel>
+                        <FormLabel>Annual Interest Rate (%)</FormLabel>
                         <FormControl>
                           <Input type="number" step="0.01" placeholder="0.00" {...field} />
                         </FormControl>
