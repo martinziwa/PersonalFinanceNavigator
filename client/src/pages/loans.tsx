@@ -332,19 +332,66 @@ export default function Loans() {
     const currentBalance = parseFloat(loan.currentBalance);
     const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
     const termMonths = loan.termMonths || 12;
+    const interestRate = parseFloat(loan.interestRate || "0") / 100;
     
-    // For amortized loans, calculate total interest over the life of the loan
-    let totalInterest = 0;
+    // Calculate months elapsed since loan start
+    const startDate = new Date(loan.startDate);
+    const currentDate = new Date();
+    const monthsElapsed = Math.max(0, Math.min(termMonths, 
+      (currentDate.getFullYear() - startDate.getFullYear()) * 12 + 
+      (currentDate.getMonth() - startDate.getMonth())
+    ));
     
-    if (monthlyPayment > 0) {
-      totalInterest = (monthlyPayment * termMonths) - principal;
-    }
+    // Total interest over the life of the loan
+    const totalLoanInterest = monthlyPayment > 0 ? (monthlyPayment * termMonths) - principal : 0;
+    
+    // Calculate payment progress based on scheduled payments
+    const scheduledPrincipalPaid = calculateScheduledPrincipalPaid(
+      principal, interestRate, monthlyPayment, monthsElapsed
+    );
+    const principalProgress = principal > 0 ? (scheduledPrincipalPaid / principal) * 100 : 0;
+    
+    // Calculate interest progress based on scheduled payments
+    const scheduledInterestPaid = (monthlyPayment * monthsElapsed) - scheduledPrincipalPaid;
+    const interestProgress = totalLoanInterest > 0 ? (scheduledInterestPaid / totalLoanInterest) * 100 : 0;
 
     return {
-      totalInterest: Math.max(0, totalInterest),
+      totalInterest: Math.max(0, totalLoanInterest),
       calculatedBalance: currentBalance,
-      paidAmount: principal - currentBalance
+      paidAmount: scheduledPrincipalPaid,
+      monthsElapsed,
+      principalProgress: Math.min(100, Math.max(0, principalProgress)),
+      interestProgress: Math.min(100, Math.max(0, interestProgress)),
+      scheduledInterestPaid: Math.max(0, scheduledInterestPaid)
     };
+  };
+
+  // Helper function to calculate how much principal should be paid by a given month
+  const calculateScheduledPrincipalPaid = (
+    principal: number, 
+    annualRate: number, 
+    monthlyPayment: number, 
+    monthsElapsed: number
+  ): number => {
+    if (annualRate === 0 || monthlyPayment === 0) {
+      return Math.min(principal, monthlyPayment * monthsElapsed);
+    }
+
+    const monthlyRate = annualRate / 12;
+    let remainingBalance = principal;
+    let totalPrincipalPaid = 0;
+
+    for (let month = 1; month <= monthsElapsed; month++) {
+      if (remainingBalance <= 0) break;
+      
+      const interestPayment = remainingBalance * monthlyRate;
+      const principalPayment = Math.min(monthlyPayment - interestPayment, remainingBalance);
+      
+      totalPrincipalPaid += Math.max(0, principalPayment);
+      remainingBalance -= Math.max(0, principalPayment);
+    }
+
+    return totalPrincipalPaid;
   };
 
   if (isLoading) {
@@ -377,9 +424,15 @@ export default function Loans() {
         ) : (
           <div className="space-y-4">
             {loans.map((loan: Loan) => {
-              const { totalInterest, calculatedBalance, paidAmount } = calculateInterestDisplay(loan);
-              const paymentProgress = parseFloat(loan.principal) > 0 ? 
-                (paidAmount / parseFloat(loan.principal)) * 100 : 0;
+              const { 
+                totalInterest, 
+                calculatedBalance, 
+                paidAmount, 
+                monthsElapsed, 
+                principalProgress, 
+                interestProgress, 
+                scheduledInterestPaid 
+              } = calculateInterestDisplay(loan);
               
               return (
                 <Card key={loan.id} className="overflow-hidden">
@@ -428,19 +481,42 @@ export default function Loans() {
 
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Interest Accrued: {formatCurrency(totalInterest)}</span>
-                        <span className="text-gray-600">Paid: {formatCurrency(paidAmount)}</span>
+                        <span className="text-gray-600">Total Interest: {formatCurrency(totalInterest)}</span>
+                        <span className="text-gray-600">Interest Paid: {formatCurrency(scheduledInterestPaid)}</span>
                       </div>
                       
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-xs text-gray-500">
-                          <span>Payment Progress</span>
-                          <span>{paymentProgress.toFixed(1)}% paid off</span>
+                      <div className="space-y-3">
+                        {/* Principal Progress */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>Principal Progress</span>
+                            <span>{principalProgress.toFixed(1)}% paid down</span>
+                          </div>
+                          <ProgressBar 
+                            percentage={principalProgress} 
+                            color={principalProgress > 75 ? 'bg-green-500' : principalProgress > 50 ? 'bg-yellow-500' : 'bg-red-500'}
+                          />
                         </div>
-                        <ProgressBar 
-                          percentage={Math.min(paymentProgress, 100)} 
-                          color={paymentProgress > 75 ? 'bg-green-500' : paymentProgress > 50 ? 'bg-yellow-500' : 'bg-red-500'}
-                        />
+
+                        {/* Interest Progress */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>Interest Progress</span>
+                            <span>{interestProgress.toFixed(1)}% of total interest paid</span>
+                          </div>
+                          <ProgressBar 
+                            percentage={interestProgress} 
+                            color={interestProgress > 75 ? 'bg-blue-500' : interestProgress > 50 ? 'bg-purple-500' : 'bg-orange-500'}
+                          />
+                        </div>
+
+                        {/* Time Progress Indicator */}
+                        <div className="bg-gray-50 p-2 rounded-lg">
+                          <div className="flex justify-between text-xs text-gray-600">
+                            <span>Months Elapsed: {monthsElapsed}</span>
+                            <span>Total Term: {loan.termMonths} months</span>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="bg-blue-50 p-3 rounded-lg">
