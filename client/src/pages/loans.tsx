@@ -141,8 +141,8 @@ export default function Loans() {
   };
 
   // Handle changes to term fields (years/months) - update end date
-  const handleTermChange = () => {
-    const startDate = form.getValues("startDate");
+  const handleTermChange = (startDateOverride?: string) => {
+    const startDate = startDateOverride || form.getValues("startDate");
     const termYears = parseInt(form.getValues("termYears")) || 0;
     const termMonths = parseInt(form.getValues("termMonths")) || 0;
     
@@ -153,9 +153,9 @@ export default function Loans() {
   };
 
   // Handle changes to date fields - update term
-  const handleDateChange = () => {
-    const startDate = form.getValues("startDate");
-    const endDate = form.getValues("endDate");
+  const handleDateChange = (startDateOverride?: string, endDateOverride?: string) => {
+    const startDate = startDateOverride || form.getValues("startDate");
+    const endDate = endDateOverride || form.getValues("endDate");
     
     if (startDate && endDate) {
       const { years, months } = calculateTermFromDates(startDate, endDate);
@@ -749,13 +749,14 @@ export default function Loans() {
                             type="date" 
                             {...field} 
                             onChange={(e) => {
+                              const newStartDate = e.target.value;
                               field.onChange(e);
                               setTimeout(() => {
                                 const endDate = form.getValues("endDate");
                                 if (endDate) {
-                                  handleDateChange();
+                                  handleDateChange(newStartDate, endDate);
                                 } else {
-                                  handleTermChange();
+                                  handleTermChange(newStartDate);
                                 }
                               }, 0);
                             }}
@@ -777,8 +778,12 @@ export default function Loans() {
                             type="date" 
                             {...field} 
                             onChange={(e) => {
+                              const newEndDate = e.target.value;
                               field.onChange(e);
-                              setTimeout(handleDateChange, 0);
+                              setTimeout(() => {
+                                const startDate = form.getValues("startDate");
+                                handleDateChange(startDate, newEndDate);
+                              }, 0);
                             }}
                           />
                         </FormControl>
