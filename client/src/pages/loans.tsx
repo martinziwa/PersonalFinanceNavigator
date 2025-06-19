@@ -108,6 +108,8 @@ export default function Loans() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
       toast({ title: "Loan added successfully!" });
       handleCloseModal();
     },
@@ -122,6 +124,8 @@ export default function Loans() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
       // Invalidate all loan progress queries to trigger recalculation
       queryClient.invalidateQueries({ 
         predicate: (query) => {
@@ -143,6 +147,8 @@ export default function Loans() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
       toast({ title: "Loan deleted successfully!" });
     },
     onError: () => {

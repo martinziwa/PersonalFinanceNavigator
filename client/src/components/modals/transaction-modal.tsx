@@ -146,6 +146,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
       toast({
         title: "Success",
         description: "Transaction added successfully",
@@ -171,6 +172,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
       toast({
         title: "Success",
         description: "Transaction updated successfully",
