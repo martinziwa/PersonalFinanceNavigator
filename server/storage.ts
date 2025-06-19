@@ -115,10 +115,12 @@ export class DatabaseStorage implements IStorage {
   // Calculate principal progress for any loan type
   private async calculatePrincipalProgress(userId: string, loan: Loan): Promise<number> {
     const principal = parseFloat(loan.principal);
-    const repayments = await this.getLoanRepayments(userId, loan.id);
-    const totalPaid = repayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
     
     if (loan.interestType === "simple") {
+      // For simple interest, use payment-based calculation
+      const repayments = await this.getLoanRepayments(userId, loan.id);
+      const totalPaid = repayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
+      
       const annualRate = parseFloat(loan.interestRate) / 100;
       const termYears = (loan.termMonths || 12) / 12;
       const totalInterest = principal * annualRate * termYears;
@@ -131,9 +133,40 @@ export class DatabaseStorage implements IStorage {
       
       return Math.min((principalPaid / principal) * 100, 100);
     } else {
-      // For compound interest, assume payments reduce principal directly (simplified)
-      const principalPaid = Math.min(totalPaid, principal);
-      return (principalPaid / principal) * 100;
+      // For compound interest, calculate based on time elapsed and amortization schedule
+      const now = new Date();
+      const startDate = new Date(loan.startDate);
+      const termMonths = loan.termMonths || 12;
+      const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
+      const annualRate = parseFloat(loan.interestRate) / 100;
+      const monthlyRate = annualRate / 12;
+      
+      // Calculate months elapsed since loan start
+      const monthsElapsed = Math.max(0, 
+        (now.getFullYear() - startDate.getFullYear()) * 12 + 
+        (now.getMonth() - startDate.getMonth())
+      );
+      
+      // Don't exceed the loan term
+      const effectiveMonthsElapsed = Math.min(monthsElapsed, termMonths);
+      
+      if (effectiveMonthsElapsed === 0 || monthlyPayment === 0) {
+        return 0;
+      }
+      
+      // Use standard amortization formula to calculate remaining balance
+      if (monthlyRate === 0) {
+        // No interest case
+        const principalPaid = Math.min(effectiveMonthsElapsed * monthlyPayment, principal);
+        return (principalPaid / principal) * 100;
+      }
+      
+      // Standard amortization formula for remaining balance
+      const remainingBalance = principal * Math.pow(1 + monthlyRate, effectiveMonthsElapsed) - 
+        monthlyPayment * ((Math.pow(1 + monthlyRate, effectiveMonthsElapsed) - 1) / monthlyRate);
+      
+      const principalPaid = Math.max(0, principal - Math.max(0, remainingBalance));
+      return Math.min((principalPaid / principal) * 100, 100);
     }
   }
 
