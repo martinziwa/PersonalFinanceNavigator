@@ -516,7 +516,28 @@ export default function Transactions() {
                           </div>
                         </div>
                         
-                        <div className="flex items-start space-x-1 flex-shrink-0">
+                        <div className="flex flex-col items-end space-y-2 flex-shrink-0">
+                          <div className="flex items-center space-x-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditDialog(transaction)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 flex-shrink-0"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteTransactionMutation.mutate(transaction.id)}
+                              disabled={deleteTransactionMutation.isPending}
+                              className="p-1.5 text-red-600 hover:bg-red-50 flex-shrink-0"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                          
                           <div className={`font-semibold text-right whitespace-nowrap text-sm ${
                             transaction.type === "income" || transaction.type === "savings_withdrawal"
                               ? "text-green-600" : "text-red-600"
@@ -524,25 +545,6 @@ export default function Transactions() {
                             {(transaction.type === "income" || transaction.type === "savings_withdrawal") ? "+" : "-"}
                             {formatCurrency(parseFloat(transaction.amount))}
                           </div>
-                          
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditDialog(transaction)}
-                            className="p-1 text-blue-600 hover:bg-blue-50 flex-shrink-0 ml-2"
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                          
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteTransactionMutation.mutate(transaction.id)}
-                            disabled={deleteTransactionMutation.isPending}
-                            className="p-1 text-red-600 hover:bg-red-50 flex-shrink-0"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
                         </div>
                       </div>
                     </div>
