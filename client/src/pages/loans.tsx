@@ -616,7 +616,7 @@ function LoanCard({
 }) {
   // Fetch real progress data for simple interest loans
   const { data: progressData, refetch: refetchProgress } = useQuery({
-    queryKey: ["/api/loans", loan.id, "progress"],
+    queryKey: [`/api/loans/${loan.id}/progress`],
     enabled: loan.interestType === "simple",
     refetchOnWindowFocus: true,
   });
@@ -624,6 +624,8 @@ function LoanCard({
   // Debug: log progress data for simple interest loans
   if (loan.interestType === "simple") {
     console.log(`Progress data for loan ${loan.id}:`, progressData);
+    console.log(`Progress data type:`, typeof progressData);
+    console.log(`Is array:`, Array.isArray(progressData));
   }
 
   // Calculate interest display data
@@ -807,7 +809,7 @@ function LoanCard({
           
           <div className="space-y-3">
             {/* Principal Progress */}
-            {principalProgress !== null ? (
+            {principalProgress !== null && typeof principalProgress === 'number' ? (
               <div className="space-y-1">
                 <div className="flex justify-between text-xs text-gray-500">
                   <span>Principal Progress</span>
@@ -827,7 +829,7 @@ function LoanCard({
             )}
 
             {/* Interest Progress */}
-            {interestProgress !== null ? (
+            {interestProgress !== null && typeof interestProgress === 'number' ? (
               <div className="space-y-1">
                 <div className="flex justify-between text-xs text-gray-500">
                   <span>Interest Progress</span>
