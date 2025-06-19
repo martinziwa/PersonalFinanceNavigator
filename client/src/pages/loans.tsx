@@ -81,7 +81,7 @@ export default function Loans() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: loans = [], isLoading } = useQuery({
+  const { data: loans = [], isLoading } = useQuery<Loan[]>({
     queryKey: ["/api/loans"],
   });
 
@@ -160,7 +160,7 @@ export default function Loans() {
       interestType: data.interestType as "simple" | "compound",
       termMonths: (parseInt(data.termYears) || 0) * 12 + (parseInt(data.termMonths) || 0),
       compoundFrequency: data.compoundFrequency,
-      monthlyPayment: data.interestType === "compound" && data.monthlyPayment ? parseFloat(data.monthlyPayment) : undefined,
+      monthlyPayment: data.interestType === "compound" && data.monthlyPayment ? data.monthlyPayment : null,
       startDate: new Date(data.startDate),
       endDate: data.endDate ? new Date(data.endDate) : null,
       loanType: data.loanType as "personal" | "mortgage" | "auto" | "student" | "business" | "credit_card" | "other",
@@ -241,7 +241,7 @@ export default function Loans() {
           </Button>
         </div>
 
-        {loans.length === 0 ? (
+        {loans && loans.length === 0 ? (
           <div className="text-center py-12">
             <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No loans yet</h3>
@@ -253,7 +253,7 @@ export default function Loans() {
           </div>
         ) : (
           <div className="space-y-4">
-            {loans.map((loan: Loan) => (
+            {loans && loans.map((loan: Loan) => (
               <LoanCard 
                 key={loan.id} 
                 loan={loan} 
