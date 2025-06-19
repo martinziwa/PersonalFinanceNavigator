@@ -668,7 +668,7 @@ export default function Budgets() {
                           </div>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <div className="flex justify-between text-sm">
                             <span>Spent: {formatCurrency(totalSpent)}</span>
                             <span>Budget: {formatCurrency(budgetAmount)}</span>
@@ -683,6 +683,40 @@ export default function Budgets() {
                               {remainingAmount >= 0 ? "Remaining: " : "Over by: "}{formatCurrency(Math.abs(remainingAmount))}
                             </span>
                           </div>
+
+                          {/* Time Progress for Individual Budget */}
+                          {(() => {
+                            const budgetStart = new Date(budget.startDate);
+                            const budgetEnd = new Date(budget.endDate);
+                            const now = new Date();
+                            const totalDays = Math.ceil((budgetEnd.getTime() - budgetStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                            const elapsedDays = Math.max(0, Math.min(
+                              totalDays,
+                              Math.ceil((now.getTime() - budgetStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+                            ));
+                            const timeProgress = totalDays > 0 ? (elapsedDays / totalDays) * 100 : 0;
+                            const daysRemaining = Math.max(0, totalDays - elapsedDays);
+
+                            return (
+                              <div className="pt-2 border-t border-gray-100">
+                                <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                  <span>Time Progress</span>
+                                  <span>{timeProgress.toFixed(1)}% ({elapsedDays}/{totalDays} days)</span>
+                                </div>
+                                <ProgressBar 
+                                  percentage={timeProgress}
+                                  color="bg-gray-400"
+                                  height="h-1"
+                                />
+                                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                  <span>{elapsedDays} of {totalDays} days</span>
+                                  <span>
+                                    {daysRemaining > 0 ? `${daysRemaining} days left` : 'Budget period ended'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </CardContent>
                     </Card>
