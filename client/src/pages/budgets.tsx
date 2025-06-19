@@ -587,7 +587,7 @@ export default function Budgets() {
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
-                      className="h-2 rounded-full transition-all duration-300 bg-gray-500"
+                      className="h-2 rounded-full transition-all duration-300 bg-purple-500"
                       style={{ width: `${Math.min(totalBudgetStats.timeProgress, 100)}%` }}
                     ></div>
                   </div>
@@ -705,7 +705,7 @@ export default function Budgets() {
                                 </div>
                                 <ProgressBar 
                                   percentage={timeProgress}
-                                  color="bg-gray-400"
+                                  color="bg-purple-500"
                                   height="h-1"
                                 />
                                 <div className="flex justify-between text-xs text-gray-500 mt-1">
