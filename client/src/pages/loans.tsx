@@ -22,13 +22,11 @@ import ProgressBar from "@/components/ui/progress-bar";
 const loanFormSchema = z.object({
   name: z.string().min(1, "Loan name is required"),
   principal: z.string().min(1, "Principal amount is required"),
-  currentBalance: z.string().optional(),
   interestRate: z.string().regex(/^\d*\.?\d*$/, "Must be a valid number"),
   interestType: z.string().default("compound"),
   termYears: z.string().default("0"),
   termMonths: z.string().default("0"),
   compoundFrequency: z.string().optional(),
-
   startDate: z.string(),
   endDate: z.string().optional(),
   loanType: z.string(),
@@ -90,13 +88,11 @@ export default function Loans() {
     defaultValues: {
       name: "",
       principal: "",
-      currentBalance: "",
       interestRate: "",
       interestType: "compound",
       termYears: "0",
       termMonths: "0",
       compoundFrequency: "monthly",
-
       startDate: "",
       endDate: "",
       loanType: "",
@@ -155,12 +151,11 @@ export default function Loans() {
     const submitData: InsertLoan = {
       name: data.name,
       principal: data.principal,
-      currentBalance: data.currentBalance || data.principal,
+      currentBalance: data.principal, // Initialize with principal amount
       interestRate: data.interestRate,
       interestType: data.interestType as "simple" | "compound",
       termMonths: (parseInt(data.termYears) || 0) * 12 + (parseInt(data.termMonths) || 0),
       compoundFrequency: data.compoundFrequency,
-
       startDate: new Date(data.startDate),
       endDate: data.endDate ? new Date(data.endDate) : null,
       loanType: data.loanType as "personal" | "mortgage" | "auto" | "student" | "business" | "credit_card" | "other",
@@ -184,7 +179,7 @@ export default function Loans() {
     form.reset({
       name: loan.name,
       principal: loan.principal,
-      currentBalance: loan.currentBalance,
+
       interestRate: loan.interestRate || "",
       interestType: loan.interestType || "compound",
       termYears: termYears.toString(),
@@ -330,19 +325,6 @@ export default function Loans() {
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="currentBalance"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Current Balance (MWK)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="Same as principal" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -777,8 +759,17 @@ function LoanCard({
             <p className="font-semibold">{formatCurrency(parseFloat(loan.principal))}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Current Balance</p>
-            <p className="font-semibold text-red-600">{formatCurrency(parseFloat(loan.currentBalance))}</p>
+            <p className="text-xs text-gray-500">Remaining Balance</p>
+            <p className="font-semibold text-red-600">
+              {(() => {
+                const principal = parseFloat(loan.principal);
+                if (loan.interestType === "simple" && progressData && (progressData as any).principalPaid !== undefined) {
+                  const principalPaid = (progressData as any).principalPaid || 0;
+                  return formatCurrency(principal - principalPaid);
+                }
+                return formatCurrency(parseFloat(loan.currentBalance));
+              })()}
+            </p>
           </div>
           <div>
             <p className="text-xs text-gray-500">Interest Rate</p>
