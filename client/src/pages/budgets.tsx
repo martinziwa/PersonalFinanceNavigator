@@ -59,10 +59,69 @@ export default function Budgets() {
   const [budgetAllocations, setBudgetAllocations] = useState<BudgetAllocation[]>([]);
   const [conflicts, setConflicts] = useState<string[]>([]);
   
+  // Date range state for budget overview
+  const formatDateForInput = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [overviewStartDate, setOverviewStartDate] = useState(() => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    return formatDateForInput(firstDay);
+  });
+  const [overviewEndDate, setOverviewEndDate] = useState(() => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return formatDateForInput(lastDay);
+  });
+  
   const { data: budgets = [], isLoading } = useBudgets();
   const { data: transactions = [] } = useTransactions();
   const { budgetCategories } = useCategories();
   const { toast } = useToast();
+
+  // Calculate total budget stats for the selected period
+  const totalBudgetStats = useMemo(() => {
+    const overviewStart = new Date(overviewStartDate);
+    const overviewEnd = new Date(overviewEndDate);
+    
+    // Filter budgets that overlap with the overview period
+    const applicableBudgets = budgets.filter(budget => {
+      const budgetStart = new Date(budget.startDate);
+      const budgetEnd = new Date(budget.endDate);
+      // Check if budget period overlaps with overview period
+      return budgetStart <= overviewEnd && budgetEnd >= overviewStart;
+    });
+    
+    const totalAmount = applicableBudgets.reduce((sum, budget) => sum + parseFloat(budget.amount), 0);
+    const totalSpent = applicableBudgets.reduce((sum, budget) => sum + parseFloat(budget.spent), 0);
+    const totalRemaining = totalAmount - totalSpent;
+    const spentPercentage = totalAmount > 0 ? (totalSpent / totalAmount) * 100 : 0;
+    
+    // Calculate time progress
+    const now = new Date();
+    const totalPeriodDays = Math.ceil((overviewEnd.getTime() - overviewStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const elapsedDays = Math.max(0, Math.min(
+      totalPeriodDays,
+      Math.ceil((now.getTime() - overviewStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    ));
+    const timeProgress = totalPeriodDays > 0 ? (elapsedDays / totalPeriodDays) * 100 : 0;
+    
+    return {
+      totalAmount,
+      totalSpent,
+      totalRemaining,
+      spentPercentage,
+      budgetCount: applicableBudgets.length,
+      timeProgress,
+      elapsedDays,
+      totalPeriodDays,
+      applicableBudgets
+    };
+  }, [budgets, overviewStartDate, overviewEndDate]);
 
   const form = useForm<BudgetFormData>({
     resolver: zodResolver(budgetSchema),
@@ -348,6 +407,21 @@ export default function Budgets() {
     });
   };
 
+  const handleEdit = (budget: any) => {
+    setEditingBudget(budget);
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await apiRequest("DELETE", `/api/budgets/${id}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      toast({ title: "Budget deleted successfully!" });
+    } catch (error) {
+      toast({ title: "Failed to delete budget", variant: "destructive" });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="max-w-sm mx-auto bg-white min-h-screen relative flex flex-col">
@@ -392,6 +466,151 @@ export default function Budgets() {
                 Add Budget
               </Button>
             </div>
+
+            {/* Budget Overview */}
+            {budgets.length > 0 && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="text-2xl">💼</div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Budget Overview</h3>
+                      <p className="text-sm text-gray-600">{totalBudgetStats.budgetCount} applicable budgets</p>
+                    </div>
+                  </div>
+                  <CalendarDays className="h-5 w-5 text-blue-600" />
+                </div>
+
+                {/* Date Range Selector */}
+                <div className="space-y-2 mb-3">
+                  <div className="flex space-x-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs px-2 py-1 h-6"
+                      onClick={() => {
+                        const now = new Date();
+                        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                        setOverviewStartDate(formatDateForInput(firstDay));
+                        setOverviewEndDate(formatDateForInput(lastDay));
+                      }}
+                    >
+                      This Month
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs px-2 py-1 h-6"
+                      onClick={() => {
+                        const now = new Date();
+                        const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                        const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+                        setOverviewStartDate(formatDateForInput(firstDay));
+                        setOverviewEndDate(formatDateForInput(lastDay));
+                      }}
+                    >
+                      Last Month
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs px-2 py-1 h-6"
+                      onClick={() => {
+                        const now = new Date();
+                        const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+                        const quarterEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 0);
+                        setOverviewStartDate(formatDateForInput(quarterStart));
+                        setOverviewEndDate(formatDateForInput(quarterEnd));
+                      }}
+                    >
+                      Quarter
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-gray-600 block mb-1">From</label>
+                      <input
+                        type="date"
+                        value={overviewStartDate}
+                        onChange={(e) => setOverviewStartDate(e.target.value)}
+                        className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-600 block mb-1">To</label>
+                      <input
+                        type="date"
+                        value={overviewEndDate}
+                        onChange={(e) => setOverviewEndDate(e.target.value)}
+                        className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div className="text-center">
+                    <p className="text-xs text-gray-600 mb-1">Budgeted</p>
+                    <p className="font-semibold text-blue-600">{formatCurrency(totalBudgetStats.totalAmount)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-600 mb-1">Spent</p>
+                    <p className="font-semibold text-orange-600">{formatCurrency(totalBudgetStats.totalSpent)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-600 mb-1">Remaining</p>
+                    <p className={`font-semibold ${totalBudgetStats.totalRemaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(totalBudgetStats.totalRemaining)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Spending Progress Bar */}
+                <div className="space-y-2 mb-3">
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>Spending Progress</span>
+                    <span>{totalBudgetStats.spentPercentage.toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        totalBudgetStats.spentPercentage > 100 ? 'bg-red-500' :
+                        totalBudgetStats.spentPercentage > 80 ? 'bg-orange-500' :
+                        'bg-blue-500'
+                      }`}
+                      style={{ width: `${Math.min(totalBudgetStats.spentPercentage, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Time Progress Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>Time Progress</span>
+                    <span>{totalBudgetStats.timeProgress.toFixed(1)}% ({totalBudgetStats.elapsedDays}/{totalBudgetStats.totalPeriodDays} days)</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="h-2 rounded-full transition-all duration-300 bg-gray-500"
+                      style={{ width: `${Math.min(totalBudgetStats.timeProgress, 100)}%` }}
+                    ></div>
+                  </div>
+                  {/* Spending vs Time Indicator */}
+                  {totalBudgetStats.timeProgress > 0 && (
+                    <div className="text-xs text-center">
+                      {totalBudgetStats.spentPercentage > totalBudgetStats.timeProgress + 10 ? (
+                        <span className="text-red-600">⚠️ Spending ahead of schedule</span>
+                      ) : totalBudgetStats.spentPercentage < totalBudgetStats.timeProgress - 10 ? (
+                        <span className="text-green-600">✓ Spending on track</span>
+                      ) : (
+                        <span className="text-blue-600">📊 Spending balanced</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {budgets.length === 0 ? (
               <div className="text-center py-12">
