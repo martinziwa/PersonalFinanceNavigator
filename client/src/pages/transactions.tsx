@@ -35,6 +35,7 @@ export default function Transactions() {
       queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/financial-summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
       toast({
         title: "Success",
         description: "Transaction deleted successfully",
