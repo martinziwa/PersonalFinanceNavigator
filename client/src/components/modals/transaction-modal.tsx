@@ -51,6 +51,9 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
   const [isAddingCustomCategory, setIsAddingCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
   
+  // Check if this is a loan_received transaction
+  const isLoanReceivedTransaction = editingTransaction?.type === "loan_received";
+  
   // Helper function to get current time in HH:MM format
   const getCurrentTime = () => {
     const now = new Date();
@@ -417,7 +420,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Transaction Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isLoanReceivedTransaction}>
                     <FormControl>
                       <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
                         <SelectValue placeholder="Select transaction type" />
@@ -429,6 +432,9 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
                       <SelectItem value="savings_deposit">🏦 Savings Deposit</SelectItem>
                       <SelectItem value="savings_withdrawal">🏧 Savings Withdrawal</SelectItem>
                       <SelectItem value="loan_repayment">💳 Loan Repayment</SelectItem>
+                      {isLoanReceivedTransaction && (
+                        <SelectItem value="loan_received">💵 Loan Received</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

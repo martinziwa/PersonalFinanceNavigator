@@ -246,17 +246,44 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTransaction(userId: string, id: number, updates: Partial<InsertTransaction>): Promise<Transaction> {
-    const [transaction] = await db
+    const currentTransaction = await db.select().from(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
+    if (!currentTransaction[0]) {
+      throw new Error("Transaction not found");
+    }
+
+    const transaction = currentTransaction[0];
+
+    // If this is a loan_received transaction, sync changes to the loan
+    if (transaction.type === "loan_received" && transaction.loanId) {
+      const loanUpdates: any = {};
+      if (updates.description) loanUpdates.name = updates.description;
+      if (updates.amount) loanUpdates.principal = updates.amount;
+      if (updates.date) loanUpdates.startDate = updates.date;
+
+      if (Object.keys(loanUpdates).length > 0) {
+        await db
+          .update(loans)
+          .set(loanUpdates)
+          .where(and(eq(loans.id, transaction.loanId), eq(loans.userId, userId)));
+      }
+    }
+
+    const [updatedTransaction] = await db
       .update(transactions)
       .set(updates)
       .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
       .returning();
-    return transaction;
+    return updatedTransaction;
   }
 
   async deleteTransaction(userId: string, id: number): Promise<void> {
     const [transaction] = await db.select().from(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
     
+    // If this is a loan_received transaction, delete the corresponding loan
+    if (transaction && transaction.type === "loan_received" && transaction.loanId) {
+      await db.delete(loans).where(and(eq(loans.id, transaction.loanId), eq(loans.userId, userId)));
+    }
+
     // Loan repayment reversal handling - balance is now calculated dynamically
     // No manual balance updates needed as currentBalance is computed from payments
 
@@ -388,28 +415,45 @@ export class DatabaseStorage implements IStorage {
         compoundFrequency: insertLoan.interestType === "simple" ? null : insertLoan.compoundFrequency
       })
       .returning();
+
+    // Create corresponding loan_received transaction
+    await db
+      .insert(transactions)
+      .values({
+        userId,
+        amount: insertLoan.principal,
+        description: insertLoan.name,
+        category: "loan",
+        type: "loan_received",
+        date: insertLoan.startDate,
+        time: null,
+        loanId: loan.id
+      });
+
     return loan;
   }
 
   async updateLoan(userId: string, id: number, updates: Partial<Loan>): Promise<Loan> {
+    const currentLoan = await this.getLoan(userId, id);
+    if (!currentLoan) {
+      throw new Error("Loan not found");
+    }
+
     // If key loan parameters are being updated, recalculate monthly payment
     if (updates.principal || updates.interestRate || updates.termMonths || updates.compoundFrequency || updates.interestType) {
-      const currentLoan = await this.getLoan(userId, id);
-      if (currentLoan) {
-        const principal = parseFloat(updates.principal || currentLoan.principal);
-        const interestRate = parseFloat(updates.interestRate || currentLoan.interestRate);
-        const termMonths = updates.termMonths || currentLoan.termMonths;
-        const interestType = updates.interestType || currentLoan.interestType || "compound";
-        
-        if (interestType === "compound") {
-          const compoundFrequency = updates.compoundFrequency || currentLoan.compoundFrequency || "monthly";
-          const monthlyPayment = this.calculateAmortizedPayment(principal, interestRate, termMonths, compoundFrequency);
-          updates.monthlyPayment = monthlyPayment.toFixed(2);
-        } else {
-          // Simple interest loans don't use monthly payments or compound frequency
-          updates.monthlyPayment = null;
-          updates.compoundFrequency = null;
-        }
+      const principal = parseFloat(updates.principal || currentLoan.principal);
+      const interestRate = parseFloat(updates.interestRate || currentLoan.interestRate);
+      const termMonths = updates.termMonths || currentLoan.termMonths;
+      const interestType = updates.interestType || currentLoan.interestType || "compound";
+      
+      if (interestType === "compound") {
+        const compoundFrequency = updates.compoundFrequency || currentLoan.compoundFrequency || "monthly";
+        const monthlyPayment = this.calculateAmortizedPayment(principal, interestRate, termMonths, compoundFrequency);
+        updates.monthlyPayment = monthlyPayment.toFixed(2);
+      } else {
+        // Simple interest loans don't use monthly payments or compound frequency
+        updates.monthlyPayment = null;
+        updates.compoundFrequency = null;
       }
     }
 
@@ -418,10 +462,35 @@ export class DatabaseStorage implements IStorage {
       .set(updates)
       .where(and(eq(loans.id, id), eq(loans.userId, userId)))
       .returning();
+
+    // Update corresponding loan_received transaction if relevant fields changed
+    if (updates.name || updates.principal || updates.startDate) {
+      const transactionUpdates: any = {};
+      if (updates.name) transactionUpdates.description = updates.name;
+      if (updates.principal) transactionUpdates.amount = updates.principal;
+      if (updates.startDate) transactionUpdates.date = updates.startDate;
+
+      await db
+        .update(transactions)
+        .set(transactionUpdates)
+        .where(and(
+          eq(transactions.loanId, id),
+          eq(transactions.userId, userId),
+          eq(transactions.type, "loan_received")
+        ));
+    }
+
     return loan;
   }
 
   async deleteLoan(userId: string, id: number): Promise<void> {
+    // Delete corresponding loan_received transaction first
+    await db.delete(transactions).where(and(
+      eq(transactions.loanId, id),
+      eq(transactions.userId, userId),
+      eq(transactions.type, "loan_received")
+    ));
+    
     await db.delete(loans).where(and(eq(loans.id, id), eq(loans.userId, userId)));
   }
 
