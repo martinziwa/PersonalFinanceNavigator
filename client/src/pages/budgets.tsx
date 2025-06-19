@@ -98,7 +98,30 @@ export default function Budgets() {
     });
     
     const totalAmount = applicableBudgets.reduce((sum, budget) => sum + parseFloat(budget.amount), 0);
-    const totalSpent = applicableBudgets.reduce((sum, budget) => sum + parseFloat(budget.spent), 0);
+    
+    // Calculate actual spending from transactions for each applicable budget
+    const totalSpent = applicableBudgets.reduce((sum, budget) => {
+      const budgetTransactions = transactions.filter((transaction: Transaction) => {
+        const transactionDate = new Date(transaction.date);
+        const budgetStart = new Date(budget.startDate);
+        const budgetEnd = new Date(budget.endDate);
+        
+        return transaction.category === budget.category && 
+               transaction.type === "expense" &&
+               transactionDate >= budgetStart &&
+               transactionDate <= budgetEnd &&
+               // Also check if transaction falls within overview period
+               transactionDate >= overviewStart &&
+               transactionDate <= overviewEnd;
+      });
+      
+      const categorySpent = budgetTransactions.reduce((total, transaction) => {
+        return total + parseFloat(transaction.amount);
+      }, 0);
+      
+      return sum + categorySpent;
+    }, 0);
+    
     const totalRemaining = totalAmount - totalSpent;
     const spentPercentage = totalAmount > 0 ? (totalSpent / totalAmount) * 100 : 0;
     
@@ -122,7 +145,7 @@ export default function Budgets() {
       totalPeriodDays,
       applicableBudgets
     };
-  }, [budgets, overviewStartDate, overviewEndDate]);
+  }, [budgets, transactions, overviewStartDate, overviewEndDate]);
 
   const form = useForm<BudgetFormData>({
     resolver: zodResolver(budgetSchema),
@@ -325,6 +348,21 @@ export default function Budgets() {
              new Date(transaction.date) >= new Date(budget.startDate) &&
              new Date(transaction.date) <= new Date(budget.endDate);
     });
+  };
+
+  const calculateBudgetSpending = (budget: any, startDate: Date, endDate: Date) => {
+    return transactions.filter((transaction: Transaction) => {
+      const transactionDate = new Date(transaction.date);
+      const budgetStart = new Date(budget.startDate);
+      const budgetEnd = new Date(budget.endDate);
+      
+      return transaction.category === budget.category && 
+             transaction.type === "expense" &&
+             transactionDate >= budgetStart &&
+             transactionDate <= budgetEnd &&
+             transactionDate >= startDate &&
+             transactionDate <= endDate;
+    }).reduce((total, transaction) => total + parseFloat(transaction.amount), 0);
   };
 
   // Budget Allocator Helper Functions
@@ -636,8 +674,8 @@ export default function Budgets() {
                             <span>Budget: {formatCurrency(budgetAmount)}</span>
                           </div>
                           <ProgressBar 
-                            progress={spentPercentage}
-                            className={spentPercentage > 100 ? "bg-red-500" : spentPercentage > 80 ? "bg-orange-500" : "bg-green-500"}
+                            percentage={spentPercentage}
+                            color={spentPercentage > 100 ? "bg-red-500" : spentPercentage > 80 ? "bg-orange-500" : "bg-green-500"}
                           />
                           <div className="flex justify-between text-xs text-gray-500">
                             <span>{spentPercentage.toFixed(1)}% used</span>
