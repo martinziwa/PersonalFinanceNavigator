@@ -141,6 +141,16 @@ export class DatabaseStorage implements IStorage {
       const annualRate = parseFloat(loan.interestRate) / 100;
       const monthlyRate = annualRate / 12;
       
+      console.log(`Compound loan ${loan.id} raw data:`, {
+        monthlyPaymentRaw: loan.monthlyPayment,
+        monthlyPaymentParsed: monthlyPayment,
+        interestRateRaw: loan.interestRate,
+        annualRate,
+        monthlyRate,
+        startDate: loan.startDate,
+        now: now.toISOString()
+      });
+      
       // Calculate months elapsed since loan start
       const monthsElapsed = Math.max(0, 
         (now.getFullYear() - startDate.getFullYear()) * 12 + 
@@ -151,8 +161,11 @@ export class DatabaseStorage implements IStorage {
       const effectiveMonthsElapsed = Math.min(monthsElapsed, termMonths);
       
       if (effectiveMonthsElapsed === 0 || monthlyPayment === 0) {
+        console.log(`Compound loan ${loan.id}: monthsElapsed=${effectiveMonthsElapsed}, monthlyPayment=${monthlyPayment}, returning 0`);
         return 0;
       }
+      
+      console.log(`Compound loan ${loan.id}: principal=${principal}, monthsElapsed=${effectiveMonthsElapsed}, monthlyPayment=${monthlyPayment}, monthlyRate=${monthlyRate}`);
       
       // Use standard amortization formula to calculate remaining balance
       if (monthlyRate === 0) {

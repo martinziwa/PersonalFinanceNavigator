@@ -594,10 +594,10 @@ function LoanCard({
   onEdit: (loan: Loan) => void; 
   onDelete: (id: number) => void; 
 }) {
-  // Fetch real progress data for simple interest loans
+  // Fetch real progress data for all loan types (needed for dynamic balance calculation)
   const { data: progressData, refetch: refetchProgress } = useQuery({
     queryKey: [`/api/loans/${loan.id}/progress`],
-    enabled: loan.interestType === "simple",
+    enabled: true, // Enable for both simple and compound loans
     refetchOnWindowFocus: true,
   });
 
@@ -762,11 +762,11 @@ function LoanCard({
             <p className="text-xs text-gray-500">Remaining Balance</p>
             <p className="font-semibold text-red-600">
               {(() => {
-                const principal = parseFloat(loan.principal);
-                if (loan.interestType === "simple" && progressData && (progressData as any).principalPaid !== undefined) {
-                  const principalPaid = (progressData as any).principalPaid || 0;
-                  return formatCurrency(principal - principalPaid);
+                // Use dynamic currentBalance from progress API if available
+                if (progressData && (progressData as any).currentBalance !== undefined) {
+                  return formatCurrency((progressData as any).currentBalance);
                 }
+                // Fallback to stored currentBalance for loading states
                 return formatCurrency(parseFloat(loan.currentBalance));
               })()}
             </p>
