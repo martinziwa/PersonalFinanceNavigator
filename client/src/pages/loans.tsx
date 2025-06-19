@@ -122,6 +122,10 @@ export default function Loans() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
+      // Invalidate all loan progress queries to trigger recalculation
+      queryClient.invalidateQueries({ queryKey: ["/api/loans"], predicate: (query) => 
+        query.queryKey[0]?.toString().includes("/progress") 
+      });
       toast({ title: "Loan updated successfully!" });
       handleCloseModal();
     },
@@ -595,8 +599,9 @@ function LoanCard({
   onDelete: (id: number) => void; 
 }) {
   // Fetch real progress data for all loan types (needed for dynamic balance calculation)
+  // Include start date in query key to trigger refetch when loan dates change
   const { data: progressData, refetch: refetchProgress } = useQuery({
-    queryKey: [`/api/loans/${loan.id}/progress`],
+    queryKey: [`/api/loans/${loan.id}/progress`, loan.startDate, loan.principal, loan.interestRate, loan.termMonths],
     enabled: true, // Enable for both simple and compound loans
     refetchOnWindowFocus: true,
   });
