@@ -113,11 +113,11 @@ export default function Transactions() {
 
   // Calculate aggregate amounts
   const totalIncome = filteredAndSortedTransactions
-    .filter(t => t.type === "income" || t.type === "savings_withdrawal" || t.type === "loan_received")
+    .filter(t => t.type === "income" || t.type === "savings_withdrawal")
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
   const totalExpenses = filteredAndSortedTransactions
-    .filter(t => t.type === "expense" || t.type === "savings_deposit" || t.type === "loan_payment")
+    .filter(t => t.type === "expense" || t.type === "savings_deposit" || t.type === "loan_repayment")
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
   const netAmount = totalIncome - totalExpenses;
@@ -480,7 +480,7 @@ export default function Transactions() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3 flex-1">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                            transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received"
+                            transaction.type === "income" || transaction.type === "savings_withdrawal"
                               ? "bg-green-100" : "bg-red-100"
                           }`}>
                             <span className="text-sm">{getCategoryIcon(transaction.category, transaction.type)}</span>
@@ -495,10 +495,10 @@ export default function Transactions() {
                         
                         <div className="flex items-center space-x-3">
                           <div className={`font-semibold ${
-                            transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received"
+                            transaction.type === "income" || transaction.type === "savings_withdrawal"
                               ? "text-green-600" : "text-red-600"
                           }`}>
-                            {(transaction.type === "income" || transaction.type === "savings_withdrawal" || transaction.type === "loan_received") ? "+" : "-"}
+                            {(transaction.type === "income" || transaction.type === "savings_withdrawal") ? "+" : "-"}
                             {formatCurrency(parseFloat(transaction.amount))}
                           </div>
                           
