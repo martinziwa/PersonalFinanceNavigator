@@ -59,7 +59,7 @@ export default function Budgets() {
   const [budgetAllocations, setBudgetAllocations] = useState<BudgetAllocation[]>([]);
   const [conflicts, setConflicts] = useState<string[]>([]);
   
-  // Date range state for budget overview
+  // Helper function to format date for input without timezone issues
   const formatDateForInput = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -67,6 +67,7 @@ export default function Budgets() {
     return `${year}-${month}-${day}`;
   };
 
+  // Date range state for budget overview
   const [overviewStartDate, setOverviewStartDate] = useState(() => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -210,113 +211,31 @@ export default function Budgets() {
     setConflicts(conflictingCategories);
   }, [budgetAllocations, budgets, form.watch("startDate"), form.watch("endDate"), form.watch("period")]);
 
-  // Budget Allocator Helper Functions
-  const totalPercentage = useMemo(() => {
-    return budgetAllocations
-      .filter(allocation => allocation.enabled)
-      .reduce((sum, allocation) => sum + allocation.percentage, 0);
-  }, [budgetAllocations]);
-
-  const totalAmount = useMemo(() => {
-    return budgetAllocations
-      .filter(allocation => allocation.enabled)
-      .reduce((sum, allocation) => sum + allocation.amount, 0);
-  }, [budgetAllocations]);
-
-  const updatePercentage = (category: string, newPercentage: number) => {
-    setBudgetAllocations(prev =>
-      prev.map(allocation =>
-        allocation.category === category
-          ? { ...allocation, percentage: newPercentage }
-          : allocation
-      )
-    );
-  };
-
-  const toggleBudgetEnabled = (category: string) => {
-    setBudgetAllocations(prev =>
-      prev.map(allocation =>
-        allocation.category === category
-          ? { ...allocation, enabled: !allocation.enabled }
-          : allocation
-      )
-    );
-  };
-
-  const resetTo50_30_20 = () => {
-    setBudgetAllocations(prev => prev.map(allocation => {
-      let percentage = 0;
-      
-      if (BUDGET_RULES.needs.categories.includes(allocation.category)) {
-        percentage = BUDGET_RULES.needs.percentage / BUDGET_RULES.needs.categories.length;
-      } else if (BUDGET_RULES.wants.categories.includes(allocation.category)) {
-        percentage = BUDGET_RULES.wants.percentage / BUDGET_RULES.wants.categories.length;
-      } else {
-        percentage = BUDGET_RULES.savings.percentage / BUDGET_RULES.savings.categories.length;
-      }
-
-      return {
-        ...allocation,
-        percentage: Math.round(percentage * 100) / 100,
-        enabled: true,
-      };
-    }));
-  };
-
-  const getCategoryName = (category: string) => {
-    const categoryData = budgetCategories.find(cat => cat.value === category);
-    return categoryData?.label || category;
-  };
-
-  const getRuleCategory = (category: string) => {
-    if (BUDGET_RULES.needs.categories.includes(category)) return "needs";
-    if (BUDGET_RULES.wants.categories.includes(category)) return "wants";
-    return "savings";
-  };
-
-  const getRuleColor = (ruleCategory: string) => {
-    switch (ruleCategory) {
-      case "needs": return "bg-red-100 text-red-800";
-      case "wants": return "bg-yellow-100 text-yellow-800";
-      case "savings": return "bg-green-100 text-green-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
-  };
-
   const createBudgetMutation = useMutation({
     mutationFn: async (data: InsertBudget) => {
-      const response = await apiRequest("POST", "/api/budgets", data);
-      return response.json();
+      return await apiRequest("POST", "/api/budgets", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
-      handleCloseDialog();
-      toast({
-        title: "Budget created",
-        description: "Your budget has been created successfully.",
-      });
+      toast({ title: "Budget created successfully!" });
+      setIsDialogOpen(false);
+      form.reset();
     },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create budget",
-        variant: "destructive",
-      });
+    onError: () => {
+      toast({ title: "Failed to create budget", variant: "destructive" });
     },
   });
 
   const createBudgetsMutation = useMutation({
-    mutationFn: async (data: { budgets: InsertBudget[] }) => {
-      const promises = data.budgets.map(budget => 
-        apiRequest("/api/budgets", "POST", budget)
-      );
-      return Promise.all(promises);
+    mutationFn: async ({ budgets }: { budgets: InsertBudget[] }) => {
+      const promises = budgets.map(budget => apiRequest("POST", "/api/budgets", budget));
+      return await Promise.all(promises);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
       toast({
-        title: "Success",
-        description: "All budgets have been created successfully!",
+        title: "Success!",
+        description: `Created ${budgetAllocations.filter(a => a.enabled).length} budgets successfully`,
       });
       setTotalIncome("");
       resetTo50_30_20();
@@ -402,24 +321,63 @@ export default function Budgets() {
   const getBudgetTransactions = (budget: any) => {
     return transactions.filter((transaction: Transaction) => {
       return transaction.category === budget.category && 
+             transaction.type === "expense" &&
              new Date(transaction.date) >= new Date(budget.startDate) &&
              new Date(transaction.date) <= new Date(budget.endDate);
     });
   };
 
-  const handleEdit = (budget: any) => {
-    setEditingBudget(budget);
-    setIsDialogOpen(true);
+  // Budget Allocator Helper Functions
+  const totalPercentage = useMemo(() => {
+    return budgetAllocations
+      .filter(allocation => allocation.enabled)
+      .reduce((sum, allocation) => sum + allocation.percentage, 0);
+  }, [budgetAllocations]);
+
+  const totalAmount = useMemo(() => {
+    return budgetAllocations
+      .filter(allocation => allocation.enabled)
+      .reduce((sum, allocation) => sum + allocation.amount, 0);
+  }, [budgetAllocations]);
+
+  const updatePercentage = (category: string, newPercentage: number) => {
+    setBudgetAllocations(prev =>
+      prev.map(allocation =>
+        allocation.category === category
+          ? { ...allocation, percentage: newPercentage }
+          : allocation
+      )
+    );
   };
 
-  const handleDelete = async (id: number) => {
-    try {
-      await apiRequest("DELETE", `/api/budgets/${id}`);
-      queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
-      toast({ title: "Budget deleted successfully!" });
-    } catch (error) {
-      toast({ title: "Failed to delete budget", variant: "destructive" });
-    }
+  const toggleBudgetEnabled = (category: string) => {
+    setBudgetAllocations(prev =>
+      prev.map(allocation =>
+        allocation.category === category
+          ? { ...allocation, enabled: !allocation.enabled }
+          : allocation
+      )
+    );
+  };
+
+  const resetTo50_30_20 = () => {
+    setBudgetAllocations(prev => prev.map(allocation => {
+      let percentage = 0;
+      
+      if (BUDGET_RULES.needs.categories.includes(allocation.category)) {
+        percentage = BUDGET_RULES.needs.percentage / BUDGET_RULES.needs.categories.length;
+      } else if (BUDGET_RULES.wants.categories.includes(allocation.category)) {
+        percentage = BUDGET_RULES.wants.percentage / BUDGET_RULES.wants.categories.length;
+      } else {
+        percentage = BUDGET_RULES.savings.percentage / BUDGET_RULES.savings.categories.length;
+      }
+
+      return {
+        ...allocation,
+        percentage: Math.round(percentage * 100) / 100,
+        enabled: true,
+      };
+    }));
   };
 
   if (isLoading) {
@@ -455,7 +413,6 @@ export default function Budgets() {
             </TabsTrigger>
           </TabsList>
           
-          {/* Budget List Tab */}
           <TabsContent value="list" className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
               <Button
@@ -613,14 +570,10 @@ export default function Budgets() {
             )}
 
             {budgets.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">💰</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No budgets yet</h3>
-                <p className="text-gray-500 mb-6">Create your first budget or use the Budget Allocator to create multiple budgets at once</p>
-                <Button onClick={handleCreateNew} className="mx-auto">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Budget
-                </Button>
+              <div className="text-center py-8 text-gray-500">
+                <PieChart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No budgets created yet</p>
+                <p className="text-sm">Create your first budget to start tracking expenses</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -629,66 +582,68 @@ export default function Budgets() {
                   const totalSpent = categoryTransactions.reduce((total: number, transaction: Transaction) => {
                     return total + parseFloat(transaction.amount);
                   }, 0);
-                  const remaining = parseFloat(budget.amount) - totalSpent;
-                  const spentPercentage = parseFloat(budget.amount) > 0 ? (totalSpent / parseFloat(budget.amount)) * 100 : 0;
-
-                  // Calculate time progress
-                  const budgetStart = new Date(budget.startDate);
-                  const budgetEnd = new Date(budget.endDate);
-                  const now = new Date();
-                  const totalDuration = budgetEnd.getTime() - budgetStart.getTime();
-                  const elapsedDuration = now.getTime() - budgetStart.getTime();
-                  const timeProgress = Math.max(0, Math.min(100, (elapsedDuration / totalDuration) * 100));
-                  
-                  const daysTotal = Math.ceil(totalDuration / (1000 * 60 * 60 * 24));
-                  const daysElapsed = Math.max(0, Math.ceil(elapsedDuration / (1000 * 60 * 60 * 24)));
-                  const daysRemaining = Math.max(0, daysTotal - daysElapsed);
+                  const budgetAmount = parseFloat(budget.amount);
+                  const spentPercentage = budgetAmount > 0 ? (totalSpent / budgetAmount) * 100 : 0;
+                  const remainingAmount = budgetAmount - totalSpent;
 
                   return (
-                    <Card key={budget.id} className="overflow-hidden">
+                    <Card key={budget.id} className="border border-gray-200">
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center space-x-3">
                             <div className="text-2xl">{budget.icon}</div>
                             <div>
-                              <h3 className="font-semibold text-gray-900 capitalize">{budget.category}</h3>
-                              <p className="text-sm text-gray-500">{budget.period}</p>
+                              <h3 className="font-semibold text-gray-900 capitalize">
+                                {budget.category.replace('_', ' ')}
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                {new Date(budget.startDate).toLocaleDateString()} - {new Date(budget.endDate).toLocaleDateString()}
+                              </p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold text-gray-900">{formatCurrency(parseFloat(budget.amount))}</div>
-                            <div className="text-sm text-gray-500">Budget</div>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingBudget(budget);
+                                setIsDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  await apiRequest("DELETE", `/api/budgets/${budget.id}`);
+                                  queryClient.invalidateQueries({ queryKey: ["/api/budgets"] });
+                                  toast({ title: "Budget deleted successfully!" });
+                                } catch (error) {
+                                  toast({ title: "Failed to delete budget", variant: "destructive" });
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Spent: {formatCurrency(totalSpent)}</span>
-                            <span className={`font-medium ${remaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {remaining >= 0 ? 'Remaining' : 'Over budget'}: {formatCurrency(Math.abs(remaining))}
+                            <span>Spent: {formatCurrency(totalSpent)}</span>
+                            <span>Budget: {formatCurrency(budgetAmount)}</span>
+                          </div>
+                          <ProgressBar 
+                            progress={spentPercentage}
+                            className={spentPercentage > 100 ? "bg-red-500" : spentPercentage > 80 ? "bg-orange-500" : "bg-green-500"}
+                          />
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>{spentPercentage.toFixed(1)}% used</span>
+                            <span className={remainingAmount >= 0 ? "text-green-600" : "text-red-600"}>
+                              {remainingAmount >= 0 ? "Remaining: " : "Over by: "}{formatCurrency(Math.abs(remainingAmount))}
                             </span>
-                          </div>
-                          
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-gray-500">
-                              <span>Budget Progress</span>
-                              <span>{spentPercentage.toFixed(1)}% used</span>
-                            </div>
-                            <ProgressBar 
-                              percentage={Math.min(spentPercentage, 100)} 
-                              color={spentPercentage > 100 ? 'bg-red-500' : spentPercentage > 80 ? 'bg-yellow-500' : 'bg-green-500'}
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-gray-500">
-                              <span>Time Progress</span>
-                              <span>{daysRemaining} days left</span>
-                            </div>
-                            <ProgressBar 
-                              percentage={timeProgress} 
-                              color={timeProgress > 90 ? 'bg-red-500' : timeProgress > 70 ? 'bg-yellow-500' : 'bg-blue-500'}
-                            />
                           </div>
                         </div>
                       </CardContent>
@@ -701,197 +656,126 @@ export default function Budgets() {
 
           {/* Budget Allocator Tab */}
           <TabsContent value="allocator" className="space-y-4 mt-4">
-            {/* Total Income Input */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span>💰</span>
-                  Total Income
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <label htmlFor="totalIncome" className="block text-sm font-medium text-gray-700 mb-1">
-                      Enter your total income for budget allocation
-                    </label>
-                    <Input
-                      id="totalIncome"
-                      type="number"
-                      placeholder="Enter amount (MWK)"
-                      value={totalIncome}
-                      onChange={(e) => setTotalIncome(e.target.value)}
-                    />
+                    <CardTitle className="text-lg">Budget Allocator</CardTitle>
+                    <p className="text-sm text-gray-600">Automatically create budgets using the 50/30/20 rule</p>
                   </div>
-                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetTo50_30_20}
+                    className="flex items-center gap-2"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reset
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Monthly Income
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="Enter your total monthly income"
+                    value={totalIncome}
+                    onChange={(e) => setTotalIncome(e.target.value)}
+                    className="mb-2"
+                  />
                   {totalIncome && (
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      <div className="text-sm text-blue-700 mb-2">Allocation Summary</div>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-blue-600">Total Allocated:</span>
-                          <div className="font-semibold">{formatCurrency(totalAmount)}</div>
-                        </div>
-                        <div>
-                          <span className="text-blue-600">Percentage:</span>
-                          <div className="font-semibold">{totalPercentage.toFixed(1)}%</div>
-                        </div>
-                      </div>
-                      {totalPercentage !== 100 && (
-                        <div className="mt-2 text-xs text-orange-600">
-                          ⚠️ Total percentage is {totalPercentage.toFixed(1)}% (should be 100%)
-                        </div>
-                      )}
-                    </div>
+                    <p className="text-sm text-gray-600">
+                      Total Budget: {formatCurrency(totalAmount)} ({totalPercentage.toFixed(1)}%)
+                    </p>
                   )}
                 </div>
+
+                {/* Date Range for Budget Allocator */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Start Date</label>
+                    <Input
+                      type="date"
+                      {...form.register("startDate")}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">End Date</label>
+                    <Input
+                      type="date"
+                      {...form.register("endDate")}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Period</label>
+                  <Select defaultValue="monthly" onValueChange={(value) => form.setValue("period", value as any)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="yearly">Yearly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {conflicts.length > 0 && (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Conflicting budgets found for: {conflicts.join(", ")}. 
+                      Please adjust the date range or disable conflicting categories.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </CardContent>
             </Card>
 
-            {/* Period Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarDays className="h-5 w-5" />
-                  Budget Period
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Form {...form}>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="startDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Start Date</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>End Date</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="period"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Period Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select period" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="weekly">Weekly</SelectItem>
-                              <SelectItem value="monthly">Monthly</SelectItem>
-                              <SelectItem value="yearly">Yearly</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </Form>
-              </CardContent>
-            </Card>
-
-            {/* Conflicts Alert */}
-            {conflicts.length > 0 && (
-              <Alert className="border-red-200 bg-red-50">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                <AlertDescription className="text-red-800">
-                  <div className="font-medium mb-2">Budget Conflicts Detected:</div>
-                  <div className="space-y-1">
-                    {conflicts.map(category => (
-                      <div key={category} className="flex items-center gap-2">
-                        <span>• {getCategoryName(category)}</span>
-                        <Badge variant="destructive" className="text-xs">Conflict</Badge>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-2 text-sm">
-                    These categories already have budgets for the selected time period. Please adjust the dates or remove conflicting budgets.
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Budget Controls */}
-            <div className="flex gap-2">
-              <Button 
-                onClick={resetTo50_30_20} 
-                variant="outline" 
-                className="flex items-center gap-2"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Reset to 50/30/20 Rule
-              </Button>
-            </div>
-
-            {/* Budget Allocations */}
+            {/* Budget Categories */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Budget Categories</h3>
-              
-              {["needs", "wants", "savings"].map(ruleCategory => {
-                const categoryBudgets = budgetAllocations.filter(allocation => 
-                  getRuleCategory(allocation.category) === ruleCategory
-                );
-                
-                if (categoryBudgets.length === 0) return null;
-
-                return (
-                  <Card key={ruleCategory}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2">
-                        <Badge className={getRuleColor(ruleCategory)}>
-                          {ruleCategory === "needs" ? "50% - Needs" : 
-                           ruleCategory === "wants" ? "30% - Wants" : "20% - Savings/Debt"}
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {categoryBudgets.map(allocation => (
-                        <div key={allocation.category} className={`p-4 rounded-lg border transition-all ${
-                          allocation.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'
-                        } ${conflicts.includes(allocation.category) ? 'border-red-300 bg-red-50' : ''}`}>
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <span className="text-xl">{allocation.icon}</span>
-                              <div>
-                                <div className="font-medium">{getCategoryName(allocation.category)}</div>
-                                <div className="text-sm text-gray-500">
-                                  {allocation.percentage.toFixed(1)}% • {formatCurrency(allocation.amount)}
-                                </div>
-                              </div>
+              {Object.entries(BUDGET_RULES).map(([ruleKey, rule]) => (
+                <Card key={ruleKey}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base capitalize flex items-center justify-between">
+                      <span>{ruleKey} ({rule.percentage}%)</span>
+                      <Badge variant="outline">{rule.percentage}%</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {budgetAllocations
+                      .filter(allocation => rule.categories.includes(allocation.category))
+                      .map((allocation) => (
+                        <div key={allocation.category} className={`p-3 rounded-lg border ${
+                          conflicts.includes(allocation.category) ? 'border-red-300 bg-red-50' :
+                          allocation.enabled ? 'border-gray-200' : 'border-gray-100 bg-gray-50'
+                        }`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-lg">{allocation.icon}</span>
+                              <span className="font-medium capitalize">
+                                {allocation.category.replace('_', ' ')}
+                              </span>
+                              {totalIncome && (
+                                <span className="text-sm text-gray-600">
+                                  {formatCurrency(allocation.amount)}
+                                </span>
+                              )}
                             </div>
-                            
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center space-x-2">
                               {conflicts.includes(allocation.category) && (
-                                <Badge variant="destructive" className="text-xs">Conflict</Badge>
+                                <AlertTriangle className="h-4 w-4 text-red-500" />
                               )}
                               <Button
-                                variant={allocation.enabled ? "destructive" : "outline"}
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => toggleBudgetEnabled(allocation.category)}
+                                className={`h-6 w-6 p-0 ${allocation.enabled ? 'text-red-500' : 'text-green-500'}`}
                               >
                                 {allocation.enabled ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
                               </Button>
@@ -915,10 +799,9 @@ export default function Budgets() {
                           )}
                         </div>
                       ))}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
 
             {/* Create Budgets Button */}
