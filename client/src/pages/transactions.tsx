@@ -169,6 +169,19 @@ export default function Transactions() {
     return typeLabels[type] || type.replace('_', ' ');
   };
 
+  const getTransactionTypeColor = (type: string) => {
+    const typeColors: Record<string, string> = {
+      income: "text-green-600 bg-green-50 border-green-200",
+      expense: "text-red-600 bg-red-50 border-red-200", 
+      savings_deposit: "text-blue-600 bg-blue-50 border-blue-200",
+      savings_withdrawal: "text-purple-600 bg-purple-50 border-purple-200",
+      loan_repayment: "text-orange-600 bg-orange-50 border-orange-200",
+      loan_received: "text-indigo-600 bg-indigo-50 border-indigo-200",
+      loan_payment: "text-pink-600 bg-pink-50 border-pink-200",
+    };
+    return typeColors[type] || "text-gray-600 bg-gray-50 border-gray-200";
+  };
+
   // Predefined categories
   const predefinedCategories = [
     { value: "food", label: "Food & Dining" },
@@ -487,9 +500,19 @@ export default function Transactions() {
                           </div>
                           <div className="flex-1">
                             <h3 className="font-medium text-gray-900">{transaction.description}</h3>
-                            <p className="text-sm text-gray-500 capitalize">
-                              {transaction.category.replace('_', ' ')} • {getTransactionTypeLabel(transaction.type)} • {transaction.time || "12:00 AM"}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-sm text-gray-500 capitalize">
+                                {transaction.category.replace('_', ' ')}
+                              </span>
+                              <span className="text-gray-400">•</span>
+                              <span className={`text-xs px-2 py-1 rounded-full border font-medium ${getTransactionTypeColor(transaction.type)}`}>
+                                {getTransactionTypeLabel(transaction.type)}
+                              </span>
+                              <span className="text-gray-400">•</span>
+                              <span className="text-sm text-gray-500">
+                                {transaction.time || "12:00 AM"}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         
