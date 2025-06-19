@@ -50,7 +50,7 @@ export interface IStorage {
   createLoan(userId: string, loan: InsertLoan): Promise<Loan>;
   updateLoan(userId: string, id: number, loan: Partial<Loan>): Promise<Loan>;
   deleteLoan(userId: string, id: number): Promise<void>;
-  calculateLoanInterest(loan: Loan): Promise<{
+  calculateLoanInterest(userId: string, loan: Loan): Promise<{
     totalInterest: number;
     currentBalance: number;
     monthlyPayment: number;
@@ -102,6 +102,40 @@ export class DatabaseStorage implements IStorage {
       case "annually": return 1;
       default: return 12; // Default to monthly
     }
+  }
+
+  // Calculate principal progress for any loan type
+  private async calculatePrincipalProgress(userId: string, loan: Loan): Promise<number> {
+    const principal = parseFloat(loan.principal);
+    const repayments = await this.getLoanRepayments(userId, loan.id);
+    const totalPaid = repayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
+    
+    if (loan.interestType === "simple") {
+      const annualRate = parseFloat(loan.interestRate) / 100;
+      const termYears = (loan.termMonths || 12) / 12;
+      const totalInterest = principal * annualRate * termYears;
+      
+      // For simple interest, payments go to interest first, then principal
+      let principalPaid = 0;
+      if (totalPaid > totalInterest) {
+        principalPaid = totalPaid - totalInterest;
+      }
+      
+      return Math.min((principalPaid / principal) * 100, 100);
+    } else {
+      // For compound interest, assume payments reduce principal directly (simplified)
+      const principalPaid = Math.min(totalPaid, principal);
+      return (principalPaid / principal) * 100;
+    }
+  }
+
+  // Calculate dynamic current balance based on principal progress
+  private async calculateDynamicBalance(userId: string, loan: Loan): Promise<number> {
+    const principal = parseFloat(loan.principal);
+    const principalProgress = await this.calculatePrincipalProgress(userId, loan);
+    
+    // Current balance = principal - (principal * progress percentage)
+    return principal - (principal * (principalProgress / 100));
   }
 
   // User operations (IMPORTANT) these user operations are mandatory for Replit Auth.
@@ -390,14 +424,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(transactions.date);
   }
 
-  async calculateLoanInterest(loan: Loan): Promise<{
+  async calculateLoanInterest(userId: string, loan: Loan): Promise<{
     totalInterest: number;
     currentBalance: number;
     monthlyPayment: number;
     payoffDate: Date | null;
   }> {
     const principal = parseFloat(loan.principal);
-    const currentBalance = parseFloat(loan.currentBalance);
+    const currentBalance = await this.calculateDynamicBalance(userId, loan);
     const annualRate = parseFloat(loan.interestRate) / 100;
     const termMonths = loan.termMonths || 12;
     
