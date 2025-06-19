@@ -224,10 +224,8 @@ export class DatabaseStorage implements IStorage {
   async deleteTransaction(userId: string, id: number): Promise<void> {
     const [transaction] = await db.select().from(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
     
-    // Handle loan repayment reversal
-    if (transaction && transaction.type === "loan_repayment" && transaction.loanId) {
-      await this.reverseLoanPayment(userId, transaction.loanId, parseFloat(transaction.amount));
-    }
+    // Loan repayment reversal handling - balance is now calculated dynamically
+    // No manual balance updates needed as currentBalance is computed from payments
 
     if (transaction && (transaction.type === "expense" || transaction.type === "loan_repayment")) {
       // Update budget spent amount if within budget period
