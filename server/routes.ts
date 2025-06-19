@@ -356,7 +356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!loan) {
         return res.status(404).json({ message: "Loan not found" });
       }
-      const progress = await storage.calculateLoanProgress(userId, loan);
+      const progress = await storage.calculateSimpleLoanProgress(userId, loan);
       res.json(progress);
     } catch (error) {
       console.error("Error calculating loan progress:", error);
