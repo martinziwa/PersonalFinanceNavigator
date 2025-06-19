@@ -141,16 +141,6 @@ export class DatabaseStorage implements IStorage {
       const annualRate = parseFloat(loan.interestRate) / 100;
       const monthlyRate = annualRate / 12;
       
-      console.log(`Compound loan ${loan.id} raw data:`, {
-        monthlyPaymentRaw: loan.monthlyPayment,
-        monthlyPaymentParsed: monthlyPayment,
-        interestRateRaw: loan.interestRate,
-        annualRate,
-        monthlyRate,
-        startDate: loan.startDate,
-        now: now.toISOString()
-      });
-      
       // Calculate months elapsed since loan start
       const monthsElapsed = Math.max(0, 
         (now.getFullYear() - startDate.getFullYear()) * 12 + 
@@ -161,11 +151,8 @@ export class DatabaseStorage implements IStorage {
       const effectiveMonthsElapsed = Math.min(monthsElapsed, termMonths);
       
       if (effectiveMonthsElapsed === 0 || monthlyPayment === 0) {
-        console.log(`Compound loan ${loan.id}: monthsElapsed=${effectiveMonthsElapsed}, monthlyPayment=${monthlyPayment}, returning 0`);
         return 0;
       }
-      
-      console.log(`Compound loan ${loan.id}: principal=${principal}, monthsElapsed=${effectiveMonthsElapsed}, monthlyPayment=${monthlyPayment}, monthlyRate=${monthlyRate}`);
       
       // Use standard amortization formula to calculate remaining balance
       if (monthlyRate === 0) {
@@ -560,11 +547,29 @@ export class DatabaseStorage implements IStorage {
       principalProgress = (principalPaid / principal) * 100;
       interestProgress = totalInterest > 0 ? (interestPaid / totalInterest) * 100 : 100;
     } else {
-      // For compound interest, assume payments reduce principal directly (simplified)
-      principalPaid = Math.min(totalPaid, principal);
-      interestPaid = Math.max(0, totalPaid - principal);
-      principalProgress = (principalPaid / principal) * 100;
-      interestProgress = principalProgress >= 100 ? 100 : 0; // Simplified for compound
+      // For compound interest, use time-based calculation
+      principalProgress = await this.calculatePrincipalProgress(userId, loan);
+      
+      // For compound loans, calculate interest progress based on time elapsed
+      const now = new Date();
+      const startDate = new Date(loan.startDate);
+      const termMonths = loan.termMonths || 12;
+      const monthsElapsed = Math.max(0, 
+        (now.getFullYear() - startDate.getFullYear()) * 12 + 
+        (now.getMonth() - startDate.getMonth())
+      );
+      const effectiveMonthsElapsed = Math.min(monthsElapsed, termMonths);
+      
+      // Interest progress based on time elapsed
+      interestProgress = termMonths > 0 ? (effectiveMonthsElapsed / termMonths) * 100 : 0;
+      
+      // Calculate principal and interest paid based on progress
+      principalPaid = (principalProgress / 100) * principal;
+      
+      // For compound loans, interest paid is more complex, use simplified calculation
+      const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
+      const totalScheduledPayments = monthlyPayment * effectiveMonthsElapsed;
+      interestPaid = Math.max(0, totalScheduledPayments - principalPaid);
     }
 
     // Calculate dynamic current balance
