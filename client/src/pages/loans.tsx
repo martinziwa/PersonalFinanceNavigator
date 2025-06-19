@@ -28,7 +28,7 @@ const loanFormSchema = z.object({
   termYears: z.string().default("0"),
   termMonths: z.string().default("0"),
   compoundFrequency: z.string().optional(),
-  monthlyPayment: z.string().optional(),
+
   startDate: z.string(),
   endDate: z.string().optional(),
   loanType: z.string(),
@@ -96,7 +96,7 @@ export default function Loans() {
       termYears: "0",
       termMonths: "0",
       compoundFrequency: "monthly",
-      monthlyPayment: "",
+
       startDate: "",
       endDate: "",
       loanType: "",
@@ -160,7 +160,7 @@ export default function Loans() {
       interestType: data.interestType as "simple" | "compound",
       termMonths: (parseInt(data.termYears) || 0) * 12 + (parseInt(data.termMonths) || 0),
       compoundFrequency: data.compoundFrequency,
-      monthlyPayment: data.interestType === "compound" && data.monthlyPayment ? data.monthlyPayment : null,
+
       startDate: new Date(data.startDate),
       endDate: data.endDate ? new Date(data.endDate) : null,
       loanType: data.loanType as "personal" | "mortgage" | "auto" | "student" | "business" | "credit_card" | "other",
@@ -190,7 +190,7 @@ export default function Loans() {
       termYears: termYears.toString(),
       termMonths: termMonths.toString(),
       compoundFrequency: loan.compoundFrequency || "monthly",
-      monthlyPayment: loan.monthlyPayment || "",
+
       startDate: formatDateForInput(new Date(loan.startDate)),
       endDate: loan.endDate ? formatDateForInput(new Date(loan.endDate)) : "",
       loanType: loan.loanType,
@@ -417,28 +417,7 @@ export default function Loans() {
                 )}
               </div>
 
-              {form.watch("interestType") === "compound" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="monthlyPayment"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monthly Payment (MWK)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" placeholder="0.00" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex items-end">
-                    <p className="text-sm text-gray-600">
-                      For compound interest loans, specify the fixed monthly payment amount.
-                    </p>
-                  </div>
-                </div>
-              )}
+
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
