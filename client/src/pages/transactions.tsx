@@ -490,34 +490,34 @@ export default function Transactions() {
                 <div className="space-y-3 px-4 pt-3 pb-6">
                   {groupedTransactions[dateKey].map((transaction) => (
                     <div key={transaction.id} className="bg-white rounded-xl p-4 border border-gray-100">
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start space-x-3 flex-1 min-w-0">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                             transaction.type === "income" || transaction.type === "savings_withdrawal"
                               ? "bg-green-100" : "bg-red-100"
                           }`}>
-                            <span className="text-sm">{getCategoryIcon(transaction.category, transaction.type)}</span>
+                            <span className="text-xs">{getCategoryIcon(transaction.category, transaction.type)}</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-gray-900 truncate">{transaction.description}</h3>
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <span className="text-sm text-gray-500 capitalize">
+                            <h3 className="font-medium text-gray-900 mb-1 leading-snug">{transaction.description}</h3>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs text-gray-500 capitalize">
                                 {transaction.category.replace('_', ' ')}
                               </span>
-                              <span className="text-gray-400">•</span>
-                              <span className={`text-xs px-2 py-1 rounded-full border font-medium whitespace-nowrap ${getTransactionTypeColor(transaction.type)}`}>
+                              <span className="text-gray-400 text-xs">•</span>
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium whitespace-nowrap ${getTransactionTypeColor(transaction.type)}`}>
                                 {getTransactionTypeLabel(transaction.type)}
                               </span>
-                              <span className="text-gray-400">•</span>
-                              <span className="text-sm text-gray-500 whitespace-nowrap">
+                              <span className="text-gray-400 text-xs">•</span>
+                              <span className="text-xs text-gray-500 whitespace-nowrap">
                                 {transaction.time || "12:00 AM"}
                               </span>
                             </div>
                           </div>
                         </div>
                         
-                        <div className="flex items-center space-x-2 flex-shrink-0">
-                          <div className={`font-semibold text-right whitespace-nowrap ${
+                        <div className="flex items-start space-x-1 flex-shrink-0">
+                          <div className={`font-semibold text-right whitespace-nowrap text-sm ${
                             transaction.type === "income" || transaction.type === "savings_withdrawal"
                               ? "text-green-600" : "text-red-600"
                           }`}>
@@ -529,9 +529,9 @@ export default function Transactions() {
                             variant="ghost"
                             size="sm"
                             onClick={() => openEditDialog(transaction)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 flex-shrink-0"
+                            className="p-1 text-blue-600 hover:bg-blue-50 flex-shrink-0 ml-2"
                           >
-                            <Edit2 className="h-3.5 w-3.5" />
+                            <Edit2 className="h-3 w-3" />
                           </Button>
                           
                           <Button
@@ -539,9 +539,9 @@ export default function Transactions() {
                             size="sm"
                             onClick={() => deleteTransactionMutation.mutate(transaction.id)}
                             disabled={deleteTransactionMutation.isPending}
-                            className="p-1.5 text-red-600 hover:bg-red-50 flex-shrink-0"
+                            className="p-1 text-red-600 hover:bg-red-50 flex-shrink-0"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
