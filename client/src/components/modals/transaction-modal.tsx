@@ -26,7 +26,7 @@ const transactionSchema = z.object({
   ),
   description: z.string().min(1, "Description is required"),
   category: z.string().min(1, "Category is required"),
-  type: z.enum(["income", "expense", "savings_deposit", "savings_withdrawal", "loan_repayment"]),
+  type: z.enum(["income", "expense", "savings_deposit", "savings_withdrawal", "loan_repayment", "loan_received"]),
   date: z.string().min(1, "Date is required"),
   time: z.string().optional(),
   savingsGoalId: z.string().optional(),
@@ -257,6 +257,13 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
+          {isLoanReceivedTransaction && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Loan Transaction:</strong> This transaction is linked to a loan. Changes to the description, amount, or date will update the corresponding loan, and vice versa. Category and transaction type cannot be changed.
+              </p>
+            </div>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -350,6 +357,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
                           }
                         }} 
                         value={field.value}
+                        disabled={isLoanReceivedTransaction}
                       >
                         <FormControl>
                           <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
