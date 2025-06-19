@@ -6,6 +6,7 @@ interface LoanProgress {
   totalPaid: number;
   principalPaid: number;
   interestPaid: number;
+  currentBalance: number;
 }
 
 export function useLoanProgress(loanId: number | null) {

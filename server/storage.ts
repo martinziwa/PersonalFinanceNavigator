@@ -56,6 +56,14 @@ export interface IStorage {
     monthlyPayment: number;
     payoffDate: Date | null;
   }>;
+  calculateLoanProgress(userId: string, loan: Loan): Promise<{
+    principalProgress: number | null;
+    interestProgress: number | null;
+    totalPaid: number;
+    principalPaid: number;
+    interestPaid: number;
+    currentBalance: number;
+  }>;
 
   // Financial Summary
   getFinancialSummary(userId: string): Promise<{
@@ -175,10 +183,8 @@ export class DatabaseStorage implements IStorage {
       .values({ ...insertTransaction, userId })
       .returning();
 
-    // Handle loan repayment updates
-    if (transaction.type === "loan_repayment" && transaction.loanId) {
-      await this.updateLoanBalance(userId, transaction.loanId, parseFloat(transaction.amount));
-    }
+    // Loan repayment handling - balance is now calculated dynamically
+    // No manual balance updates needed as currentBalance is computed from payments
 
     // Update budget spent amount if it's an expense or loan payment and within budget period
     if (transaction.type === "expense" || transaction.type === "loan_repayment") {
@@ -389,27 +395,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Loan balance management for simple interest loans
-  async updateLoanBalance(userId: string, loanId: number, paymentAmount: number): Promise<void> {
-    const [loan] = await db.select().from(loans).where(and(eq(loans.id, loanId), eq(loans.userId, userId)));
-    if (loan && loan.interestType === "simple") {
-      const newBalance = Math.max(0, parseFloat(loan.currentBalance) - paymentAmount);
-      await db
-        .update(loans)
-        .set({ currentBalance: newBalance.toString() })
-        .where(eq(loans.id, loanId));
-    }
-  }
 
-  async reverseLoanPayment(userId: string, loanId: number, paymentAmount: number): Promise<void> {
-    const [loan] = await db.select().from(loans).where(and(eq(loans.id, loanId), eq(loans.userId, userId)));
-    if (loan && loan.interestType === "simple") {
-      const newBalance = parseFloat(loan.currentBalance) + paymentAmount;
-      await db
-        .update(loans)
-        .set({ currentBalance: newBalance.toString() })
-        .where(eq(loans.id, loanId));
-    }
-  }
 
   // Get loan repayment transactions for a specific loan
   async getLoanRepayments(userId: string, loanId: number): Promise<Transaction[]> {
@@ -492,50 +478,53 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Calculate simple interest loan progress based on actual payments
-  async calculateSimpleLoanProgress(userId: string, loan: Loan): Promise<{
+  // Calculate loan progress for any loan type with dynamic balance
+  async calculateLoanProgress(userId: string, loan: Loan): Promise<{
     principalProgress: number | null;
     interestProgress: number | null;
     totalPaid: number;
     principalPaid: number;
     interestPaid: number;
+    currentBalance: number;
   }> {
-    if (loan.interestType !== "simple") {
-      return {
-        principalProgress: null,
-        interestProgress: null,
-        totalPaid: 0,
-        principalPaid: 0,
-        interestPaid: 0,
-      };
-    }
-
     // Get all loan repayment transactions
     const repayments = await this.getLoanRepayments(userId, loan.id);
     const totalPaid = repayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
 
     const principal = parseFloat(loan.principal);
-    const annualRate = parseFloat(loan.interestRate) / 100;
-    const termYears = (loan.termMonths || 12) / 12;
-    const totalInterest = principal * annualRate * termYears;
-
-    // For simple interest, we split payments proportionally
-    // First, interest is paid off, then principal
-    let interestPaid = 0;
+    let principalProgress = 0;
+    let interestProgress = 0;
     let principalPaid = 0;
+    let interestPaid = 0;
 
-    if (totalPaid <= totalInterest) {
-      // Still paying off interest
-      interestPaid = totalPaid;
-      principalPaid = 0;
+    if (loan.interestType === "simple") {
+      const annualRate = parseFloat(loan.interestRate) / 100;
+      const termYears = (loan.termMonths || 12) / 12;
+      const totalInterest = principal * annualRate * termYears;
+
+      // For simple interest, payments go to interest first, then principal
+      if (totalPaid <= totalInterest) {
+        // Still paying off interest
+        interestPaid = totalPaid;
+        principalPaid = 0;
+      } else {
+        // Interest fully paid, now paying principal
+        interestPaid = totalInterest;
+        principalPaid = totalPaid - totalInterest;
+      }
+
+      principalProgress = (principalPaid / principal) * 100;
+      interestProgress = totalInterest > 0 ? (interestPaid / totalInterest) * 100 : 100;
     } else {
-      // Interest fully paid, now paying principal
-      interestPaid = totalInterest;
-      principalPaid = totalPaid - totalInterest;
+      // For compound interest, assume payments reduce principal directly (simplified)
+      principalPaid = Math.min(totalPaid, principal);
+      interestPaid = Math.max(0, totalPaid - principal);
+      principalProgress = (principalPaid / principal) * 100;
+      interestProgress = principalProgress >= 100 ? 100 : 0; // Simplified for compound
     }
 
-    const principalProgress = (principalPaid / principal) * 100;
-    const interestProgress = (interestPaid / totalInterest) * 100;
+    // Calculate dynamic current balance
+    const currentBalance = await this.calculateDynamicBalance(userId, loan);
 
     return {
       principalProgress: Math.min(principalProgress, 100),
@@ -543,6 +532,7 @@ export class DatabaseStorage implements IStorage {
       totalPaid,
       principalPaid,
       interestPaid,
+      currentBalance,
     };
   }
 
