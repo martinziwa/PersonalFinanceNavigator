@@ -123,8 +123,11 @@ export default function Loans() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
       // Invalidate all loan progress queries to trigger recalculation
-      queryClient.invalidateQueries({ queryKey: ["/api/loans"], predicate: (query) => 
-        query.queryKey[0]?.toString().includes("/progress") 
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && key.includes("/progress");
+        }
       });
       toast({ title: "Loan updated successfully!" });
       handleCloseModal();
@@ -599,9 +602,9 @@ function LoanCard({
   onDelete: (id: number) => void; 
 }) {
   // Fetch real progress data for all loan types (needed for dynamic balance calculation)
-  // Include start date in query key to trigger refetch when loan dates change
+  // Include dates and loan parameters in query key to trigger refetch when loan properties change
   const { data: progressData, refetch: refetchProgress } = useQuery({
-    queryKey: [`/api/loans/${loan.id}/progress`, loan.startDate, loan.principal, loan.interestRate, loan.termMonths],
+    queryKey: [`/api/loans/${loan.id}/progress`, loan.startDate, loan.endDate, loan.principal, loan.interestRate, loan.termMonths],
     enabled: true, // Enable for both simple and compound loans
     refetchOnWindowFocus: true,
   });
@@ -758,7 +761,7 @@ function LoanCard({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
           <div>
             <p className="text-xs text-gray-500">Principal</p>
             <p className="font-semibold">{formatCurrency(parseFloat(loan.principal))}</p>
@@ -791,6 +794,18 @@ function LoanCard({
                 ? formatCurrency(getSuggestedPayment(loan))
                 : (loan.monthlyPayment ? formatCurrency(parseFloat(loan.monthlyPayment)) : "Not set")
               }
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Start Date</p>
+            <p className="font-semibold text-sm">
+              {loan.startDate ? new Date(loan.startDate).toLocaleDateString() : "Not set"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">End Date</p>
+            <p className="font-semibold text-sm">
+              {loan.endDate ? new Date(loan.endDate).toLocaleDateString() : "Not set"}
             </p>
           </div>
         </div>
