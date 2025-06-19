@@ -257,10 +257,14 @@ export class DatabaseStorage implements IStorage {
     if (transaction.type === "loan_received" && transaction.loanId) {
       const loanUpdates: any = {};
       if (updates.description) loanUpdates.name = updates.description;
-      if (updates.amount) loanUpdates.principal = updates.amount;
+      if (updates.amount) {
+        loanUpdates.principal = updates.amount;
+        loanUpdates.currentBalance = updates.amount; // Update current balance to match new principal
+      }
       if (updates.date) loanUpdates.startDate = updates.date;
 
       if (Object.keys(loanUpdates).length > 0) {
+        console.log('Updating loan with:', loanUpdates, 'for loan ID:', transaction.loanId);
         await db
           .update(loans)
           .set(loanUpdates)
@@ -470,6 +474,7 @@ export class DatabaseStorage implements IStorage {
       if (updates.principal) transactionUpdates.amount = updates.principal;
       if (updates.startDate) transactionUpdates.date = updates.startDate;
 
+      console.log('Updating transaction with:', transactionUpdates, 'for loan ID:', id);
       await db
         .update(transactions)
         .set(transactionUpdates)
@@ -478,6 +483,11 @@ export class DatabaseStorage implements IStorage {
           eq(transactions.userId, userId),
           eq(transactions.type, "loan_received")
         ));
+    }
+
+    // Ensure currentBalance is updated when principal changes
+    if (updates.principal && !updates.currentBalance) {
+      updates.currentBalance = updates.principal;
     }
 
     return loan;
