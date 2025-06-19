@@ -417,7 +417,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Transaction Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
                         <SelectValue placeholder="Select transaction type" />
@@ -444,7 +444,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Savings Goal</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
                           <SelectValue placeholder="Select a savings goal" />
@@ -476,7 +476,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Loan</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent">
                           <SelectValue placeholder="Select a loan" />

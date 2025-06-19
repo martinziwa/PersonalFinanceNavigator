@@ -139,6 +139,7 @@ export default function Transactions() {
     if (type === "savings_withdrawal") return "🏧";
     if (type === "loan_received") return "📈";
     if (type === "loan_payment") return "📉";
+    if (type === "loan_repayment") return "💳";
     
     const icons: Record<string, string> = {
       food: "🍽️",
@@ -153,6 +154,19 @@ export default function Transactions() {
       other: "📝",
     };
     return icons[category] || "📝";
+  };
+
+  const getTransactionTypeLabel = (type: string) => {
+    const typeLabels: Record<string, string> = {
+      income: "Income",
+      expense: "Expense",
+      savings_deposit: "Savings Deposit",
+      savings_withdrawal: "Savings Withdrawal",
+      loan_repayment: "Loan Repayment",
+      loan_received: "Loan Received",
+      loan_payment: "Loan Payment",
+    };
+    return typeLabels[type] || type.replace('_', ' ');
   };
 
   // Predefined categories
@@ -365,8 +379,7 @@ export default function Transactions() {
                 <SelectItem value="expense">💸 Expense</SelectItem>
                 <SelectItem value="savings_deposit">🏦 Savings Deposit</SelectItem>
                 <SelectItem value="savings_withdrawal">🏧 Savings Withdrawal</SelectItem>
-                <SelectItem value="loan_received">📈 Loan Received</SelectItem>
-                <SelectItem value="loan_payment">📉 Loan Payment</SelectItem>
+                <SelectItem value="loan_repayment">💳 Loan Repayment</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -475,7 +488,7 @@ export default function Transactions() {
                           <div className="flex-1">
                             <h3 className="font-medium text-gray-900">{transaction.description}</h3>
                             <p className="text-sm text-gray-500 capitalize">
-                              {transaction.category.replace('_', ' ')} • {transaction.time || "12:00 AM"}
+                              {transaction.category.replace('_', ' ')} • {getTransactionTypeLabel(transaction.type)} • {transaction.time || "12:00 AM"}
                             </p>
                           </div>
                         </div>
