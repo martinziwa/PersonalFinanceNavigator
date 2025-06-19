@@ -108,10 +108,7 @@ export default function Loans() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertLoan) => {
-      await apiRequest("/api/loans", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("/api/loans", "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
@@ -125,10 +122,7 @@ export default function Loans() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: InsertLoan & { id: number }) => {
-      await apiRequest(`/api/loans/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest(`/api/loans/${id}`, "PUT", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
@@ -142,9 +136,7 @@ export default function Loans() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest(`/api/loans/${id}`, {
-        method: "DELETE",
-      });
+      return await apiRequest(`/api/loans/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
@@ -168,9 +160,9 @@ export default function Loans() {
       interestType: data.interestType as "simple" | "compound",
       termMonths: (parseInt(data.termYears) || 0) * 12 + (parseInt(data.termMonths) || 0),
       compoundFrequency: data.compoundFrequency,
-      monthlyPayment: data.interestType === "compound" ? data.monthlyPayment : undefined,
-      startDate: data.startDate,
-      endDate: data.endDate,
+      monthlyPayment: data.interestType === "compound" && data.monthlyPayment ? parseFloat(data.monthlyPayment) : undefined,
+      startDate: new Date(data.startDate),
+      endDate: data.endDate ? new Date(data.endDate) : null,
       loanType: data.loanType as "personal" | "mortgage" | "auto" | "student" | "business" | "credit_card" | "other",
       lender: data.lender,
       description: data.description,
@@ -198,6 +190,7 @@ export default function Loans() {
       termYears: termYears.toString(),
       termMonths: termMonths.toString(),
       compoundFrequency: loan.compoundFrequency || "monthly",
+      monthlyPayment: loan.monthlyPayment || "",
       startDate: formatDateForInput(new Date(loan.startDate)),
       endDate: loan.endDate ? formatDateForInput(new Date(loan.endDate)) : "",
       loanType: loan.loanType,
