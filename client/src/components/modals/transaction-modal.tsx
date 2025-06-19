@@ -74,6 +74,16 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
   const selectedType = form.watch("type");
   const selectedCategory = form.watch("category");
 
+  // Clear loan/savings goal when transaction type changes
+  useEffect(() => {
+    if (selectedType !== "loan_repayment") {
+      form.setValue("loanId", "");
+    }
+    if (selectedType !== "savings_deposit" && selectedType !== "savings_withdrawal") {
+      form.setValue("savingsGoalId", "");
+    }
+  }, [selectedType, form]);
+
   // Reset form when modal opens/closes or when editing
   useEffect(() => {
     if (isOpen) {
@@ -427,7 +437,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
             />
 
             {/* Savings Goal Selector - Show only for savings transactions */}
-            {(form.watch("type") === "savings_deposit" || form.watch("type") === "savings_withdrawal") && (
+            {(selectedType === "savings_deposit" || selectedType === "savings_withdrawal") && (
               <FormField
                 control={form.control}
                 name="savingsGoalId"
@@ -459,7 +469,7 @@ export default function TransactionModal({ isOpen, onClose, editingTransaction }
             )}
 
             {/* Loan Selector - Show only for loan repayment transactions */}
-            {form.watch("type") === "loan_repayment" && (
+            {selectedType === "loan_repayment" && (
               <FormField
                 control={form.control}
                 name="loanId"
