@@ -108,7 +108,7 @@ export default function Loans() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertLoan) => {
-      return await apiRequest("/api/loans", "POST", data);
+      return await apiRequest("POST", "/api/loans", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
@@ -122,7 +122,7 @@ export default function Loans() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: InsertLoan & { id: number }) => {
-      return await apiRequest(`/api/loans/${id}`, "PUT", data);
+      return await apiRequest("PUT", `/api/loans/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
@@ -136,7 +136,7 @@ export default function Loans() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/loans/${id}`, "DELETE");
+      return await apiRequest("DELETE", `/api/loans/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/loans"] });
