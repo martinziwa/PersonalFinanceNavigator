@@ -27,6 +27,7 @@ const loanFormSchema = z.object({
   termYears: z.string().default("0"),
   termMonths: z.string().default("0"),
   compoundFrequency: z.string().optional(),
+  paybackFrequency: z.string().optional(),
   startDate: z.string(),
   endDate: z.string().optional(),
   loanType: z.string(),
@@ -365,8 +366,10 @@ export default function Loans() {
                         field.onChange(value);
                         if (value === "simple") {
                           form.setValue("compoundFrequency", undefined);
+                          form.setValue("paybackFrequency", undefined);
                         } else {
                           form.setValue("compoundFrequency", "monthly");
+                          form.setValue("paybackFrequency", "monthly");
                         }
                       }} defaultValue={field.value}>
                         <FormControl>
@@ -411,6 +414,37 @@ export default function Loans() {
                   />
                 )}
               </div>
+
+              {form.watch("interestType") === "compound" && (
+                <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="paybackFrequency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Frequency</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || "monthly"}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select payment frequency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="biweekly">Bi-Weekly</SelectItem>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                            <SelectItem value="quarterly">Quarterly</SelectItem>
+                            <SelectItem value="semiannually">Semi-Annually</SelectItem>
+                            <SelectItem value="annually">Annually</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
 
 
 

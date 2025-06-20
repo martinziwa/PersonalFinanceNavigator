@@ -422,13 +422,14 @@ export class DatabaseStorage implements IStorage {
   async createLoan(userId: string, insertLoan: InsertLoan): Promise<Loan> {
     let monthlyPayment = null;
     
-    // Only calculate monthly payment for compound interest loans
+    // Only calculate payment for compound interest loans
     if (insertLoan.interestType === "compound") {
       monthlyPayment = this.calculateAmortizedPayment(
         parseFloat(insertLoan.principal),
         parseFloat(insertLoan.interestRate || "0"),
         insertLoan.termMonths,
-        insertLoan.compoundFrequency || "monthly"
+        insertLoan.compoundFrequency || "monthly",
+        insertLoan.paybackFrequency || "monthly"
       ).toFixed(2);
     }
 
@@ -465,8 +466,8 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Loan not found");
     }
 
-    // If key loan parameters are being updated, recalculate monthly payment
-    if (updates.principal || updates.interestRate || updates.termMonths || updates.compoundFrequency || updates.interestType) {
+    // If key loan parameters are being updated, recalculate payment
+    if (updates.principal || updates.interestRate || updates.termMonths || updates.compoundFrequency || updates.interestType || updates.paybackFrequency) {
       const principal = parseFloat(updates.principal || currentLoan.principal);
       const interestRate = parseFloat(updates.interestRate || currentLoan.interestRate);
       const termMonths = updates.termMonths || currentLoan.termMonths;
@@ -474,12 +475,14 @@ export class DatabaseStorage implements IStorage {
       
       if (interestType === "compound") {
         const compoundFrequency = updates.compoundFrequency || currentLoan.compoundFrequency || "monthly";
-        const monthlyPayment = this.calculateAmortizedPayment(principal, interestRate, termMonths, compoundFrequency);
-        updates.monthlyPayment = monthlyPayment.toFixed(2);
+        const paybackFrequency = updates.paybackFrequency || currentLoan.paybackFrequency || "monthly";
+        const payment = this.calculateAmortizedPayment(principal, interestRate, termMonths, compoundFrequency, paybackFrequency);
+        updates.monthlyPayment = payment.toFixed(2);
       } else {
-        // Simple interest loans don't use monthly payments or compound frequency
+        // Simple interest loans don't use monthly payments, compound frequency, or payback frequency
         updates.monthlyPayment = null;
         updates.compoundFrequency = null;
+        updates.paybackFrequency = null;
       }
     }
 
