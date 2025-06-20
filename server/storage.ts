@@ -77,29 +77,51 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   // Helper method to calculate amortized monthly payment with different compounding frequencies
-  private calculateAmortizedPayment(principal: number, annualRate: number, termMonths: number, compoundFrequency: string = "monthly"): number {
+  private calculateAmortizedPayment(principal: number, annualRate: number, termMonths: number, compoundFrequency: string = "monthly", paybackFrequency: string = "monthly"): number {
     if (annualRate === 0) {
-      // If no interest, simply divide principal by term
-      return principal / termMonths;
+      // If no interest, divide principal by number of payments
+      const paybackPeriodsPerYear = this.getPaybackPeriodsPerYear(paybackFrequency);
+      const totalPayments = (termMonths / 12) * paybackPeriodsPerYear;
+      return principal / totalPayments;
     }
     
-    // Get compounding periods per year
+    // Get compounding and payback periods per year
     const compoundingPeriodsPerYear = this.getCompoundingPeriodsPerYear(compoundFrequency);
+    const paybackPeriodsPerYear = this.getPaybackPeriodsPerYear(paybackFrequency);
     
-    // Calculate effective monthly rate
+    // Calculate effective annual rate based on compounding frequency
     const annualRateDecimal = annualRate / 100;
     const effectiveAnnualRate = Math.pow(1 + (annualRateDecimal / compoundingPeriodsPerYear), compoundingPeriodsPerYear) - 1;
-    const monthlyRate = Math.pow(1 + effectiveAnnualRate, 1/12) - 1;
     
-    // Standard amortization formula with effective monthly rate
-    const payment = principal * (monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / 
-                   (Math.pow(1 + monthlyRate, termMonths) - 1);
+    // Calculate period rate based on payback frequency
+    const periodRate = Math.pow(1 + effectiveAnnualRate, 1/paybackPeriodsPerYear) - 1;
+    
+    // Calculate total number of payments
+    const totalPayments = (termMonths / 12) * paybackPeriodsPerYear;
+    
+    // Standard amortization formula with period rate
+    const payment = principal * (periodRate * Math.pow(1 + periodRate, totalPayments)) / 
+                   (Math.pow(1 + periodRate, totalPayments) - 1);
     
     return payment;
   }
 
   // Helper method to get compounding periods per year
   private getCompoundingPeriodsPerYear(frequency: string): number {
+    switch (frequency) {
+      case "daily": return 365;
+      case "weekly": return 52;
+      case "biweekly": return 26;
+      case "monthly": return 12;
+      case "quarterly": return 4;
+      case "semiannually": return 2;
+      case "annually": return 1;
+      default: return 12; // Default to monthly
+    }
+  }
+
+  // Helper method to get payback periods per year
+  private getPaybackPeriodsPerYear(frequency: string): number {
     switch (frequency) {
       case "daily": return 365;
       case "weekly": return 52;
@@ -530,59 +552,68 @@ export class DatabaseStorage implements IStorage {
     const currentBalance = await this.calculateDynamicBalance(userId, loan);
     const annualRate = parseFloat(loan.interestRate) / 100;
     const termMonths = loan.termMonths || 12;
+    const paybackFrequency = loan.paybackFrequency || "monthly";
     
     if (loan.interestType === "simple") {
       // Simple interest calculation: I = P * R * T
       const termYears = termMonths / 12;
       const totalInterest = principal * annualRate * termYears;
       const totalAmount = principal + totalInterest;
-      const suggestedMonthlyPayment = totalAmount / termMonths;
+      const paybackPeriodsPerYear = this.getPaybackPeriodsPerYear(paybackFrequency);
+      const totalPayments = termYears * paybackPeriodsPerYear;
+      const suggestedPayment = totalAmount / totalPayments;
       
       return {
         totalInterest,
         currentBalance,
-        monthlyPayment: suggestedMonthlyPayment, // Suggested payment for simple interest
+        monthlyPayment: suggestedPayment, // Suggested payment for simple interest
         payoffDate: null, // Will be calculated based on actual payments
       };
     } else {
       // Compound interest (amortized loan) calculation
-      const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
+      const payment = parseFloat(loan.monthlyPayment || "0");
       const now = new Date();
+      const paybackPeriodsPerYear = this.getPaybackPeriodsPerYear(paybackFrequency);
       
       let totalInterest = 0;
       let payoffDate: Date | null = null;
       
-      // For amortized loans with monthly payments
-      if (monthlyPayment > 0) {
-        const monthlyRate = annualRate / 12;
+      // For amortized loans with payments
+      if (payment > 0) {
+        // Calculate period rate based on payback frequency
+        const compoundingPeriodsPerYear = this.getCompoundingPeriodsPerYear(loan.compoundFrequency || "monthly");
+        const effectiveAnnualRate = Math.pow(1 + (annualRate / compoundingPeriodsPerYear), compoundingPeriodsPerYear) - 1;
+        const periodRate = Math.pow(1 + effectiveAnnualRate, 1/paybackPeriodsPerYear) - 1;
         
-        if (monthlyRate > 0) {
-          // Calculate remaining months to pay off the loan
-          const remainingMonths = Math.ceil(
-            -Math.log(1 - (currentBalance * monthlyRate) / monthlyPayment) / 
-            Math.log(1 + monthlyRate)
+        if (periodRate > 0) {
+          // Calculate remaining payments to pay off the loan
+          const remainingPayments = Math.ceil(
+            -Math.log(1 - (currentBalance * periodRate) / payment) / 
+            Math.log(1 + periodRate)
           );
           
-          if (remainingMonths > 0 && isFinite(remainingMonths)) {
+          if (remainingPayments > 0 && isFinite(remainingPayments)) {
             // Calculate total interest that will be paid
-            totalInterest = (monthlyPayment * remainingMonths) - currentBalance;
+            totalInterest = (payment * remainingPayments) - currentBalance;
             
-            // Calculate payoff date
+            // Calculate payoff date based on payback frequency
             payoffDate = new Date(now);
-            payoffDate.setMonth(payoffDate.getMonth() + remainingMonths);
+            const daysToAdd = Math.ceil(remainingPayments * (365 / paybackPeriodsPerYear));
+            payoffDate.setDate(payoffDate.getDate() + daysToAdd);
           }
         } else {
           // No interest case
-          const remainingMonths = Math.ceil(currentBalance / monthlyPayment);
+          const remainingPayments = Math.ceil(currentBalance / payment);
           payoffDate = new Date(now);
-          payoffDate.setMonth(payoffDate.getMonth() + remainingMonths);
+          const daysToAdd = Math.ceil(remainingPayments * (365 / paybackPeriodsPerYear));
+          payoffDate.setDate(payoffDate.getDate() + daysToAdd);
         }
       }
       
       return {
         totalInterest: Math.max(0, totalInterest),
         currentBalance,
-        monthlyPayment,
+        monthlyPayment: payment,
         payoffDate
       };
     }
