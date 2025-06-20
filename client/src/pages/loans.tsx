@@ -744,16 +744,31 @@ function LoanCard({
         scheduledInterestPaid: null // Will be fetched from API
       };
     } else {
-      // Compound interest calculations (existing logic)
-      const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
-      const totalLoanInterest = monthlyPayment > 0 ? (monthlyPayment * termMonths) - principal : 0;
+      // Compound interest calculations with payback frequency consideration
+      const payment = parseFloat(loan.monthlyPayment || "0");
+      const paybackFrequency = loan.paybackFrequency ?? "monthly";
+      
+      // Calculate total payments based on payback frequency
+      const paybackPeriodsPerYear = paybackFrequency === "daily" ? 365 : 
+                                  paybackFrequency === "weekly" ? 52 : 
+                                  paybackFrequency === "biweekly" ? 26 : 
+                                  paybackFrequency === "monthly" ? 12 : 
+                                  paybackFrequency === "quarterly" ? 4 : 
+                                  paybackFrequency === "semiannually" ? 2 : 
+                                  paybackFrequency === "annually" ? 1 : 12;
+      
+      const totalPayments = (termMonths / 12) * paybackPeriodsPerYear;
+      const totalLoanInterest = payment > 0 ? (payment * totalPayments) - principal : 0;
+      
+      // Convert months elapsed to payment periods elapsed
+      const paymentsElapsed = convertMonthsToPaymentPeriods(monthsElapsed, paybackFrequency);
       
       const scheduledPrincipalPaid = calculateScheduledPrincipalPaid(
-        principal, interestRate, monthlyPayment, monthsElapsed
+        principal, interestRate, payment, paymentsElapsed
       );
       const principalProgress = principal > 0 ? (scheduledPrincipalPaid / principal) * 100 : 0;
       
-      const scheduledInterestPaid = (monthlyPayment * monthsElapsed) - scheduledPrincipalPaid;
+      const scheduledInterestPaid = (payment * paymentsElapsed) - scheduledPrincipalPaid;
       const interestProgress = totalLoanInterest > 0 ? (scheduledInterestPaid / totalLoanInterest) * 100 : 0;
 
       return {
@@ -885,8 +900,8 @@ function LoanCard({
           <div>
             <p className="text-xs text-gray-500">
               {loan.interestType === "simple" 
-                ? `Suggested ${getPaymentLabel(loan.paybackFrequency || "monthly")}`
-                : getPaymentLabel(loan.paybackFrequency || "monthly")
+                ? `Suggested ${getPaymentLabel(loan.paybackFrequency ?? "monthly")}`
+                : getPaymentLabel(loan.paybackFrequency ?? "monthly")
               }
             </p>
             <p className="font-semibold">
@@ -960,8 +975,8 @@ function LoanCard({
             {/* Time Progress Indicator */}
             <div className="bg-gray-50 p-2 rounded-lg">
               <div className="flex justify-between text-xs text-gray-600">
-                <span>{getTimeElapsedLabel(loan.paybackFrequency || "monthly").charAt(0).toUpperCase() + getTimeElapsedLabel(loan.paybackFrequency || "monthly").slice(1)}: {convertMonthsToPaymentPeriods(monthsElapsed, loan.paybackFrequency)}</span>
-                <span>{getTotalTermLabel(loan.paybackFrequency || "monthly").charAt(0).toUpperCase() + getTotalTermLabel(loan.paybackFrequency || "monthly").slice(1)}: {convertMonthsToPaymentPeriods(loan.termMonths, loan.paybackFrequency)}</span>
+                <span>{getTimeElapsedLabel(loan.paybackFrequency ?? "monthly").charAt(0).toUpperCase() + getTimeElapsedLabel(loan.paybackFrequency ?? "monthly").slice(1)}: {convertMonthsToPaymentPeriods(monthsElapsed, loan.paybackFrequency ?? "monthly")}</span>
+                <span>{getTotalTermLabel(loan.paybackFrequency ?? "monthly").charAt(0).toUpperCase() + getTotalTermLabel(loan.paybackFrequency ?? "monthly").slice(1)}: {convertMonthsToPaymentPeriods(loan.termMonths, loan.paybackFrequency ?? "monthly")}</span>
               </div>
             </div>
           </div>

@@ -578,10 +578,13 @@ export class DatabaseStorage implements IStorage {
       const now = new Date();
       const paybackPeriodsPerYear = this.getPaybackPeriodsPerYear(paybackFrequency);
       
-      let totalInterest = 0;
+      // Calculate total interest over the life of the loan using original loan terms
+      const totalPayments = (termMonths / 12) * paybackPeriodsPerYear;
+      const totalInterest = payment > 0 ? (payment * totalPayments) - principal : 0;
+      
       let payoffDate: Date | null = null;
       
-      // For amortized loans with payments
+      // For amortized loans with payments, calculate payoff date
       if (payment > 0) {
         // Calculate period rate based on payback frequency
         const compoundingPeriodsPerYear = this.getCompoundingPeriodsPerYear(loan.compoundFrequency || "monthly");
@@ -596,9 +599,6 @@ export class DatabaseStorage implements IStorage {
           );
           
           if (remainingPayments > 0 && isFinite(remainingPayments)) {
-            // Calculate total interest that will be paid
-            totalInterest = (payment * remainingPayments) - currentBalance;
-            
             // Calculate payoff date based on payback frequency
             payoffDate = new Date(now);
             const daysToAdd = Math.ceil(remainingPayments * (365 / paybackPeriodsPerYear));
