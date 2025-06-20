@@ -74,6 +74,46 @@ const compoundFrequencyOptions = [
   { value: "annually", label: "Annually" }
 ];
 
+// Helper functions for payback frequency display
+const getPaymentLabel = (frequency: string = "monthly") => {
+  switch (frequency) {
+    case "daily": return "Daily Payment";
+    case "weekly": return "Weekly Payment";
+    case "biweekly": return "Bi-Weekly Payment";
+    case "monthly": return "Monthly Payment";
+    case "quarterly": return "Quarterly Payment";
+    case "semiannually": return "Semi-Annual Payment";
+    case "annually": return "Annual Payment";
+    default: return "Monthly Payment";
+  }
+};
+
+const getTimeElapsedLabel = (frequency: string = "monthly") => {
+  switch (frequency) {
+    case "daily": return "days elapsed";
+    case "weekly": return "weeks elapsed";
+    case "biweekly": return "bi-weeks elapsed";
+    case "monthly": return "months elapsed";
+    case "quarterly": return "quarters elapsed";
+    case "semiannually": return "semi-years elapsed";
+    case "annually": return "years elapsed";
+    default: return "months elapsed";
+  }
+};
+
+const getTotalTermLabel = (frequency: string = "monthly") => {
+  switch (frequency) {
+    case "daily": return "total days";
+    case "weekly": return "total weeks";
+    case "biweekly": return "total bi-weeks";
+    case "monthly": return "total months";
+    case "quarterly": return "total quarters";
+    case "semiannually": return "total semi-years";
+    case "annually": return "total years";
+    default: return "total months";
+  }
+};
+
 export default function Loans() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
@@ -94,6 +134,7 @@ export default function Loans() {
       termYears: "0",
       termMonths: "0",
       compoundFrequency: "monthly",
+      paybackFrequency: "monthly",
       startDate: "",
       endDate: "",
       loanType: "",
@@ -170,6 +211,7 @@ export default function Loans() {
       interestType: data.interestType as "simple" | "compound",
       termMonths: (parseInt(data.termYears) || 0) * 12 + (parseInt(data.termMonths) || 0),
       compoundFrequency: data.compoundFrequency,
+      paybackFrequency: data.paybackFrequency,
       startDate: new Date(data.startDate),
       endDate: data.endDate ? new Date(data.endDate) : null,
       loanType: data.loanType as "personal" | "mortgage" | "auto" | "student" | "business" | "credit_card" | "other",
@@ -199,7 +241,7 @@ export default function Loans() {
       termYears: termYears.toString(),
       termMonths: termMonths.toString(),
       compoundFrequency: loan.compoundFrequency || "monthly",
-
+      paybackFrequency: loan.paybackFrequency || "monthly",
       startDate: formatDateForInput(new Date(loan.startDate)),
       endDate: loan.endDate ? formatDateForInput(new Date(loan.endDate)) : "",
       loanType: loan.loanType,
@@ -827,7 +869,10 @@ function LoanCard({
           </div>
           <div>
             <p className="text-xs text-gray-500">
-              {loan.interestType === "simple" ? "Suggested Monthly Payment" : "Monthly Payment"}
+              {loan.interestType === "simple" 
+                ? `Suggested ${getPaymentLabel(loan.paybackFrequency || "monthly")}`
+                : getPaymentLabel(loan.paybackFrequency || "monthly")
+              }
             </p>
             <p className="font-semibold">
               {loan.interestType === "simple" 
@@ -900,8 +945,8 @@ function LoanCard({
             {/* Time Progress Indicator */}
             <div className="bg-gray-50 p-2 rounded-lg">
               <div className="flex justify-between text-xs text-gray-600">
-                <span>Months Elapsed: {monthsElapsed}</span>
-                <span>Total Term: {loan.termMonths} months</span>
+                <span>{getTimeElapsedLabel(loan.paybackFrequency || "monthly").charAt(0).toUpperCase() + getTimeElapsedLabel(loan.paybackFrequency || "monthly").slice(1)}: {monthsElapsed}</span>
+                <span>{getTotalTermLabel(loan.paybackFrequency || "monthly").charAt(0).toUpperCase() + getTotalTermLabel(loan.paybackFrequency || "monthly").slice(1)}: {loan.termMonths}</span>
               </div>
             </div>
           </div>
