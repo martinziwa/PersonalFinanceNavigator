@@ -114,6 +114,21 @@ const getTotalTermLabel = (frequency: string = "monthly") => {
   }
 };
 
+// Helper function to convert months to payment periods
+const convertMonthsToPaymentPeriods = (months: number, frequency: string = "monthly") => {
+  const years = months / 12;
+  switch (frequency) {
+    case "daily": return Math.floor(years * 365);
+    case "weekly": return Math.floor(years * 52);
+    case "biweekly": return Math.floor(years * 26);
+    case "monthly": return months;
+    case "quarterly": return Math.floor(years * 4);
+    case "semiannually": return Math.floor(years * 2);
+    case "annually": return Math.floor(years);
+    default: return months;
+  }
+};
+
 export default function Loans() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
@@ -945,8 +960,8 @@ function LoanCard({
             {/* Time Progress Indicator */}
             <div className="bg-gray-50 p-2 rounded-lg">
               <div className="flex justify-between text-xs text-gray-600">
-                <span>{getTimeElapsedLabel(loan.paybackFrequency || "monthly").charAt(0).toUpperCase() + getTimeElapsedLabel(loan.paybackFrequency || "monthly").slice(1)}: {monthsElapsed}</span>
-                <span>{getTotalTermLabel(loan.paybackFrequency || "monthly").charAt(0).toUpperCase() + getTotalTermLabel(loan.paybackFrequency || "monthly").slice(1)}: {loan.termMonths}</span>
+                <span>{getTimeElapsedLabel(loan.paybackFrequency || "monthly").charAt(0).toUpperCase() + getTimeElapsedLabel(loan.paybackFrequency || "monthly").slice(1)}: {convertMonthsToPaymentPeriods(monthsElapsed, loan.paybackFrequency)}</span>
+                <span>{getTotalTermLabel(loan.paybackFrequency || "monthly").charAt(0).toUpperCase() + getTotalTermLabel(loan.paybackFrequency || "monthly").slice(1)}: {convertMonthsToPaymentPeriods(loan.termMonths, loan.paybackFrequency)}</span>
               </div>
             </div>
           </div>
