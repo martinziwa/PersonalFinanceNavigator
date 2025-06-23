@@ -27,7 +27,6 @@ const loanFormSchema = z.object({
   termYears: z.string().default("0"),
   termMonths: z.string().default("0"),
   compoundFrequency: z.string().optional(),
-  paybackFrequency: z.string().optional(),
   startDate: z.string(),
   endDate: z.string().optional(),
   loanType: z.string(),
@@ -74,61 +73,6 @@ const compoundFrequencyOptions = [
   { value: "annually", label: "Annually" }
 ];
 
-// Helper functions for payback frequency display
-const getPaymentLabel = (frequency: string = "monthly") => {
-  switch (frequency) {
-    case "daily": return "Daily Payment";
-    case "weekly": return "Weekly Payment";
-    case "biweekly": return "Bi-Weekly Payment";
-    case "monthly": return "Monthly Payment";
-    case "quarterly": return "Quarterly Payment";
-    case "semiannually": return "Semi-Annual Payment";
-    case "annually": return "Annual Payment";
-    default: return "Monthly Payment";
-  }
-};
-
-const getTimeElapsedLabel = (frequency: string = "monthly") => {
-  switch (frequency) {
-    case "daily": return "days elapsed";
-    case "weekly": return "weeks elapsed";
-    case "biweekly": return "bi-weeks elapsed";
-    case "monthly": return "months elapsed";
-    case "quarterly": return "quarters elapsed";
-    case "semiannually": return "semi-years elapsed";
-    case "annually": return "years elapsed";
-    default: return "months elapsed";
-  }
-};
-
-const getTotalTermLabel = (frequency: string = "monthly") => {
-  switch (frequency) {
-    case "daily": return "total days";
-    case "weekly": return "total weeks";
-    case "biweekly": return "total bi-weeks";
-    case "monthly": return "total months";
-    case "quarterly": return "total quarters";
-    case "semiannually": return "total semi-years";
-    case "annually": return "total years";
-    default: return "total months";
-  }
-};
-
-// Helper function to convert months to payment periods
-const convertMonthsToPaymentPeriods = (months: number, frequency: string = "monthly") => {
-  const years = months / 12;
-  switch (frequency) {
-    case "daily": return Math.floor(years * 365);
-    case "weekly": return Math.floor(years * 52);
-    case "biweekly": return Math.floor(years * 26);
-    case "monthly": return months;
-    case "quarterly": return Math.floor(years * 4);
-    case "semiannually": return Math.floor(years * 2);
-    case "annually": return Math.floor(years);
-    default: return months;
-  }
-};
-
 export default function Loans() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
@@ -149,7 +93,6 @@ export default function Loans() {
       termYears: "0",
       termMonths: "0",
       compoundFrequency: "monthly",
-      paybackFrequency: "monthly",
       startDate: "",
       endDate: "",
       loanType: "",
@@ -226,7 +169,6 @@ export default function Loans() {
       interestType: data.interestType as "simple" | "compound",
       termMonths: (parseInt(data.termYears) || 0) * 12 + (parseInt(data.termMonths) || 0),
       compoundFrequency: data.compoundFrequency,
-      paybackFrequency: data.paybackFrequency,
       startDate: new Date(data.startDate),
       endDate: data.endDate ? new Date(data.endDate) : null,
       loanType: data.loanType as "personal" | "mortgage" | "auto" | "student" | "business" | "credit_card" | "other",
@@ -256,7 +198,7 @@ export default function Loans() {
       termYears: termYears.toString(),
       termMonths: termMonths.toString(),
       compoundFrequency: loan.compoundFrequency || "monthly",
-      paybackFrequency: loan.paybackFrequency || "monthly",
+
       startDate: formatDateForInput(new Date(loan.startDate)),
       endDate: loan.endDate ? formatDateForInput(new Date(loan.endDate)) : "",
       loanType: loan.loanType,
@@ -423,10 +365,8 @@ export default function Loans() {
                         field.onChange(value);
                         if (value === "simple") {
                           form.setValue("compoundFrequency", undefined);
-                          form.setValue("paybackFrequency", undefined);
                         } else {
                           form.setValue("compoundFrequency", "monthly");
-                          form.setValue("paybackFrequency", "monthly");
                         }
                       }} defaultValue={field.value}>
                         <FormControl>
@@ -471,37 +411,6 @@ export default function Loans() {
                   />
                 )}
               </div>
-
-              {form.watch("interestType") === "compound" && (
-                <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="paybackFrequency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Payment Frequency</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value || "monthly"}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select payment frequency" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="daily">Daily</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="biweekly">Bi-Weekly</SelectItem>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                            <SelectItem value="quarterly">Quarterly</SelectItem>
-                            <SelectItem value="semiannually">Semi-Annually</SelectItem>
-                            <SelectItem value="annually">Annually</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
 
 
 
@@ -699,13 +608,11 @@ function LoanCard({
   onDelete: (id: number) => void; 
 }) {
   // Fetch real progress data for all loan types (needed for dynamic balance calculation)
-  // Include all relevant loan parameters in query key to ensure cache busting on changes
+  // Include dates and loan parameters in query key to trigger refetch when loan properties change
   const { data: progressData, refetch: refetchProgress } = useQuery({
-    queryKey: [`/api/loans/${loan.id}/progress`, loan.startDate, loan.endDate, loan.principal, loan.interestRate, loan.termMonths, loan.interestType, loan.paybackFrequency, loan.compoundFrequency, Date.now()],
+    queryKey: [`/api/loans/${loan.id}/progress`, loan.startDate, loan.endDate, loan.principal, loan.interestRate, loan.termMonths],
     enabled: true, // Enable for both simple and compound loans
     refetchOnWindowFocus: true,
-    staleTime: 0, // Force fresh data
-    cacheTime: 0, // Don't cache results
   });
 
   // Debug: log progress data for simple interest loans
@@ -746,31 +653,16 @@ function LoanCard({
         scheduledInterestPaid: null // Will be fetched from API
       };
     } else {
-      // Compound interest calculations with payback frequency consideration
-      const payment = parseFloat(loan.monthlyPayment || "0");
-      const paybackFrequency = loan.paybackFrequency ?? "monthly";
-      
-      // Calculate total payments based on payback frequency
-      const paybackPeriodsPerYear = paybackFrequency === "daily" ? 365 : 
-                                  paybackFrequency === "weekly" ? 52 : 
-                                  paybackFrequency === "biweekly" ? 26 : 
-                                  paybackFrequency === "monthly" ? 12 : 
-                                  paybackFrequency === "quarterly" ? 4 : 
-                                  paybackFrequency === "semiannually" ? 2 : 
-                                  paybackFrequency === "annually" ? 1 : 12;
-      
-      const totalPayments = (termMonths / 12) * paybackPeriodsPerYear;
-      const totalLoanInterest = payment > 0 ? (payment * totalPayments) - principal : 0;
-      
-      // Convert months elapsed to payment periods elapsed
-      const paymentsElapsed = convertMonthsToPaymentPeriods(monthsElapsed, paybackFrequency);
+      // Compound interest calculations (existing logic)
+      const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
+      const totalLoanInterest = monthlyPayment > 0 ? (monthlyPayment * termMonths) - principal : 0;
       
       const scheduledPrincipalPaid = calculateScheduledPrincipalPaid(
-        principal, interestRate, payment, paymentsElapsed
+        principal, interestRate, monthlyPayment, monthsElapsed
       );
       const principalProgress = principal > 0 ? (scheduledPrincipalPaid / principal) * 100 : 0;
       
-      const scheduledInterestPaid = (payment * paymentsElapsed) - scheduledPrincipalPaid;
+      const scheduledInterestPaid = (monthlyPayment * monthsElapsed) - scheduledPrincipalPaid;
       const interestProgress = totalLoanInterest > 0 ? (scheduledInterestPaid / totalLoanInterest) * 100 : 0;
 
       return {
@@ -838,16 +730,16 @@ function LoanCard({
     scheduledInterestPaid: defaultScheduledInterestPaid 
   } = calculateInterestDisplay(loan);
 
-  // Use API progress data for all loan types when available
-  const principalProgress = progressData && (progressData as any).principalProgress !== undefined
+  // Use real progress data for simple interest loans, fallback to calculated for compound
+  const principalProgress = loan.interestType === "simple" && progressData 
     ? (progressData as any).principalProgress 
     : defaultPrincipalProgress;
   
-  const interestProgress = progressData && (progressData as any).interestProgress !== undefined
+  const interestProgress = loan.interestType === "simple" && progressData 
     ? (progressData as any).interestProgress 
     : defaultInterestProgress;
   
-  const scheduledInterestPaid = progressData && (progressData as any).interestPaid !== undefined
+  const scheduledInterestPaid = loan.interestType === "simple" && progressData 
     ? (progressData as any).interestPaid 
     : defaultScheduledInterestPaid;
 
@@ -901,10 +793,7 @@ function LoanCard({
           </div>
           <div>
             <p className="text-xs text-gray-500">
-              {loan.interestType === "simple" 
-                ? `Suggested ${getPaymentLabel(loan.paybackFrequency ?? "monthly")}`
-                : getPaymentLabel(loan.paybackFrequency ?? "monthly")
-              }
+              {loan.interestType === "simple" ? "Suggested Monthly Payment" : "Monthly Payment"}
             </p>
             <p className="font-semibold">
               {loan.interestType === "simple" 
@@ -977,8 +866,8 @@ function LoanCard({
             {/* Time Progress Indicator */}
             <div className="bg-gray-50 p-2 rounded-lg">
               <div className="flex justify-between text-xs text-gray-600">
-                <span>{getTimeElapsedLabel(loan.paybackFrequency ?? "monthly").charAt(0).toUpperCase() + getTimeElapsedLabel(loan.paybackFrequency ?? "monthly").slice(1)}: {convertMonthsToPaymentPeriods(monthsElapsed, loan.paybackFrequency ?? "monthly")}</span>
-                <span>{getTotalTermLabel(loan.paybackFrequency ?? "monthly").charAt(0).toUpperCase() + getTotalTermLabel(loan.paybackFrequency ?? "monthly").slice(1)}: {convertMonthsToPaymentPeriods(loan.termMonths, loan.paybackFrequency ?? "monthly")}</span>
+                <span>Months Elapsed: {monthsElapsed}</span>
+                <span>Total Term: {loan.termMonths} months</span>
               </div>
             </div>
           </div>

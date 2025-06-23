@@ -52,7 +52,6 @@ export const loans = pgTable("loans", {
   interestType: text("interest_type").default("compound").notNull(), // "simple", "compound"
   termMonths: integer("term_months").notNull(), // loan term in months for amortization calculation
   compoundFrequency: text("compound_frequency"), // "daily", "weekly", "biweekly", "monthly", "quarterly", "semiannually", "annually" - only for compound loans
-  paybackFrequency: text("payback_frequency").default("monthly"), // "daily", "weekly", "biweekly", "monthly", "quarterly", "semiannually", "annually" - payment schedule for compound loans
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"),
   monthlyPayment: decimal("monthly_payment", { precision: 12, scale: 2 }), // calculated automatically for compound loans only
