@@ -704,9 +704,24 @@ export class DatabaseStorage implements IStorage {
       let cumulativePrincipalPaid = 0;
       let remainingBalance = principal;
       
+      console.log(`Loan ${loan.id} amortization calc:`, {
+        principal,
+        payment,
+        periodRate,
+        effectivePaymentsElapsed,
+        paybackFrequency
+      });
+      
       for (let period = 1; period <= effectivePaymentsElapsed; period++) {
         const interestPayment = remainingBalance * periodRate;
         const principalPayment = payment - interestPayment;
+        
+        console.log(`Period ${period}:`, {
+          remainingBalance,
+          interestPayment,
+          principalPayment,
+          payment
+        });
         
         cumulativeInterestPaid += interestPayment;
         cumulativePrincipalPaid += principalPayment;
@@ -714,6 +729,12 @@ export class DatabaseStorage implements IStorage {
         
         if (remainingBalance <= 0) break;
       }
+      
+      console.log(`Final calculations:`, {
+        cumulativeInterestPaid,
+        cumulativePrincipalPaid,
+        totalPaid
+      });
       
       principalPaid = cumulativePrincipalPaid;
       interestPaid = cumulativeInterestPaid;
