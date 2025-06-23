@@ -693,12 +693,30 @@ export class DatabaseStorage implements IStorage {
       // Interest progress based on payment periods elapsed
       interestProgress = totalPayments > 0 ? (effectivePaymentsElapsed / totalPayments) * 100 : 0;
       
-      // Calculate principal and interest paid based on progress and payment schedule
-      principalPaid = (principalProgress / 100) * principal;
+      // Calculate accurate principal and interest paid using amortization schedule
+      const annualRate = parseFloat(loan.interestRate) / 100;
+      const compoundingPeriodsPerYear = this.getCompoundingPeriodsPerYear(loan.compoundFrequency || "monthly");
+      const effectiveAnnualRate = Math.pow(1 + (annualRate / compoundingPeriodsPerYear), compoundingPeriodsPerYear) - 1;
+      const periodRate = Math.pow(1 + effectiveAnnualRate, 1/paybackPeriodsPerYear) - 1;
       
-      // Total payments made based on schedule
-      const totalScheduledPayments = payment * effectivePaymentsElapsed;
-      interestPaid = Math.max(0, totalScheduledPayments - principalPaid);
+      // Calculate cumulative interest and principal paid through amortization
+      let cumulativeInterestPaid = 0;
+      let cumulativePrincipalPaid = 0;
+      let remainingBalance = principal;
+      
+      for (let period = 1; period <= effectivePaymentsElapsed; period++) {
+        const interestPayment = remainingBalance * periodRate;
+        const principalPayment = payment - interestPayment;
+        
+        cumulativeInterestPaid += interestPayment;
+        cumulativePrincipalPaid += principalPayment;
+        remainingBalance -= principalPayment;
+        
+        if (remainingBalance <= 0) break;
+      }
+      
+      principalPaid = cumulativePrincipalPaid;
+      interestPaid = cumulativeInterestPaid;
     }
 
     // Calculate dynamic current balance
