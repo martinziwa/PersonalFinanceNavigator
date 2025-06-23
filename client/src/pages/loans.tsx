@@ -838,16 +838,16 @@ function LoanCard({
     scheduledInterestPaid: defaultScheduledInterestPaid 
   } = calculateInterestDisplay(loan);
 
-  // Use real progress data for simple interest loans, fallback to calculated for compound
-  const principalProgress = loan.interestType === "simple" && progressData 
+  // Use API progress data for all loan types when available
+  const principalProgress = progressData && (progressData as any).principalProgress !== undefined
     ? (progressData as any).principalProgress 
     : defaultPrincipalProgress;
   
-  const interestProgress = loan.interestType === "simple" && progressData 
+  const interestProgress = progressData && (progressData as any).interestProgress !== undefined
     ? (progressData as any).interestProgress 
     : defaultInterestProgress;
   
-  const scheduledInterestPaid = loan.interestType === "simple" && progressData 
+  const scheduledInterestPaid = progressData && (progressData as any).interestPaid !== undefined
     ? (progressData as any).interestPaid 
     : defaultScheduledInterestPaid;
 
