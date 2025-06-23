@@ -698,6 +698,12 @@ export class DatabaseStorage implements IStorage {
     let principalPaid = 0;
     let interestPaid = 0;
 
+    console.log(`Loan ${loan.id} calculation path:`, {
+      interestType: loan.interestType,
+      paybackFrequency: loan.paybackFrequency,
+      totalPaidFromTransactions: totalPaid
+    });
+
     if (loan.interestType === "simple") {
       const annualRate = parseFloat(loan.interestRate) / 100;
       const termYears = (loan.termMonths || 12) / 12;
