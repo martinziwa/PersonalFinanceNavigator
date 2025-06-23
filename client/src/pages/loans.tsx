@@ -699,11 +699,13 @@ function LoanCard({
   onDelete: (id: number) => void; 
 }) {
   // Fetch real progress data for all loan types (needed for dynamic balance calculation)
-  // Include dates and loan parameters in query key to trigger refetch when loan properties change
+  // Include all relevant loan parameters in query key to ensure cache busting on changes
   const { data: progressData, refetch: refetchProgress } = useQuery({
-    queryKey: [`/api/loans/${loan.id}/progress`, loan.startDate, loan.endDate, loan.principal, loan.interestRate, loan.termMonths],
+    queryKey: [`/api/loans/${loan.id}/progress`, loan.startDate, loan.endDate, loan.principal, loan.interestRate, loan.termMonths, loan.interestType, loan.paybackFrequency, loan.compoundFrequency, Date.now()],
     enabled: true, // Enable for both simple and compound loans
     refetchOnWindowFocus: true,
+    staleTime: 0, // Force fresh data
+    cacheTime: 0, // Don't cache results
   });
 
   // Debug: log progress data for simple interest loans
