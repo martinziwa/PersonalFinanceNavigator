@@ -738,6 +738,9 @@ export class DatabaseStorage implements IStorage {
       
       principalPaid = cumulativePrincipalPaid;
       interestPaid = cumulativeInterestPaid;
+      
+      // For compound loans with time-based calculation, use calculated totals
+      totalPaid = Math.max(totalPaid, cumulativeInterestPaid + cumulativePrincipalPaid);
     }
 
     // Calculate dynamic current balance
