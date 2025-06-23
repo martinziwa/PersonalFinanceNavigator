@@ -155,37 +155,46 @@ export class DatabaseStorage implements IStorage {
       
       return Math.min((principalPaid / principal) * 100, 100);
     } else {
-      // For compound interest, calculate based on time elapsed and amortization schedule
+      // For compound interest, calculate based on time elapsed and amortization schedule with payback frequency
       const now = new Date();
       const startDate = new Date(loan.startDate);
       const termMonths = loan.termMonths || 12;
-      const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
+      const payment = parseFloat(loan.monthlyPayment || "0");
       const annualRate = parseFloat(loan.interestRate) / 100;
-      const monthlyRate = annualRate / 12;
+      const paybackFrequency = loan.paybackFrequency || "monthly";
       
-      // Calculate months elapsed since loan start
+      // Calculate time elapsed in months
       const monthsElapsed = Math.max(0, 
         (now.getFullYear() - startDate.getFullYear()) * 12 + 
         (now.getMonth() - startDate.getMonth())
       );
       
-      // Don't exceed the loan term
-      const effectiveMonthsElapsed = Math.min(monthsElapsed, termMonths);
+      // Convert to payment periods elapsed based on payback frequency
+      const paybackPeriodsPerYear = this.getPaybackPeriodsPerYear(paybackFrequency);
+      const paymentsElapsed = Math.floor((monthsElapsed / 12) * paybackPeriodsPerYear);
+      const totalPayments = Math.floor((termMonths / 12) * paybackPeriodsPerYear);
       
-      if (effectiveMonthsElapsed === 0 || monthlyPayment === 0) {
+      // Don't exceed the loan term
+      const effectivePaymentsElapsed = Math.min(paymentsElapsed, totalPayments);
+      
+      if (effectivePaymentsElapsed === 0 || payment === 0) {
         return 0;
       }
       
-      // Use standard amortization formula to calculate remaining balance
-      if (monthlyRate === 0) {
+      // Calculate period rate based on payback frequency
+      const compoundingPeriodsPerYear = this.getCompoundingPeriodsPerYear(loan.compoundFrequency || "monthly");
+      const effectiveAnnualRate = Math.pow(1 + (annualRate / compoundingPeriodsPerYear), compoundingPeriodsPerYear) - 1;
+      const periodRate = Math.pow(1 + effectiveAnnualRate, 1/paybackPeriodsPerYear) - 1;
+      
+      if (periodRate === 0) {
         // No interest case
-        const principalPaid = Math.min(effectiveMonthsElapsed * monthlyPayment, principal);
+        const principalPaid = Math.min(effectivePaymentsElapsed * payment, principal);
         return (principalPaid / principal) * 100;
       }
       
-      // Standard amortization formula for remaining balance
-      const remainingBalance = principal * Math.pow(1 + monthlyRate, effectiveMonthsElapsed) - 
-        monthlyPayment * ((Math.pow(1 + monthlyRate, effectiveMonthsElapsed) - 1) / monthlyRate);
+      // Standard amortization formula for remaining balance with period rate
+      const remainingBalance = principal * Math.pow(1 + periodRate, effectivePaymentsElapsed) - 
+        payment * ((Math.pow(1 + periodRate, effectivePaymentsElapsed) - 1) / periodRate);
       
       const principalPaid = Math.max(0, principal - Math.max(0, remainingBalance));
       return Math.min((principalPaid / principal) * 100, 100);
@@ -660,28 +669,35 @@ export class DatabaseStorage implements IStorage {
       principalProgress = (principalPaid / principal) * 100;
       interestProgress = totalInterest > 0 ? (interestPaid / totalInterest) * 100 : 100;
     } else {
-      // For compound interest, use time-based calculation
+      // For compound interest, use time-based calculation with payback frequency
       principalProgress = await this.calculatePrincipalProgress(userId, loan);
       
-      // For compound loans, calculate interest progress based on time elapsed
       const now = new Date();
       const startDate = new Date(loan.startDate);
       const termMonths = loan.termMonths || 12;
+      const payment = parseFloat(loan.monthlyPayment || "0");
+      const paybackFrequency = loan.paybackFrequency || "monthly";
+      
+      // Calculate time elapsed in months
       const monthsElapsed = Math.max(0, 
         (now.getFullYear() - startDate.getFullYear()) * 12 + 
         (now.getMonth() - startDate.getMonth())
       );
-      const effectiveMonthsElapsed = Math.min(monthsElapsed, termMonths);
       
-      // Interest progress based on time elapsed
-      interestProgress = termMonths > 0 ? (effectiveMonthsElapsed / termMonths) * 100 : 0;
+      // Convert to payment periods based on payback frequency
+      const paybackPeriodsPerYear = this.getPaybackPeriodsPerYear(paybackFrequency);
+      const paymentsElapsed = Math.floor((monthsElapsed / 12) * paybackPeriodsPerYear);
+      const totalPayments = Math.floor((termMonths / 12) * paybackPeriodsPerYear);
+      const effectivePaymentsElapsed = Math.min(paymentsElapsed, totalPayments);
       
-      // Calculate principal and interest paid based on progress
+      // Interest progress based on payment periods elapsed
+      interestProgress = totalPayments > 0 ? (effectivePaymentsElapsed / totalPayments) * 100 : 0;
+      
+      // Calculate principal and interest paid based on progress and payment schedule
       principalPaid = (principalProgress / 100) * principal;
       
-      // For compound loans, interest paid is more complex, use simplified calculation
-      const monthlyPayment = parseFloat(loan.monthlyPayment || "0");
-      const totalScheduledPayments = monthlyPayment * effectiveMonthsElapsed;
+      // Total payments made based on schedule
+      const totalScheduledPayments = payment * effectivePaymentsElapsed;
       interestPaid = Math.max(0, totalScheduledPayments - principalPaid);
     }
 
