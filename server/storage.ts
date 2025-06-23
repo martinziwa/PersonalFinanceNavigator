@@ -204,10 +204,58 @@ export class DatabaseStorage implements IStorage {
   // Calculate dynamic current balance based on principal progress
   private async calculateDynamicBalance(userId: string, loan: Loan): Promise<number> {
     const principal = parseFloat(loan.principal);
-    const principalProgress = await this.calculatePrincipalProgress(userId, loan);
     
-    // Current balance = principal - (principal * progress percentage)
-    return principal - (principal * (principalProgress / 100));
+    if (loan.interestType === "compound") {
+      // For compound interest loans, calculate remaining balance using amortization
+      const now = new Date();
+      const startDate = new Date(loan.startDate);
+      const termMonths = loan.termMonths || 12;
+      const payment = parseFloat(loan.monthlyPayment || "0");
+      const annualRate = parseFloat(loan.interestRate) / 100;
+      const paybackFrequency = loan.paybackFrequency || "monthly";
+      
+      // Calculate time elapsed in months
+      const monthsElapsed = Math.max(0, 
+        (now.getFullYear() - startDate.getFullYear()) * 12 + 
+        (now.getMonth() - startDate.getMonth())
+      );
+      
+      // Convert to payment periods based on payback frequency
+      const paybackPeriodsPerYear = this.getPaybackPeriodsPerYear(paybackFrequency);
+      const paymentsElapsed = Math.floor((monthsElapsed / 12) * paybackPeriodsPerYear);
+      const totalPayments = Math.floor((termMonths / 12) * paybackPeriodsPerYear);
+      const effectivePaymentsElapsed = Math.min(paymentsElapsed, totalPayments);
+      
+      if (effectivePaymentsElapsed === 0 || payment === 0) {
+        return principal;
+      }
+      
+      // Calculate period rate
+      const compoundingPeriodsPerYear = this.getCompoundingPeriodsPerYear(loan.compoundFrequency || "monthly");
+      const effectiveAnnualRate = Math.pow(1 + (annualRate / compoundingPeriodsPerYear), compoundingPeriodsPerYear) - 1;
+      const periodRate = Math.pow(1 + effectiveAnnualRate, 1/paybackPeriodsPerYear) - 1;
+      
+      if (periodRate === 0) {
+        const principalPaid = Math.min(effectivePaymentsElapsed * payment, principal);
+        return Math.max(0, principal - principalPaid);
+      }
+      
+      // Calculate remaining balance using amortization formula
+      let remainingBalance = principal;
+      for (let period = 1; period <= effectivePaymentsElapsed; period++) {
+        const interestPayment = remainingBalance * periodRate;
+        const principalPayment = payment - interestPayment;
+        remainingBalance -= principalPayment;
+        
+        if (remainingBalance <= 0) break;
+      }
+      
+      return Math.max(0, remainingBalance);
+    } else {
+      // For simple interest, use principal progress calculation
+      const principalProgress = await this.calculatePrincipalProgress(userId, loan);
+      return principal - (principal * (principalProgress / 100));
+    }
   }
 
   // User operations (IMPORTANT) these user operations are mandatory for Replit Auth.
@@ -642,7 +690,7 @@ export class DatabaseStorage implements IStorage {
   }> {
     // Get all loan repayment transactions
     const repayments = await this.getLoanRepayments(userId, loan.id);
-    const totalPaid = repayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
+    let totalPaid = repayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
 
     const principal = parseFloat(loan.principal);
     let principalProgress = 0;
@@ -704,24 +752,9 @@ export class DatabaseStorage implements IStorage {
       let cumulativePrincipalPaid = 0;
       let remainingBalance = principal;
       
-      console.log(`Loan ${loan.id} amortization calc:`, {
-        principal,
-        payment,
-        periodRate,
-        effectivePaymentsElapsed,
-        paybackFrequency
-      });
-      
       for (let period = 1; period <= effectivePaymentsElapsed; period++) {
         const interestPayment = remainingBalance * periodRate;
         const principalPayment = payment - interestPayment;
-        
-        console.log(`Period ${period}:`, {
-          remainingBalance,
-          interestPayment,
-          principalPayment,
-          payment
-        });
         
         cumulativeInterestPaid += interestPayment;
         cumulativePrincipalPaid += principalPayment;
@@ -730,16 +763,10 @@ export class DatabaseStorage implements IStorage {
         if (remainingBalance <= 0) break;
       }
       
-      console.log(`Final calculations:`, {
-        cumulativeInterestPaid,
-        cumulativePrincipalPaid,
-        totalPaid
-      });
-      
       principalPaid = cumulativePrincipalPaid;
       interestPaid = cumulativeInterestPaid;
       
-      // For compound loans with time-based calculation, use calculated totals
+      // For compound loans with time-based calculation, use calculated totals if higher
       totalPaid = Math.max(totalPaid, cumulativeInterestPaid + cumulativePrincipalPaid);
     }
 
